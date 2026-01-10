@@ -371,14 +371,4 @@ public partial class MainWindow : Window
             // In Insert mode, allow unhandled keys to reach DataGrid for text input
         }
     }
-
-    private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-    {
-        // Prevent default handling of some keys
-        if (e.Key == Key.Escape || e.Key == Key.I || e.Key == Key.V ||
-            e.Key == Key.H || e.Key == Key.J || e.Key == Key.K || e.Key == Key.L)
-        {
-            e.Handled = true;
-        }
-    }
 }

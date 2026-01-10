@@ -7,7 +7,6 @@
         xmlns:converters="clr-namespace:VGrid.Converters"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" Height="700" Width="1200"
-        KeyDown="Window_KeyDown"
         PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.Resources>

@@ -152,41 +152,61 @@ public partial class MainWindow : Window
     private void TsvGrid_Loaded(object sender, RoutedEventArgs e)
     {
         var grid = sender as DataGrid;
-        if (grid != null)
+        if (grid == null)
+            return;
+
+        // Find the tab this grid belongs to
+        var tabItem = grid.DataContext as TabItemViewModel;
+        if (tabItem == null)
+            return;
+
+        try
         {
-            // Find the tab this grid belongs to
-            var tabItem = grid.DataContext as TabItemViewModel;
-            if (tabItem != null)
+            GenerateColumns(grid, tabItem);
+
+            // Subscribe to VimState cursor position changes
+            tabItem.VimState.PropertyChanged += (s, evt) =>
             {
-                GenerateColumns(grid, tabItem);
-
-                // Subscribe to VimState cursor position changes
-                tabItem.VimState.PropertyChanged += (s, evt) =>
+                if (evt.PropertyName == nameof(tabItem.VimState.CursorPosition) &&
+                    tabItem == _viewModel?.SelectedTab)
                 {
-                    if (evt.PropertyName == nameof(tabItem.VimState.CursorPosition) &&
-                        tabItem == _viewModel?.SelectedTab)
-                    {
-                        UpdateDataGridSelection(grid, tabItem);
-                    }
-                };
+                    UpdateDataGridSelection(grid, tabItem);
+                }
+            };
 
-                // Set row headers
-                grid.LoadingRow += (s, evt) =>
-                {
-                    evt.Row.Header = (evt.Row.GetIndex() + 1).ToString();
-                };
+            // Set row headers
+            grid.LoadingRow += (s, evt) =>
+            {
+                evt.Row.Header = (evt.Row.GetIndex() + 1).ToString();
+            };
 
-                // Initial selection update
+            // Wait for grid to finish loading before initial selection
+            grid.Dispatcher.BeginInvoke(new Action(() =>
+            {
                 UpdateDataGridSelection(grid, tabItem);
-            }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Error loading grid: {ex.Message}", "Error",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
 
     private void GenerateColumns(DataGrid grid, TabItemViewModel tab)
     {
+        if (grid == null || tab == null)
+            return;
+
         grid.Columns.Clear();
 
         var columnCount = tab.GridViewModel.ColumnCount;
+        if (columnCount == 0)
+        {
+            // Add at least one column for empty documents
+            columnCount = 1;
+        }
+
         for (int i = 0; i < columnCount; i++)
         {
             var columnIndex = i; // Capture for closure
@@ -223,23 +243,34 @@ public partial class MainWindow : Window
 
     private void UpdateDataGridSelection(DataGrid grid, TabItemViewModel tab)
     {
+        if (grid == null || tab == null)
+            return;
+
         var pos = tab.VimState.CursorPosition;
         var doc = tab.GridViewModel.Document;
 
+        // Ensure grid is fully initialized
+        if (grid.Columns.Count == 0 || grid.Items.Count == 0)
+            return;
+
         // Ensure position is valid
-        if (pos.Row >= 0 && pos.Row < doc.RowCount &&
+        if (pos.Row >= 0 && pos.Row < doc.RowCount && pos.Row < grid.Items.Count &&
             pos.Column >= 0 && pos.Column < grid.Columns.Count)
         {
-            // Update DataGrid selection
-            grid.SelectedIndex = pos.Row;
-            if (grid.Items.Count > pos.Row)
+            try
             {
+                // Update DataGrid selection
+                grid.SelectedIndex = pos.Row;
                 grid.CurrentCell = new DataGridCellInfo(
                     grid.Items[pos.Row],
                     grid.Columns[pos.Column]);
 
                 // Scroll into view
                 grid.ScrollIntoView(grid.Items[pos.Row]);
+            }
+            catch
+            {
+                // Ignore errors during grid initialization
             }
         }
     }

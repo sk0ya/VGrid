@@ -62,10 +62,20 @@ public class NormalMode : IVimMode
             // Paste operation
             Key.P => PasteAfterCursor(state, document),
 
+            // Yank operations
+            Key.Y when state.PendingKeys.Keys.LastOrDefault() == Key.Y => YankLine(state, document),
+            Key.Y when state.PendingKeys.Keys.Count == 0 => HandlePendingY(state),
+
+            // Delete operations
+            Key.D when state.PendingKeys.Keys.LastOrDefault() == Key.D => DeleteLine(state, document),
+            Key.D when state.PendingKeys.Keys.Count == 0 => HandlePendingD(state),
+
+            // Undo operation
+            Key.U => Undo(state),
+
             // Placeholder keys for future implementation
             Key.B =>true,
             Key.C =>true,
-            Key.D =>true,
             Key.E =>true,
             Key.F =>true,
             Key.G =>true,
@@ -75,17 +85,16 @@ public class NormalMode : IVimMode
             Key.R =>true,
             Key.S =>true,
             Key.T =>true,
-            Key.U =>true,
             Key.W =>true,
             Key.X =>true,
-            Key.Y =>true,
             Key.Z =>true,
 
             _ => false
         };
 
         // Clear count prefix after command execution
-        if (handled && key != Key.G)
+        // Don't clear for multi-key commands (G, Y, D) on first press
+        if (handled && key != Key.G && key != Key.Y && key != Key.D)
         {
             state.CountPrefix = null;
             state.PendingKeys.Clear();
@@ -232,7 +241,29 @@ public class NormalMode : IVimMode
         var yank = state.LastYank;
         var startPos = state.CursorPosition;
 
-        // Ensure document has enough rows and columns
+        // Handle line-wise paste (insert new rows below cursor)
+        if (yank.SourceType == VisualType.Line)
+        {
+            // Insert new rows below the current row
+            for (int r = 0; r < yank.Rows; r++)
+            {
+                int insertRow = startPos.Row + 1 + r;
+                document.InsertRow(insertRow);
+
+                // Fill the new row with yanked values
+                var row = document.Rows[insertRow];
+                for (int c = 0; c < yank.Columns && c < row.Cells.Count; c++)
+                {
+                    row.Cells[c].Value = yank.Values[r, c];
+                }
+            }
+
+            // Move cursor to the first inserted row
+            state.CursorPosition = new GridPosition(startPos.Row + 1, startPos.Column);
+            return true;
+        }
+
+        // Handle character-wise and block-wise paste (overwrite values)
         int neededRows = startPos.Row + yank.Rows;
         int neededCols = startPos.Column + yank.Columns;
 
@@ -261,5 +292,107 @@ public class NormalMode : IVimMode
     {
         state.ResetState();
         return true;
+    }
+
+    private bool HandlePendingY(VimState state)
+    {
+        // Add 'y' to pending keys, wait for second 'y'
+        state.PendingKeys.Add(Key.Y);
+        return true;
+    }
+
+    private bool YankLine(VimState state, TsvDocument document)
+    {
+        // Yank entire current row
+        if (state.CursorPosition.Row >= document.RowCount)
+            return false;
+
+        var row = document.Rows[state.CursorPosition.Row];
+        var columnCount = row.Cells.Count;
+        string[,] values = new string[1, columnCount];
+
+        for (int c = 0; c < columnCount; c++)
+        {
+            values[0, c] = row.Cells[c].Value;
+        }
+
+        // Store yanked content
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Line,
+            Rows = 1,
+            Columns = columnCount
+        };
+
+        // Clear pending keys
+        state.PendingKeys.Clear();
+        return true;
+    }
+
+    private bool HandlePendingD(VimState state)
+    {
+        // Add 'd' to pending keys, wait for second 'd'
+        state.PendingKeys.Add(Key.D);
+        return true;
+    }
+
+    private bool DeleteLine(VimState state, TsvDocument document)
+    {
+        // Delete entire row (not just clear cells)
+        if (state.CursorPosition.Row >= document.RowCount)
+            return false;
+
+        var row = document.Rows[state.CursorPosition.Row];
+        var columnCount = row.Cells.Count;
+
+        // First, yank the line (like Vim: delete = yank + delete)
+        string[,] values = new string[1, columnCount];
+        for (int c = 0; c < columnCount; c++)
+        {
+            values[0, c] = row.Cells[c].Value;
+        }
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Line,
+            Rows = 1,
+            Columns = columnCount
+        };
+
+        // Then delete the row completely
+        var command = new Commands.DeleteRowCommand(document, state.CursorPosition.Row);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        // Keep cursor at same row (which now shows the next row)
+        // Clamp to valid range
+        if (state.CursorPosition.Row >= document.RowCount && document.RowCount > 0)
+        {
+            state.CursorPosition = new GridPosition(document.RowCount - 1, state.CursorPosition.Column);
+        }
+
+        // Clear pending keys
+        state.PendingKeys.Clear();
+        return true;
+    }
+
+    private bool Undo(VimState state)
+    {
+        if (state.CommandHistory != null && state.CommandHistory.CanUndo)
+        {
+            state.CommandHistory.Undo();
+            return true;
+        }
+        return false;
     }
 }

@@ -227,6 +227,39 @@ public class VisualMode : IVimMode
             return false;
 
         var selection = state.CurrentSelection;
+
+        // First, yank the selection (like Vim: delete = yank + delete)
+        int rows = selection.RowCount;
+        int cols = selection.ColumnCount;
+        string[,] values = new string[rows, cols];
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                int docRow = selection.StartRow + r;
+                int docCol = selection.StartColumn + c;
+
+                if (docRow < document.RowCount && docCol < document.Rows[docRow].Cells.Count)
+                {
+                    values[r, c] = document.Rows[docRow].Cells[docCol].Value;
+                }
+                else
+                {
+                    values[r, c] = string.Empty;
+                }
+            }
+        }
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = _visualType,
+            Rows = rows,
+            Columns = cols
+        };
+
+        // Then delete the selection
         var command = new DeleteSelectionCommand(document, selection);
 
         // Execute through command history if available (for undo support)

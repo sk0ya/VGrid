@@ -240,13 +240,35 @@ public class TsvDocument : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Creates a new empty document with one row and one column
+    /// Creates a new empty document with Excel-like dimensions (1000 rows x 50 columns)
     /// </summary>
     public static TsvDocument CreateEmpty()
     {
         var doc = new TsvDocument();
-        doc.Rows.Add(new Row(0, 1));
+        // Create 1000 empty rows with 50 columns like Excel
+        for (int i = 0; i < 1000; i++)
+        {
+            doc.Rows.Add(new Row(i, 50));
+        }
         return doc;
+    }
+
+    /// <summary>
+    /// Ensures the document has at least the specified number of rows and columns
+    /// </summary>
+    public void EnsureSize(int minRows, int minColumns)
+    {
+        // Ensure minimum columns for all existing rows
+        foreach (var row in Rows)
+        {
+            row.EnsureCellCount(minColumns);
+        }
+
+        // Add rows if needed
+        while (Rows.Count < minRows)
+        {
+            Rows.Add(new Row(Rows.Count, minColumns));
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

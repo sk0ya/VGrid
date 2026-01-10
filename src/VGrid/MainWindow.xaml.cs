@@ -200,12 +200,8 @@ public partial class MainWindow : Window
 
         grid.Columns.Clear();
 
-        var columnCount = tab.GridViewModel.ColumnCount;
-        if (columnCount == 0)
-        {
-            // Add at least one column for empty documents
-            columnCount = 1;
-        }
+        // Show many columns like Excel (at least 50 columns, up to data columns)
+        var columnCount = Math.Max(50, tab.GridViewModel.ColumnCount);
 
         for (int i = 0; i < columnCount; i++)
         {
@@ -218,7 +214,7 @@ public partial class MainWindow : Window
                     Mode = BindingMode.TwoWay,
                     UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
                 },
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                Width = new DataGridLength(100, DataGridLengthUnitType.Pixel),
                 MinWidth = 60
             };
 

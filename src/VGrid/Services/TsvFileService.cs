@@ -39,6 +39,9 @@ public class TsvFileService : ITsvFileService
             IsDirty = false
         };
 
+        // Ensure Excel-like size (minimum 1000 rows x 50 columns)
+        document.EnsureSize(1000, 50);
+
         return document;
     }
 
@@ -49,12 +52,45 @@ public class TsvFileService : ITsvFileService
     {
         var lines = new List<string>();
 
-        foreach (var row in document.Rows)
+        // Find the last non-empty row
+        int lastNonEmptyRow = -1;
+        for (int i = document.Rows.Count - 1; i >= 0; i--)
         {
-            // Join cell values with tab delimiter
-            var cellValues = row.Cells.Select(c => c.Value ?? string.Empty);
-            var line = string.Join(TabDelimiter.ToString(), cellValues);
-            lines.Add(line);
+            if (document.Rows[i].Cells.Any(c => !string.IsNullOrEmpty(c.Value)))
+            {
+                lastNonEmptyRow = i;
+                break;
+            }
+        }
+
+        // Only save rows up to the last non-empty row
+        for (int i = 0; i <= lastNonEmptyRow; i++)
+        {
+            var row = document.Rows[i];
+
+            // Find the last non-empty column in this row
+            int lastNonEmptyCol = -1;
+            for (int j = row.Cells.Count - 1; j >= 0; j--)
+            {
+                if (!string.IsNullOrEmpty(row.Cells[j].Value))
+                {
+                    lastNonEmptyCol = j;
+                    break;
+                }
+            }
+
+            // Create line with cells up to last non-empty column
+            if (lastNonEmptyCol >= 0)
+            {
+                var cellValues = row.Cells.Take(lastNonEmptyCol + 1).Select(c => c.Value ?? string.Empty);
+                var line = string.Join(TabDelimiter.ToString(), cellValues);
+                lines.Add(line);
+            }
+            else
+            {
+                // Empty row
+                lines.Add(string.Empty);
+            }
         }
 
         // Write to file

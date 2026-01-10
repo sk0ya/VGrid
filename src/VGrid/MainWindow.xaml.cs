@@ -174,6 +174,12 @@ public partial class MainWindow : Window
                 }
             };
 
+            // Subscribe to DataGrid selection changes to update VimState
+            grid.CurrentCellChanged += (s, evt) =>
+            {
+                TsvGrid_CurrentCellChanged(grid, tabItem);
+            };
+
             // Set row headers
             grid.LoadingRow += (s, evt) =>
             {
@@ -267,6 +273,31 @@ public partial class MainWindow : Window
             catch
             {
                 // Ignore errors during grid initialization
+            }
+        }
+    }
+
+    private void TsvGrid_CurrentCellChanged(DataGrid grid, TabItemViewModel tab)
+    {
+        if (grid == null || tab == null || _viewModel?.SelectedTab != tab)
+            return;
+
+        // Update VimState cursor position when user clicks on a cell
+        if (grid.CurrentCell.Item != null && grid.CurrentCell.Column != null)
+        {
+            var rowIndex = grid.Items.IndexOf(grid.CurrentCell.Item);
+            var colIndex = grid.Columns.IndexOf(grid.CurrentCell.Column);
+
+            if (rowIndex >= 0 && colIndex >= 0)
+            {
+                var newPosition = new Models.GridPosition(rowIndex, colIndex);
+
+                // Only update if position actually changed to avoid infinite loop
+                if (tab.VimState.CursorPosition.Row != rowIndex ||
+                    tab.VimState.CursorPosition.Column != colIndex)
+                {
+                    tab.VimState.CursorPosition = newPosition;
+                }
             }
         }
     }

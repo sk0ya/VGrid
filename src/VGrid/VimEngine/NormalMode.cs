@@ -56,6 +56,24 @@ public class NormalMode : IVimMode
 
             // Escape (should stay in normal mode, but clear state)
             Key.Escape => ClearState(state),
+            Key.B =>true,
+            Key.C =>true,
+            Key.D =>true,
+            Key.E =>true,
+            Key.F =>true,
+            Key.G =>true,
+            Key.M =>true,
+            Key.N =>true,
+            Key.P =>true,
+            Key.Q =>true,
+            Key.R =>true,
+            Key.S =>true,
+            Key.T =>true,
+            Key.U =>true,
+            Key.W =>true,
+            Key.X =>true,
+            Key.Y =>true,
+            Key.Z =>true,
 
             _ => false
         };

@@ -360,15 +360,5 @@ public partial class MainWindow : Window
         {
             e.Handled = true;
         }
-        else
-        {
-            // In Normal and Visual modes, prevent all unhandled keys from reaching DataGrid
-            // This prevents accidentally entering edit mode with undefined keys like 'q'
-            if (currentMode == VimEngine.VimMode.Normal || currentMode == VimEngine.VimMode.Visual)
-            {
-                e.Handled = true;
-            }
-            // In Insert mode, allow unhandled keys to reach DataGrid for text input
-        }
     }
 }

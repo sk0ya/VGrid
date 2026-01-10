@@ -160,7 +160,7 @@
                                       CanUserDeleteRows="False"
                                       CanUserReorderColumns="False"
                                       CanUserSortColumns="False"
-                                      IsReadOnly="True"
+                                      IsReadOnly="False"
                                       SelectionMode="Single"
                                       SelectionUnit="Cell"
                                       HeadersVisibility="All"

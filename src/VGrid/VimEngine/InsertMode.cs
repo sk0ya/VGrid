@@ -30,6 +30,27 @@ public class InsertMode : IVimMode
             return true;
         }
 
+        // Handle Enter to commit edit and return to normal mode
+        if (key == Key.Enter)
+        {
+            state.SwitchMode(VimMode.Normal);
+            return true;
+        }
+
+        // Handle Tab to move to next cell
+        if (key == Key.Tab && modifiers == ModifierKeys.None)
+        {
+            state.CursorPosition = state.CursorPosition.MoveRight(1).Clamp(document);
+            return true;
+        }
+
+        // Handle Shift+Tab to move to previous cell
+        if (key == Key.Tab && modifiers == ModifierKeys.Shift)
+        {
+            state.CursorPosition = state.CursorPosition.MoveLeft(1).Clamp(document);
+            return true;
+        }
+
         // Handle arrow keys for navigation within insert mode
         switch (key)
         {

@@ -172,6 +172,11 @@ public partial class MainWindow : Window
                 {
                     UpdateDataGridSelection(grid, tabItem);
                 }
+                else if (evt.PropertyName == nameof(tabItem.VimState.CurrentMode) &&
+                         tabItem == _viewModel?.SelectedTab)
+                {
+                    HandleModeChange(grid, tabItem);
+                }
             };
 
             // Subscribe to DataGrid selection changes to update VimState
@@ -299,6 +304,37 @@ public partial class MainWindow : Window
                     tab.VimState.CursorPosition = newPosition;
                 }
             }
+        }
+    }
+
+    private void HandleModeChange(DataGrid grid, TabItemViewModel tab)
+    {
+        if (grid == null || tab == null)
+            return;
+
+        try
+        {
+            if (tab.VimState.CurrentMode == VimEngine.VimMode.Insert)
+            {
+                // Enter Insert mode - begin editing the current cell
+                grid.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (grid.CurrentCell.Item != null && grid.CurrentCell.Column != null)
+                    {
+                        grid.BeginEdit();
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Input);
+            }
+            else
+            {
+                // Exit Insert mode - commit the edit
+                grid.CommitEdit(DataGridEditingUnit.Cell, true);
+                grid.CommitEdit(DataGridEditingUnit.Row, true);
+            }
+        }
+        catch
+        {
+            // Ignore errors during edit mode changes
         }
     }
 

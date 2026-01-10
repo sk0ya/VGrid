@@ -13,6 +13,7 @@ namespace VGrid;
 public partial class MainWindow : Window
 {
     private MainViewModel? _viewModel;
+    private bool _isUpdatingSelection = false;
 
     public MainWindow()
     {
@@ -266,6 +267,8 @@ public partial class MainWindow : Window
         {
             try
             {
+                _isUpdatingSelection = true;
+
                 // Update DataGrid selection
                 grid.SelectedIndex = pos.Row;
                 grid.CurrentCell = new DataGridCellInfo(
@@ -274,10 +277,17 @@ public partial class MainWindow : Window
 
                 // Scroll into view
                 grid.ScrollIntoView(grid.Items[pos.Row]);
+
+                // Focus the cell to make it visible
+                grid.Focus();
             }
             catch
             {
                 // Ignore errors during grid initialization
+            }
+            finally
+            {
+                _isUpdatingSelection = false;
             }
         }
     }
@@ -285,6 +295,10 @@ public partial class MainWindow : Window
     private void TsvGrid_CurrentCellChanged(DataGrid grid, TabItemViewModel tab)
     {
         if (grid == null || tab == null || _viewModel?.SelectedTab != tab)
+            return;
+
+        // Skip if we're updating selection from VimState (avoid circular updates)
+        if (_isUpdatingSelection)
             return;
 
         // Update VimState cursor position when user clicks on a cell
@@ -343,6 +357,8 @@ public partial class MainWindow : Window
         if (_viewModel?.SelectedTab == null)
             return;
 
+        var currentMode = _viewModel.SelectedTab.VimState.CurrentMode;
+
         // Handle key through Vim state of the selected tab
         var handled = _viewModel.SelectedTab.VimState.HandleKey(
             e.Key,
@@ -352,6 +368,16 @@ public partial class MainWindow : Window
         if (handled)
         {
             e.Handled = true;
+        }
+        else
+        {
+            // In Normal and Visual modes, prevent all unhandled keys from reaching DataGrid
+            // This prevents accidentally entering edit mode with undefined keys like 'q'
+            if (currentMode == VimEngine.VimMode.Normal || currentMode == VimEngine.VimMode.Visual)
+            {
+                e.Handled = true;
+            }
+            // In Insert mode, allow unhandled keys to reach DataGrid for text input
         }
     }
 

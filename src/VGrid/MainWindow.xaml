@@ -123,7 +123,7 @@
                     <TextBlock DockPanel.Dock="Top" Text="EXPLORER" FontWeight="Bold"
                                Padding="10,8" Background="#E8E8E8" Foreground="#333"/>
                     <TreeView x:Name="FolderTreeView" BorderThickness="0" Background="#F5F5F5"
-                              Margin="0" Padding="5">
+                              Margin="0" Padding="5" KeyDown="FolderTreeView_KeyDown">
                         <!-- Tree items will be populated in code-behind -->
                     </TreeView>
                 </DockPanel>

@@ -95,6 +95,17 @@ public partial class MainWindow : Window
                     Header = Path.GetFileName(file),
                     Tag = file
                 };
+
+                // Add context menu only for files
+                var contextMenu = new ContextMenu();
+                var renameMenuItem = new MenuItem
+                {
+                    Header = "名前の変更(_R)"
+                };
+                renameMenuItem.Click += RenameMenuItem_Click;
+                contextMenu.Items.Add(renameMenuItem);
+                fileItem.ContextMenu = contextMenu;
+
                 node.Items.Add(fileItem);
             }
         }
@@ -685,6 +696,10 @@ public partial class MainWindow : Window
         if (_viewModel?.SelectedTab == null)
             return;
 
+        // Don't handle keys if a TextBox has focus (for file rename)
+        if (Keyboard.FocusedElement is System.Windows.Controls.TextBox)
+            return;
+
         // Handle key through Vim state of the selected tab
         var handled = _viewModel.SelectedTab.VimState.HandleKey(
             e.Key,
@@ -694,6 +709,191 @@ public partial class MainWindow : Window
         if (handled)
         {
             e.Handled = true;
+        }
+    }
+
+    private void FolderTreeView_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == Key.F2 && FolderTreeView.SelectedItem is TreeViewItem item)
+        {
+            var filePath = item.Tag as string;
+            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            {
+                BeginRenameTreeItem(item);
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void RenameMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Get the TreeViewItem from the MenuItem's parent ContextMenu
+        if (sender is MenuItem menuItem &&
+            menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is TreeViewItem item)
+        {
+            var filePath = item.Tag as string;
+            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            {
+                BeginRenameTreeItem(item);
+            }
+        }
+    }
+
+    private void BeginRenameTreeItem(TreeViewItem item)
+    {
+        var filePath = item.Tag as string;
+        if (string.IsNullOrEmpty(filePath))
+            return;
+
+        var fileName = Path.GetFileName(filePath);
+        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(filePath);
+
+        // Flag to prevent double processing
+        bool isProcessed = false;
+
+        // Create a TextBox for editing
+        var textBox = new System.Windows.Controls.TextBox
+        {
+            Text = fileName,
+            Margin = new Thickness(0),
+            Padding = new Thickness(2),
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Colors.CornflowerBlue),
+            Tag = filePath,  // Store original file path
+            Focusable = true
+        };
+
+        // Handle Enter key to commit rename
+        textBox.KeyDown += (s, e) =>
+        {
+            if (isProcessed)
+                return;
+
+            if (e.Key == Key.Enter)
+            {
+                isProcessed = true;
+                var newFileName = textBox.Text.Trim();
+                if (!string.IsNullOrEmpty(newFileName) && newFileName != fileName)
+                {
+                    RenameFile(filePath, newFileName, item);
+                }
+                else
+                {
+                    // Restore original header
+                    item.Header = fileName;
+                }
+                // Return focus to TreeView
+                FolderTreeView.Focus();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                isProcessed = true;
+                // Cancel rename
+                item.Header = fileName;
+                // Return focus to TreeView
+                FolderTreeView.Focus();
+                e.Handled = true;
+            }
+        };
+
+        // Handle lost focus to commit or cancel rename
+        textBox.LostFocus += (s, e) =>
+        {
+            if (isProcessed)
+                return;
+
+            isProcessed = true;
+            var newFileName = textBox.Text.Trim();
+            if (!string.IsNullOrEmpty(newFileName) && newFileName != fileName)
+            {
+                RenameFile(filePath, newFileName, item);
+            }
+            else
+            {
+                // Restore original header
+                item.Header = fileName;
+            }
+        };
+
+        // Replace header with TextBox
+        item.Header = textBox;
+
+        // Focus the TextBox and select filename without extension
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            textBox.Focus();
+            Keyboard.Focus(textBox);
+            // Select filename without extension
+            textBox.Select(0, fileNameWithoutExt.Length);
+        }), System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    private void RenameFile(string oldFilePath, string newFileName, TreeViewItem item)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(oldFilePath);
+            if (string.IsNullOrEmpty(directory))
+                return;
+
+            var newFilePath = Path.Combine(directory, newFileName);
+
+            // Check if file already exists
+            if (File.Exists(newFilePath) && newFilePath != oldFilePath)
+            {
+                System.Windows.MessageBox.Show(
+                    $"ファイル '{newFileName}' は既に存在します。",
+                    "エラー",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                item.Header = Path.GetFileName(oldFilePath);
+                return;
+            }
+
+            // Rename the file
+            File.Move(oldFilePath, newFilePath);
+
+            // Update TreeViewItem
+            item.Header = newFileName;
+            item.Tag = newFilePath;
+
+            // Update any open tabs that reference this file
+            UpdateOpenTabsForRename(oldFilePath, newFilePath);
+
+            _viewModel?.StatusBarViewModel.ShowMessage($"Renamed: {newFileName}");
+
+            // Return focus to TreeView
+            FolderTreeView.Focus();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"ファイル名の変更に失敗しました: {ex.Message}",
+                "エラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            item.Header = Path.GetFileName(oldFilePath);
+
+            // Return focus to TreeView
+            FolderTreeView.Focus();
+        }
+    }
+
+    private void UpdateOpenTabsForRename(string oldFilePath, string newFilePath)
+    {
+        if (_viewModel == null)
+            return;
+
+        foreach (var tab in _viewModel.Tabs)
+        {
+            if (tab.FilePath == oldFilePath)
+            {
+                tab.FilePath = newFilePath;
+                var newFileName = Path.GetFileName(newFilePath);
+                tab.Header = tab.IsDirty ? $"{newFileName}*" : newFileName;
+            }
         }
     }
 }

@@ -228,6 +228,13 @@ public class VisualMode : IVimMode
 
         var selection = state.CurrentSelection;
 
+        // Handle line-wise deletion (delete entire rows like dd)
+        if (_visualType == VisualType.Line)
+        {
+            return DeleteLineSelection(state, document, selection);
+        }
+
+        // Handle character-wise and block-wise deletion (clear cell values)
         // First, yank the selection (like Vim: delete = yank + delete)
         int rows = selection.RowCount;
         int cols = selection.ColumnCount;
@@ -278,6 +285,82 @@ public class VisualMode : IVimMode
         return true;
     }
 
+    private bool DeleteLineSelection(VimState state, TsvDocument document, SelectionRange selection)
+    {
+        // Yank entire rows before deleting (like dd)
+        int rowCount = selection.RowCount;
+        int startRow = selection.StartRow;
+
+        // Get the maximum column count from all selected rows
+        int maxCols = 0;
+        for (int r = 0; r < rowCount; r++)
+        {
+            int docRow = startRow + r;
+            if (docRow < document.RowCount)
+            {
+                maxCols = Math.Max(maxCols, document.Rows[docRow].Cells.Count);
+            }
+        }
+
+        // Yank all cells from selected rows
+        string[,] values = new string[rowCount, maxCols];
+        for (int r = 0; r < rowCount; r++)
+        {
+            int docRow = startRow + r;
+            if (docRow < document.RowCount)
+            {
+                var row = document.Rows[docRow];
+                for (int c = 0; c < maxCols; c++)
+                {
+                    if (c < row.Cells.Count)
+                    {
+                        values[r, c] = row.Cells[c].Value;
+                    }
+                    else
+                    {
+                        values[r, c] = string.Empty;
+                    }
+                }
+            }
+        }
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Line,
+            Rows = rowCount,
+            Columns = maxCols
+        };
+
+        // Delete rows from bottom to top to maintain correct indices
+        for (int r = rowCount - 1; r >= 0; r--)
+        {
+            int docRow = startRow + r;
+            if (docRow < document.RowCount)
+            {
+                var command = new DeleteRowCommand(document, docRow);
+                if (state.CommandHistory != null)
+                {
+                    state.CommandHistory.Execute(command);
+                }
+                else
+                {
+                    command.Execute();
+                }
+            }
+        }
+
+        // Adjust cursor position if needed
+        if (state.CursorPosition.Row >= document.RowCount && document.RowCount > 0)
+        {
+            state.CursorPosition = new GridPosition(document.RowCount - 1, state.CursorPosition.Column);
+        }
+
+        // Return to normal mode after delete
+        state.SwitchMode(VimMode.Normal);
+        return true;
+    }
+
     private bool YankSelection(VimState state, TsvDocument document)
     {
         if (_selectionStart == null || state.CurrentSelection == null)
@@ -285,6 +368,13 @@ public class VisualMode : IVimMode
 
         var selection = state.CurrentSelection;
 
+        // Handle line-wise yank (yank entire rows like yy)
+        if (_visualType == VisualType.Line)
+        {
+            return YankLineSelection(state, document, selection);
+        }
+
+        // Handle character-wise and block-wise yank
         // Calculate dimensions
         int rows = selection.RowCount;
         int cols = selection.ColumnCount;
@@ -316,6 +406,59 @@ public class VisualMode : IVimMode
             SourceType = _visualType,
             Rows = rows,
             Columns = cols
+        };
+
+        // Return to normal mode after yank
+        state.SwitchMode(VimMode.Normal);
+        return true;
+    }
+
+    private bool YankLineSelection(VimState state, TsvDocument document, SelectionRange selection)
+    {
+        // Yank entire rows (like yy)
+        int rowCount = selection.RowCount;
+        int startRow = selection.StartRow;
+
+        // Get the maximum column count from all selected rows
+        int maxCols = 0;
+        for (int r = 0; r < rowCount; r++)
+        {
+            int docRow = startRow + r;
+            if (docRow < document.RowCount)
+            {
+                maxCols = Math.Max(maxCols, document.Rows[docRow].Cells.Count);
+            }
+        }
+
+        // Yank all cells from selected rows
+        string[,] values = new string[rowCount, maxCols];
+        for (int r = 0; r < rowCount; r++)
+        {
+            int docRow = startRow + r;
+            if (docRow < document.RowCount)
+            {
+                var row = document.Rows[docRow];
+                for (int c = 0; c < maxCols; c++)
+                {
+                    if (c < row.Cells.Count)
+                    {
+                        values[r, c] = row.Cells[c].Value;
+                    }
+                    else
+                    {
+                        values[r, c] = string.Empty;
+                    }
+                }
+            }
+        }
+
+        // Store yanked content in VimState
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Line,
+            Rows = rowCount,
+            Columns = maxCols
         };
 
         // Return to normal mode after yank

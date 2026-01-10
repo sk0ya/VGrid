@@ -58,7 +58,8 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show($"Error loading folder: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show($"Error loading folder: {ex.Message}", "Error", MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
@@ -104,7 +105,7 @@ public partial class MainWindow : Window
 
     private void TreeViewItem_Expanded(object sender, RoutedEventArgs e)
     {
-        var item = (TreeViewItem)sender;
+        var item = (TreeViewItem) sender;
         if (item.Items.Count == 1 && item.Items[0] is string)
         {
             item.Items.Clear();
@@ -181,22 +182,14 @@ public partial class MainWindow : Window
             };
 
             // Subscribe to DataGrid selection changes to update VimState
-            grid.CurrentCellChanged += (s, evt) =>
-            {
-                TsvGrid_CurrentCellChanged(grid, tabItem);
-            };
+            grid.CurrentCellChanged += (s, evt) => { TsvGrid_CurrentCellChanged(grid, tabItem); };
 
             // Set row headers
-            grid.LoadingRow += (s, evt) =>
-            {
-                evt.Row.Header = (evt.Row.GetIndex() + 1).ToString();
-            };
+            grid.LoadingRow += (s, evt) => { evt.Row.Header = (evt.Row.GetIndex() + 1).ToString(); };
 
             // Wait for grid to finish loading before initial selection
-            grid.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                UpdateDataGridSelection(grid, tabItem);
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
+            grid.Dispatcher.BeginInvoke(new Action(() => { UpdateDataGridSelection(grid, tabItem); }),
+                System.Windows.Threading.DispatcherPriority.Loaded);
         }
         catch (Exception ex)
         {
@@ -255,40 +248,38 @@ public partial class MainWindow : Window
             return;
 
         var pos = tab.VimState.CursorPosition;
-        var doc = tab.GridViewModel.Document;
 
-        // Ensure grid is fully initialized
-        if (grid.Columns.Count == 0 || grid.Items.Count == 0)
+        if (grid.Items.Count == 0 || grid.Columns.Count == 0)
             return;
 
-        // Ensure position is valid
-        if (pos.Row >= 0 && pos.Row < doc.RowCount && pos.Row < grid.Items.Count &&
-            pos.Column >= 0 && pos.Column < grid.Columns.Count)
+        if (pos.Row < 0 || pos.Row >= grid.Items.Count)
+            return;
+        if (pos.Column < 0 || pos.Column >= grid.Columns.Count)
+            return;
+
+        try
         {
-            try
-            {
-                _isUpdatingSelection = true;
+            _isUpdatingSelection = true;
 
-                // Update DataGrid selection
-                grid.SelectedIndex = pos.Row;
-                grid.CurrentCell = new DataGridCellInfo(
-                    grid.Items[pos.Row],
-                    grid.Columns[pos.Column]);
+            grid.SelectedCells.Clear();
 
-                // Scroll into view
-                grid.ScrollIntoView(grid.Items[pos.Row]);
+            var cellInfo = new DataGridCellInfo(
+                grid.Items[pos.Row],
+                grid.Columns[pos.Column]);
 
-                // Focus the cell to make it visible
-                grid.Focus();
-            }
-            catch
-            {
-                // Ignore errors during grid initialization
-            }
-            finally
-            {
-                _isUpdatingSelection = false;
-            }
+            grid.SelectedCells.Add(cellInfo);
+            grid.CurrentCell = cellInfo;
+
+            // 行＋列を指定してスクロール
+            grid.ScrollIntoView(
+                grid.Items[pos.Row],
+                grid.Columns[pos.Column]);
+
+            grid.Focus();
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
         }
     }
 

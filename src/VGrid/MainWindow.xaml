@@ -161,7 +161,7 @@
                                       CanUserReorderColumns="False"
                                       CanUserSortColumns="False"
                                       IsReadOnly="False"
-                                      SelectionMode="Single"
+                                      SelectionMode="Extended"
                                       SelectionUnit="Cell"
                                       HeadersVisibility="All"
                                       Focusable="False"

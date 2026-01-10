@@ -1,12 +1,13 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using VGrid.Commands;
 using VGrid.Helpers;
 using VGrid.Models;
 using VGrid.Services;
 using VGrid.VimEngine;
 using WpfCommand = System.Windows.Input.ICommand;
-using CommandHistory = VGrid.Commands.CommandHistory;
 
 namespace VGrid.ViewModels;
 
@@ -16,100 +17,90 @@ namespace VGrid.ViewModels;
 public class MainViewModel : ViewModelBase
 {
     private readonly ITsvFileService _fileService;
-    private readonly CommandHistory _commandHistory;
-    private string? _currentFilePath;
+    private TabItemViewModel? _selectedTab;
+    private string? _selectedFolderPath;
 
     public MainViewModel()
     {
         _fileService = new TsvFileService();
-        _commandHistory = new CommandHistory();
 
-        GridViewModel = new TsvGridViewModel(_commandHistory);
+        Tabs = new ObservableCollection<TabItemViewModel>();
         StatusBarViewModel = new StatusBarViewModel();
-        VimState = new VimState();
 
         // Initialize commands
         NewFileCommand = new RelayCommand(NewFile);
         OpenFileCommand = new RelayCommand(OpenFile);
+        OpenFolderCommand = new RelayCommand(OpenFolder);
         SaveFileCommand = new RelayCommand(SaveFile, CanSaveFile);
         SaveAsFileCommand = new RelayCommand(SaveFileAs);
+        CloseTabCommand = new RelayCommand<TabItemViewModel>(CloseTab);
         ExitCommand = new RelayCommand(Exit);
-        UndoCommand = new RelayCommand(Undo, CanUndo);
-        RedoCommand = new RelayCommand(Redo, CanRedo);
 
-        // Subscribe to Vim state changes
-        VimState.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(VimState.CurrentMode))
-            {
-                StatusBarViewModel.UpdateMode(VimState.CurrentMode);
-            }
-            else if (e.PropertyName == nameof(VimState.CursorPosition))
-            {
-                StatusBarViewModel.UpdatePosition(VimState.CursorPosition.Row, VimState.CursorPosition.Column);
-                GridViewModel.CursorPosition = VimState.CursorPosition;
-            }
-        };
-
-        // Initialize status bar
-        StatusBarViewModel.UpdateMode(VimMode.Normal);
-        StatusBarViewModel.UpdatePosition(0, 0);
+        // Initialize with one empty tab
+        NewFile();
     }
 
-    public TsvGridViewModel GridViewModel { get; }
+    public ObservableCollection<TabItemViewModel> Tabs { get; }
     public StatusBarViewModel StatusBarViewModel { get; }
-    public VimState VimState { get; }
+
+    public TabItemViewModel? SelectedTab
+    {
+        get => _selectedTab;
+        set
+        {
+            if (SetProperty(ref _selectedTab, value))
+            {
+                UpdateStatusBarForTab(value);
+            }
+        }
+    }
+
+    public string? SelectedFolderPath
+    {
+        get => _selectedFolderPath;
+        set => SetProperty(ref _selectedFolderPath, value);
+    }
 
     public WpfCommand NewFileCommand { get; }
     public WpfCommand OpenFileCommand { get; }
+    public WpfCommand OpenFolderCommand { get; }
     public WpfCommand SaveFileCommand { get; }
     public WpfCommand SaveAsFileCommand { get; }
+    public WpfCommand CloseTabCommand { get; }
     public WpfCommand ExitCommand { get; }
-    public WpfCommand UndoCommand { get; }
-    public WpfCommand RedoCommand { get; }
 
-    public string? CurrentFilePath
-    {
-        get => _currentFilePath;
-        private set => SetProperty(ref _currentFilePath, value);
-    }
-
-    public string WindowTitle
-    {
-        get
-        {
-            var fileName = string.IsNullOrEmpty(CurrentFilePath)
-                ? "Untitled"
-                : Path.GetFileName(CurrentFilePath);
-
-            var isDirty = GridViewModel.Document.IsDirty ? "*" : "";
-            return $"{fileName}{isDirty} - VGrid";
-        }
-    }
+    public string WindowTitle => "VGrid - TSV Editor with Vim Keybindings";
 
     private void NewFile()
     {
-        if (GridViewModel.Document.IsDirty)
+        var commandHistory = new CommandHistory();
+        var document = TsvDocument.CreateEmpty();
+        var gridViewModel = new TsvGridViewModel(commandHistory);
+        gridViewModel.LoadDocument(document);
+
+        var vimState = new VimState();
+
+        var tab = new TabItemViewModel($"Untitled{Tabs.Count + 1}.tsv", document, vimState, gridViewModel);
+
+        // Subscribe to Vim state changes
+        vimState.PropertyChanged += (s, e) =>
         {
-            var result = MessageBox.Show(
-                "Do you want to save changes?",
-                "VGrid",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Cancel)
-                return;
-
-            if (result == MessageBoxResult.Yes)
+            if (tab == SelectedTab)
             {
-                SaveFile();
+                if (e.PropertyName == nameof(VimState.CurrentMode))
+                {
+                    StatusBarViewModel.UpdateMode(vimState.CurrentMode);
+                }
+                else if (e.PropertyName == nameof(VimState.CursorPosition))
+                {
+                    StatusBarViewModel.UpdatePosition(vimState.CursorPosition.Row, vimState.CursorPosition.Column);
+                    gridViewModel.CursorPosition = vimState.CursorPosition;
+                }
             }
-        }
+        };
 
-        GridViewModel.NewDocument();
-        CurrentFilePath = null;
-        OnPropertyChanged(nameof(WindowTitle));
-        StatusBarViewModel.ShowMessage("New file created");
+        Tabs.Add(tab);
+        SelectedTab = tab;
     }
 
     private async void OpenFile()
@@ -117,34 +108,93 @@ public class MainViewModel : ViewModelBase
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Filter = "TSV Files (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|Tab-separated Files (*.tab)|*.tab|All Files (*.*)|*.*",
-            Title = "Open TSV File"
+            Title = "Open TSV File",
+            Multiselect = true
         };
 
         if (dialog.ShowDialog() == true)
         {
-            try
+            foreach (var fileName in dialog.FileNames)
             {
-                var document = await _fileService.LoadAsync(dialog.FileName);
-                GridViewModel.LoadDocument(document);
-                CurrentFilePath = dialog.FileName;
-                OnPropertyChanged(nameof(WindowTitle));
-                StatusBarViewModel.ShowMessage($"Opened: {dialog.FileName}");
+                await OpenFileAsync(fileName);
             }
-            catch (Exception ex)
+        }
+    }
+
+    public async System.Threading.Tasks.Task OpenFileAsync(string filePath)
+    {
+        // Check if file is already open
+        var existingTab = Tabs.FirstOrDefault(t => t.FilePath == filePath);
+        if (existingTab != null)
+        {
+            SelectedTab = existingTab;
+            return;
+        }
+
+        try
+        {
+            var document = await _fileService.LoadAsync(filePath);
+            var commandHistory = new CommandHistory();
+            var gridViewModel = new TsvGridViewModel(commandHistory);
+            gridViewModel.LoadDocument(document);
+
+            var vimState = new VimState();
+
+            var tab = new TabItemViewModel(filePath, document, vimState, gridViewModel);
+
+            // Subscribe to Vim state changes
+            vimState.PropertyChanged += (s, e) =>
             {
-                MessageBox.Show($"Error opening file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                if (tab == SelectedTab)
+                {
+                    if (e.PropertyName == nameof(VimState.CurrentMode))
+                    {
+                        StatusBarViewModel.UpdateMode(vimState.CurrentMode);
+                    }
+                    else if (e.PropertyName == nameof(VimState.CursorPosition))
+                    {
+                        StatusBarViewModel.UpdatePosition(vimState.CursorPosition.Row, vimState.CursorPosition.Column);
+                        gridViewModel.CursorPosition = vimState.CursorPosition;
+                    }
+                }
+            };
+
+            Tabs.Add(tab);
+            SelectedTab = tab;
+            StatusBarViewModel.ShowMessage($"Opened: {filePath}");
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Error opening file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OpenFolder()
+    {
+        var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "Select folder to explore",
+            ShowNewFolderButton = false
+        };
+
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        {
+            SelectedFolderPath = dialog.SelectedPath;
         }
     }
 
     private bool CanSaveFile()
     {
-        return !string.IsNullOrEmpty(CurrentFilePath);
+        return SelectedTab != null && !string.IsNullOrEmpty(SelectedTab.FilePath) &&
+               !SelectedTab.FilePath.StartsWith("Untitled");
     }
 
     private async void SaveFile()
     {
-        if (string.IsNullOrEmpty(CurrentFilePath))
+        if (SelectedTab == null)
+            return;
+
+        if (string.IsNullOrEmpty(SelectedTab.FilePath) || SelectedTab.FilePath.StartsWith("Untitled"))
         {
             SaveFileAs();
             return;
@@ -152,71 +202,95 @@ public class MainViewModel : ViewModelBase
 
         try
         {
-            await _fileService.SaveAsync(GridViewModel.Document, CurrentFilePath);
-            OnPropertyChanged(nameof(WindowTitle));
-            StatusBarViewModel.ShowMessage($"Saved: {CurrentFilePath}");
+            await _fileService.SaveAsync(SelectedTab.Document, SelectedTab.FilePath);
+            StatusBarViewModel.ShowMessage($"Saved: {SelectedTab.FilePath}");
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error saving file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show($"Error saving file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private async void SaveFileAs()
     {
+        if (SelectedTab == null)
+            return;
+
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Filter = "TSV Files (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|Tab-separated Files (*.tab)|*.tab|All Files (*.*)|*.*",
             Title = "Save TSV File",
-            DefaultExt = ".tsv"
+            DefaultExt = ".tsv",
+            FileName = Path.GetFileName(SelectedTab.FilePath)
         };
 
         if (dialog.ShowDialog() == true)
         {
             try
             {
-                await _fileService.SaveAsync(GridViewModel.Document, dialog.FileName);
-                CurrentFilePath = dialog.FileName;
-                OnPropertyChanged(nameof(WindowTitle));
+                await _fileService.SaveAsync(SelectedTab.Document, dialog.FileName);
+                SelectedTab.FilePath = dialog.FileName;
+                SelectedTab.Header = Path.GetFileName(dialog.FileName);
                 StatusBarViewModel.ShowMessage($"Saved: {dialog.FileName}");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"Error saving file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+    }
+
+    private void CloseTab(TabItemViewModel? tab)
+    {
+        if (tab == null)
+            return;
+
+        if (tab.IsDirty)
+        {
+            var result = System.Windows.MessageBox.Show(
+                $"Do you want to save changes to {tab.Header}?",
+                "VGrid",
+                System.Windows.MessageBoxButton.YesNoCancel,
+                System.Windows.MessageBoxImage.Question);
+
+            if (result == System.Windows.MessageBoxResult.Cancel)
+                return;
+
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                var previousSelected = SelectedTab;
+                SelectedTab = tab;
+                SaveFile();
+                SelectedTab = previousSelected;
+            }
+        }
+
+        Tabs.Remove(tab);
+
+        // If we closed the selected tab, select another
+        if (SelectedTab == tab || SelectedTab == null)
+        {
+            SelectedTab = Tabs.LastOrDefault();
+        }
+
+        // If no tabs left, create a new one
+        if (Tabs.Count == 0)
+        {
+            NewFile();
         }
     }
 
     private void Exit()
     {
-        Application.Current.Shutdown();
+        System.Windows.Application.Current.Shutdown();
     }
 
-    private bool CanUndo()
+    private void UpdateStatusBarForTab(TabItemViewModel? tab)
     {
-        return _commandHistory.CanUndo;
-    }
+        if (tab == null)
+            return;
 
-    private void Undo()
-    {
-        if (_commandHistory.CanUndo)
-        {
-            _commandHistory.Undo();
-            StatusBarViewModel.ShowMessage("Undo");
-        }
-    }
-
-    private bool CanRedo()
-    {
-        return _commandHistory.CanRedo;
-    }
-
-    private void Redo()
-    {
-        if (_commandHistory.CanRedo)
-        {
-            _commandHistory.Redo();
-            StatusBarViewModel.ShowMessage("Redo");
-        }
+        StatusBarViewModel.UpdateMode(tab.VimState.CurrentMode);
+        StatusBarViewModel.UpdatePosition(tab.VimState.CursorPosition.Row, tab.VimState.CursorPosition.Column);
     }
 }

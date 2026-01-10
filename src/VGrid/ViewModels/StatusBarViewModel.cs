@@ -12,7 +12,7 @@ public class StatusBarViewModel : ViewModelBase
     private string _modeText = "NORMAL";
     private string _positionText = "0:0";
     private string _messageText = string.Empty;
-    private Brush _modeBrush = new SolidColorBrush(Colors.CornflowerBlue);
+    private System.Windows.Media.Brush _modeBrush = new SolidColorBrush(Colors.CornflowerBlue);
 
     public string ModeText
     {
@@ -32,7 +32,7 @@ public class StatusBarViewModel : ViewModelBase
         set => SetProperty(ref _messageText, value);
     }
 
-    public Brush ModeBrush
+    public System.Windows.Media.Brush ModeBrush
     {
         get => _modeBrush;
         set => SetProperty(ref _modeBrush, value);

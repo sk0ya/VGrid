@@ -41,6 +41,10 @@ public class VisualMode : IVimMode
         state.CurrentSelection = null;
         _selectionStart = null;
 
+        // Clear header selections when exiting Visual mode
+        state.ClearRowSelections();
+        state.ClearColumnSelections();
+
         // Note: Cell.IsSelected flags will be cleared by the UI layer
         // when it detects the mode change
     }
@@ -160,6 +164,24 @@ public class VisualMode : IVimMode
     /// </summary>
     private void UpdateLineSelection(VimState state, TsvDocument document)
     {
+        // If header selections exist (from row header clicks), use those
+        if (state.SelectedRows.Count > 0)
+        {
+            foreach (int rowIndex in state.SelectedRows)
+            {
+                if (rowIndex >= 0 && rowIndex < document.RowCount)
+                {
+                    var rowObj = document.Rows[rowIndex];
+                    foreach (var cell in rowObj.Cells)
+                    {
+                        cell.IsSelected = true;
+                    }
+                }
+            }
+            return;
+        }
+
+        // Otherwise, use traditional selection range logic
         if (_selectionStart == null)
             return;
 
@@ -182,6 +204,23 @@ public class VisualMode : IVimMode
     /// </summary>
     private void UpdateBlockSelection(VimState state, TsvDocument document)
     {
+        // If header selections exist (from column header clicks), use those
+        if (state.SelectedColumns.Count > 0)
+        {
+            foreach (var rowObj in document.Rows)
+            {
+                foreach (int colIndex in state.SelectedColumns)
+                {
+                    if (colIndex >= 0 && colIndex < rowObj.Cells.Count)
+                    {
+                        rowObj.Cells[colIndex].IsSelected = true;
+                    }
+                }
+            }
+            return;
+        }
+
+        // Otherwise, use traditional selection range logic
         if (_selectionStart == null)
             return;
 

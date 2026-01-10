@@ -34,6 +34,7 @@
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="Padding" Value="5,3"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ColumnHeader_PreviewMouseLeftButtonDown"/>
         </Style>
 
         <!-- Excel-like Row Header Style -->
@@ -45,6 +46,7 @@
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="Width" Value="40"/>
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="RowHeader_PreviewMouseLeftButtonDown"/>
         </Style>
 
         <!-- Excel-like Cell Style -->

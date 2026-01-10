@@ -19,6 +19,10 @@ public class VimState : INotifyPropertyChanged
     private YankedContent? _lastYank;
     private readonly Dictionary<char, string> _registers = new();
     private readonly KeySequence _pendingKeys = new();
+    private readonly HashSet<int> _selectedRows = new();
+    private readonly HashSet<int> _selectedColumns = new();
+    private int? _lastSelectedRowIndex;
+    private int? _lastSelectedColumnIndex;
 
     // Mode handlers
     private readonly Dictionary<VimMode, IVimMode> _modeHandlers = new();
@@ -112,6 +116,140 @@ public class VimState : INotifyPropertyChanged
                 OnPropertyChanged();
             }
         }
+    }
+
+    /// <summary>
+    /// Set of selected row indices for header-based multi-selection
+    /// </summary>
+    public IReadOnlySet<int> SelectedRows => _selectedRows;
+
+    /// <summary>
+    /// Set of selected column indices for header-based multi-selection
+    /// </summary>
+    public IReadOnlySet<int> SelectedColumns => _selectedColumns;
+
+    /// <summary>
+    /// Toggles the selection state of a row
+    /// </summary>
+    public void ToggleRowSelection(int rowIndex)
+    {
+        if (_selectedRows.Contains(rowIndex))
+            _selectedRows.Remove(rowIndex);
+        else
+        {
+            _selectedRows.Add(rowIndex);
+            _lastSelectedRowIndex = rowIndex;
+        }
+
+        OnPropertyChanged(nameof(SelectedRows));
+    }
+
+    /// <summary>
+    /// Toggles the selection state of a column
+    /// </summary>
+    public void ToggleColumnSelection(int columnIndex)
+    {
+        if (_selectedColumns.Contains(columnIndex))
+            _selectedColumns.Remove(columnIndex);
+        else
+        {
+            _selectedColumns.Add(columnIndex);
+            _lastSelectedColumnIndex = columnIndex;
+        }
+
+        OnPropertyChanged(nameof(SelectedColumns));
+    }
+
+    /// <summary>
+    /// Clears all row selections
+    /// </summary>
+    public void ClearRowSelections()
+    {
+        if (_selectedRows.Count > 0)
+        {
+            _selectedRows.Clear();
+            OnPropertyChanged(nameof(SelectedRows));
+        }
+    }
+
+    /// <summary>
+    /// Clears all column selections
+    /// </summary>
+    public void ClearColumnSelections()
+    {
+        if (_selectedColumns.Count > 0)
+        {
+            _selectedColumns.Clear();
+            OnPropertyChanged(nameof(SelectedColumns));
+        }
+    }
+
+    /// <summary>
+    /// Sets a single row selection, clearing any previous row selections
+    /// </summary>
+    public void SetSingleRowSelection(int rowIndex)
+    {
+        _selectedRows.Clear();
+        _selectedRows.Add(rowIndex);
+        _lastSelectedRowIndex = rowIndex;
+        OnPropertyChanged(nameof(SelectedRows));
+    }
+
+    /// <summary>
+    /// Sets a single column selection, clearing any previous column selections
+    /// </summary>
+    public void SetSingleColumnSelection(int columnIndex)
+    {
+        _selectedColumns.Clear();
+        _selectedColumns.Add(columnIndex);
+        _lastSelectedColumnIndex = columnIndex;
+        OnPropertyChanged(nameof(SelectedColumns));
+    }
+
+    /// <summary>
+    /// Sets a range of row selections from the last selected row to the specified row
+    /// </summary>
+    public void SetRowRangeSelection(int endRowIndex)
+    {
+        if (_lastSelectedRowIndex == null)
+        {
+            SetSingleRowSelection(endRowIndex);
+            return;
+        }
+
+        int startRow = Math.Min(_lastSelectedRowIndex.Value, endRowIndex);
+        int endRow = Math.Max(_lastSelectedRowIndex.Value, endRowIndex);
+
+        _selectedRows.Clear();
+        for (int i = startRow; i <= endRow; i++)
+        {
+            _selectedRows.Add(i);
+        }
+        _lastSelectedRowIndex = endRowIndex;
+        OnPropertyChanged(nameof(SelectedRows));
+    }
+
+    /// <summary>
+    /// Sets a range of column selections from the last selected column to the specified column
+    /// </summary>
+    public void SetColumnRangeSelection(int endColumnIndex)
+    {
+        if (_lastSelectedColumnIndex == null)
+        {
+            SetSingleColumnSelection(endColumnIndex);
+            return;
+        }
+
+        int startCol = Math.Min(_lastSelectedColumnIndex.Value, endColumnIndex);
+        int endCol = Math.Max(_lastSelectedColumnIndex.Value, endColumnIndex);
+
+        _selectedColumns.Clear();
+        for (int i = startCol; i <= endCol; i++)
+        {
+            _selectedColumns.Add(i);
+        }
+        _lastSelectedColumnIndex = endColumnIndex;
+        OnPropertyChanged(nameof(SelectedColumns));
     }
 
     /// <summary>

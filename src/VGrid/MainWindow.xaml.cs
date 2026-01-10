@@ -358,6 +358,9 @@ public partial class MainWindow : Window
             if (tab.VimState.CurrentSelection == null)
             {
                 ClearAllCellSelections(tab.Document);
+                // Clear header selections as well
+                tab.VimState.ClearRowSelections();
+                tab.VimState.ClearColumnSelections();
             }
             else if (tab.VimState.CurrentMode == VimEngine.VimMode.Visual)
             {
@@ -455,6 +458,211 @@ public partial class MainWindow : Window
                 }
                 break;
         }
+    }
+
+    private void RowHeader_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        var header = sender as System.Windows.Controls.Primitives.DataGridRowHeader;
+        if (header == null || _viewModel?.SelectedTab == null)
+            return;
+
+        var grid = FindVisualParent<DataGrid>(header);
+        if (grid == null)
+            return;
+
+        // Get row index from DataGridRow
+        var row = FindVisualParent<DataGridRow>(header);
+        if (row == null)
+            return;
+
+        int rowIndex = row.GetIndex();
+        var tab = _viewModel.SelectedTab;
+
+        if (rowIndex < 0 || rowIndex >= tab.Document.RowCount)
+            return;
+
+        bool isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
+        bool isShiftPressed = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+
+        HandleRowSelection(tab, rowIndex, isCtrlPressed, isShiftPressed);
+        e.Handled = true;
+    }
+
+    private void ColumnHeader_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        var header = sender as System.Windows.Controls.Primitives.DataGridColumnHeader;
+        if (header == null || _viewModel?.SelectedTab == null)
+            return;
+
+        var grid = FindVisualParent<DataGrid>(header);
+        if (grid == null)
+            return;
+
+        int columnIndex = header.Column.DisplayIndex;
+        var tab = _viewModel.SelectedTab;
+
+        if (columnIndex < 0 || columnIndex >= tab.Document.ColumnCount)
+            return;
+
+        bool isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
+        bool isShiftPressed = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+
+        HandleColumnSelection(tab, columnIndex, isCtrlPressed, isShiftPressed);
+        e.Handled = true;
+    }
+
+    private void HandleRowSelection(ViewModels.TabItemViewModel tab, int rowIndex, bool isCtrlPressed, bool isShiftPressed)
+    {
+        // If not in Visual Line mode, enter it
+        if (tab.VimState.CurrentMode != VimEngine.VimMode.Visual ||
+            tab.VimState.CurrentSelection?.Type != VimEngine.VisualType.Line)
+        {
+            // Clear any column selections
+            tab.VimState.ClearColumnSelections();
+
+            // Set single row selection
+            tab.VimState.SetSingleRowSelection(rowIndex);
+
+            // Move cursor to first cell of row
+            tab.VimState.CursorPosition = new Models.GridPosition(rowIndex, 0);
+
+            // Enter Visual Line mode
+            tab.VimState.CurrentSelection = new VimEngine.SelectionRange(
+                VimEngine.VisualType.Line,
+                new Models.GridPosition(rowIndex, 0),
+                new Models.GridPosition(rowIndex, tab.Document.ColumnCount - 1));
+
+            tab.VimState.SwitchMode(VimEngine.VimMode.Visual);
+        }
+        else if (isShiftPressed)
+        {
+            // Range selection from last selected row to current row
+            tab.VimState.SetRowRangeSelection(rowIndex);
+        }
+        else if (isCtrlPressed)
+        {
+            // Toggle this row in multi-selection
+            tab.VimState.ToggleRowSelection(rowIndex);
+
+            // If no rows selected, exit Visual mode
+            if (tab.VimState.SelectedRows.Count == 0)
+            {
+                tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+            }
+        }
+        else
+        {
+            // Single click without Ctrl/Shift - replace selection
+            tab.VimState.SetSingleRowSelection(rowIndex);
+            tab.VimState.CursorPosition = new Models.GridPosition(rowIndex, 0);
+        }
+
+        // Update cell highlighting
+        UpdateHeaderSelectionHighlighting(tab);
+    }
+
+    private void HandleColumnSelection(ViewModels.TabItemViewModel tab, int columnIndex, bool isCtrlPressed, bool isShiftPressed)
+    {
+        // If not in Visual Block mode, enter it
+        if (tab.VimState.CurrentMode != VimEngine.VimMode.Visual ||
+            tab.VimState.CurrentSelection?.Type != VimEngine.VisualType.Block)
+        {
+            // Clear any row selections
+            tab.VimState.ClearRowSelections();
+
+            // Set single column selection
+            tab.VimState.SetSingleColumnSelection(columnIndex);
+
+            // Move cursor to first row of column
+            tab.VimState.CursorPosition = new Models.GridPosition(0, columnIndex);
+
+            // Enter Visual Block mode
+            tab.VimState.CurrentSelection = new VimEngine.SelectionRange(
+                VimEngine.VisualType.Block,
+                new Models.GridPosition(0, columnIndex),
+                new Models.GridPosition(tab.Document.RowCount - 1, columnIndex));
+
+            tab.VimState.SwitchMode(VimEngine.VimMode.Visual);
+        }
+        else if (isShiftPressed)
+        {
+            // Range selection from last selected column to current column
+            tab.VimState.SetColumnRangeSelection(columnIndex);
+        }
+        else if (isCtrlPressed)
+        {
+            // Toggle this column in multi-selection
+            tab.VimState.ToggleColumnSelection(columnIndex);
+
+            // If no columns selected, exit Visual mode
+            if (tab.VimState.SelectedColumns.Count == 0)
+            {
+                tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+            }
+        }
+        else
+        {
+            // Single click without Ctrl/Shift - replace selection
+            tab.VimState.SetSingleColumnSelection(columnIndex);
+            tab.VimState.CursorPosition = new Models.GridPosition(0, columnIndex);
+        }
+
+        // Update cell highlighting
+        UpdateHeaderSelectionHighlighting(tab);
+    }
+
+    private void UpdateHeaderSelectionHighlighting(ViewModels.TabItemViewModel tab)
+    {
+        // Clear all cell selections first
+        foreach (var row in tab.Document.Rows)
+        {
+            foreach (var cell in row.Cells)
+            {
+                cell.IsSelected = false;
+            }
+        }
+
+        // Highlight cells based on selected rows/columns
+        if (tab.VimState.SelectedRows.Count > 0)
+        {
+            // Visual Line mode - highlight all rows
+            foreach (int rowIndex in tab.VimState.SelectedRows)
+            {
+                if (rowIndex >= 0 && rowIndex < tab.Document.RowCount)
+                {
+                    var row = tab.Document.Rows[rowIndex];
+                    foreach (var cell in row.Cells)
+                    {
+                        cell.IsSelected = true;
+                    }
+                }
+            }
+        }
+        else if (tab.VimState.SelectedColumns.Count > 0)
+        {
+            // Visual Block mode - highlight all columns
+            foreach (var row in tab.Document.Rows)
+            {
+                foreach (int colIndex in tab.VimState.SelectedColumns)
+                {
+                    if (colIndex >= 0 && colIndex < row.Cells.Count)
+                    {
+                        row.Cells[colIndex].IsSelected = true;
+                    }
+                }
+            }
+        }
+    }
+
+    private T? FindVisualParent<T>(System.Windows.DependencyObject child) where T : System.Windows.DependencyObject
+    {
+        while (child != null)
+        {
+            child = System.Windows.Media.VisualTreeHelper.GetParent(child);
+            if (child is T parent)
+                return parent;
+        }
+        return null;
     }
 
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)

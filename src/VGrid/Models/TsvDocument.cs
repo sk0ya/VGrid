@@ -1,0 +1,258 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
+namespace VGrid.Models;
+
+/// <summary>
+/// Represents a TSV document with all its data
+/// </summary>
+public class TsvDocument : INotifyPropertyChanged
+{
+    private string? _filePath;
+    private bool _isDirty;
+
+    /// <summary>
+    /// The rows in this document
+    /// </summary>
+    public ObservableCollection<Row> Rows { get; }
+
+    /// <summary>
+    /// The file path of this document (null if not yet saved)
+    /// </summary>
+    public string? FilePath
+    {
+        get => _filePath;
+        set
+        {
+            if (_filePath != value)
+            {
+                _filePath = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Indicates whether the document has unsaved changes
+    /// </summary>
+    public bool IsDirty
+    {
+        get => _isDirty;
+        set
+        {
+            if (_isDirty != value)
+            {
+                _isDirty = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The number of rows in the document
+    /// </summary>
+    public int RowCount => Rows.Count;
+
+    /// <summary>
+    /// The number of columns (maximum column count across all rows)
+    /// </summary>
+    public int ColumnCount
+    {
+        get
+        {
+            if (Rows.Count == 0) return 0;
+            return Rows.Max(r => r.CellCount);
+        }
+    }
+
+    public TsvDocument()
+    {
+        Rows = new ObservableCollection<Row>();
+    }
+
+    public TsvDocument(IEnumerable<Row> rows)
+    {
+        Rows = new ObservableCollection<Row>(rows);
+        NormalizeColumnCount();
+    }
+
+    /// <summary>
+    /// Gets the row at the specified index
+    /// </summary>
+    public Row GetRow(int rowIndex)
+    {
+        if (rowIndex >= 0 && rowIndex < Rows.Count)
+        {
+            return Rows[rowIndex];
+        }
+        throw new ArgumentOutOfRangeException(nameof(rowIndex));
+    }
+
+    /// <summary>
+    /// Gets the cell at the specified position
+    /// </summary>
+    public Cell? GetCell(int row, int column)
+    {
+        if (row >= 0 && row < Rows.Count)
+        {
+            return Rows[row].GetCell(column);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the cell at the specified position
+    /// </summary>
+    public Cell? GetCell(GridPosition position)
+    {
+        return GetCell(position.Row, position.Column);
+    }
+
+    /// <summary>
+    /// Sets the value of a cell at the specified position
+    /// </summary>
+    public void SetCell(int row, int column, string value)
+    {
+        var cell = GetCell(row, column);
+        if (cell != null)
+        {
+            cell.Value = value;
+            IsDirty = true;
+        }
+    }
+
+    /// <summary>
+    /// Sets the value of a cell at the specified position
+    /// </summary>
+    public void SetCell(GridPosition position, string value)
+    {
+        SetCell(position.Row, position.Column, value);
+    }
+
+    /// <summary>
+    /// Inserts a new row at the specified index
+    /// </summary>
+    public void InsertRow(int index)
+    {
+        if (index >= 0 && index <= Rows.Count)
+        {
+            var newRow = new Row(index, ColumnCount);
+            Rows.Insert(index, newRow);
+
+            // Update indices of subsequent rows
+            for (int i = index + 1; i < Rows.Count; i++)
+            {
+                Rows[i].Index = i;
+            }
+
+            IsDirty = true;
+            OnPropertyChanged(nameof(RowCount));
+        }
+    }
+
+    /// <summary>
+    /// Deletes the row at the specified index
+    /// </summary>
+    public void DeleteRow(int index)
+    {
+        if (index >= 0 && index < Rows.Count)
+        {
+            Rows.RemoveAt(index);
+
+            // Update indices of subsequent rows
+            for (int i = index; i < Rows.Count; i++)
+            {
+                Rows[i].Index = i;
+            }
+
+            IsDirty = true;
+            OnPropertyChanged(nameof(RowCount));
+        }
+    }
+
+    /// <summary>
+    /// Inserts a new column at the specified index
+    /// </summary>
+    public void InsertColumn(int index)
+    {
+        if (index >= 0 && index <= ColumnCount)
+        {
+            foreach (var row in Rows)
+            {
+                row.InsertCell(index);
+            }
+
+            IsDirty = true;
+            OnPropertyChanged(nameof(ColumnCount));
+        }
+    }
+
+    /// <summary>
+    /// Deletes the column at the specified index
+    /// </summary>
+    public void DeleteColumn(int index)
+    {
+        if (index >= 0 && index < ColumnCount)
+        {
+            foreach (var row in Rows)
+            {
+                row.RemoveCell(index);
+            }
+
+            IsDirty = true;
+            OnPropertyChanged(nameof(ColumnCount));
+        }
+    }
+
+    /// <summary>
+    /// Sorts the rows by the specified column
+    /// </summary>
+    public void SortByColumn(int columnIndex, bool ascending = true)
+    {
+        if (columnIndex < 0 || columnIndex >= ColumnCount)
+            return;
+
+        var sortedRows = ascending
+            ? Rows.OrderBy(r => r.GetCell(columnIndex)?.Value ?? string.Empty).ToList()
+            : Rows.OrderByDescending(r => r.GetCell(columnIndex)?.Value ?? string.Empty).ToList();
+
+        Rows.Clear();
+        for (int i = 0; i < sortedRows.Count; i++)
+        {
+            sortedRows[i].Index = i;
+            Rows.Add(sortedRows[i]);
+        }
+
+        IsDirty = true;
+    }
+
+    /// <summary>
+    /// Ensures all rows have the same number of columns (padding with empty cells if needed)
+    /// </summary>
+    public void NormalizeColumnCount()
+    {
+        var maxColumns = ColumnCount;
+        foreach (var row in Rows)
+        {
+            row.EnsureCellCount(maxColumns);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new empty document with one row and one column
+    /// </summary>
+    public static TsvDocument CreateEmpty()
+    {
+        var doc = new TsvDocument();
+        doc.Rows.Add(new Row(0, 1));
+        return doc;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}

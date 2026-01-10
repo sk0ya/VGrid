@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 using VGrid.ViewModels;
 
 namespace VGrid;
@@ -211,6 +212,10 @@ public partial class MainWindow : Window
         for (int i = 0; i < columnCount; i++)
         {
             var columnIndex = i; // Capture for closure
+
+            // Create cell style with visual mode selection support
+            var cellStyle = CreateVisualModeCellStyle(columnIndex);
+
             var column = new DataGridTextColumn
             {
                 Header = GetExcelColumnName(i), // A, B, C, ... AA, AB, ...
@@ -220,11 +225,41 @@ public partial class MainWindow : Window
                     UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
                 },
                 Width = new DataGridLength(100, DataGridLengthUnitType.Pixel),
-                MinWidth = 60
+                MinWidth = 60,
+                CellStyle = cellStyle
             };
 
             grid.Columns.Add(column);
         }
+    }
+
+    private Style CreateVisualModeCellStyle(int columnIndex)
+    {
+        var style = new Style(typeof(DataGridCell));
+
+        // Base setters
+        style.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(224, 224, 224))));
+        style.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
+        style.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(4, 2, 4, 2)));
+
+        // DataGrid's built-in selection trigger (blue highlight for current cell)
+        var selectionTrigger = new Trigger { Property = DataGridCell.IsSelectedProperty, Value = true };
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(212, 231, 247))));
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.ForegroundProperty, System.Windows.Media.Brushes.Black));
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 144, 226))));
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
+        style.Triggers.Add(selectionTrigger);
+
+        // Visual mode Cell.IsSelected trigger (orange highlight for visual selection)
+        var visualTrigger = new DataTrigger();
+        visualTrigger.Binding = new System.Windows.Data.Binding($"Cells[{columnIndex}].IsSelected");
+        visualTrigger.Value = true;
+        visualTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 230, 204)))); // Orange
+        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 153, 0))));
+        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(1, 1, 1, 1)));
+        style.Triggers.Add(visualTrigger);
+
+        return style;
     }
 
     private string GetExcelColumnName(int columnIndex)
@@ -319,6 +354,17 @@ public partial class MainWindow : Window
 
         try
         {
+            // Clear visual selection when exiting Visual mode
+            if (tab.VimState.CurrentSelection == null)
+            {
+                ClearAllCellSelections(tab.Document);
+            }
+            else if (tab.VimState.CurrentMode == VimEngine.VimMode.Visual)
+            {
+                // When entering Visual mode, initialize visual selection immediately
+                InitializeVisualSelection(tab);
+            }
+
             if (tab.VimState.CurrentMode == VimEngine.VimMode.Insert)
             {
                 // Enter Insert mode - begin editing the current cell
@@ -340,6 +386,74 @@ public partial class MainWindow : Window
         catch
         {
             // Ignore errors during edit mode changes
+        }
+    }
+
+    private void ClearAllCellSelections(Models.TsvDocument document)
+    {
+        if (document == null)
+            return;
+
+        foreach (var row in document.Rows)
+        {
+            foreach (var cell in row.Cells)
+            {
+                cell.IsSelected = false;
+            }
+        }
+    }
+
+    private void InitializeVisualSelection(TabItemViewModel tab)
+    {
+        if (tab == null || tab.VimState.CurrentSelection == null)
+            return;
+
+        var selection = tab.VimState.CurrentSelection;
+        var document = tab.Document;
+
+        // Clear any existing selections first
+        ClearAllCellSelections(document);
+
+        // Set initial selection based on visual type
+        switch (selection.Type)
+        {
+            case VimEngine.VisualType.Character:
+                // Select current cell only
+                if (selection.Start.Row < document.RowCount)
+                {
+                    var row = document.Rows[selection.Start.Row];
+                    if (selection.Start.Column < row.Cells.Count)
+                    {
+                        row.Cells[selection.Start.Column].IsSelected = true;
+                    }
+                }
+                break;
+
+            case VimEngine.VisualType.Line:
+                // Select entire current row
+                if (selection.Start.Row < document.RowCount)
+                {
+                    var row = document.Rows[selection.Start.Row];
+                    foreach (var cell in row.Cells)
+                    {
+                        cell.IsSelected = true;
+                    }
+                }
+                break;
+
+            case VimEngine.VisualType.Block:
+                // Select entire current column
+                if (selection.Start.Column < document.ColumnCount)
+                {
+                    foreach (var row in document.Rows)
+                    {
+                        if (selection.Start.Column < row.Cells.Count)
+                        {
+                            row.Cells[selection.Start.Column].IsSelected = true;
+                        }
+                    }
+                }
+                break;
         }
     }
 

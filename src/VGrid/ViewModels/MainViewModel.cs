@@ -78,7 +78,10 @@ public class MainViewModel : ViewModelBase
         var gridViewModel = new TsvGridViewModel(commandHistory);
         gridViewModel.LoadDocument(document);
 
-        var vimState = new VimState();
+        var vimState = new VimState
+        {
+            CommandHistory = commandHistory
+        };
 
         var tab = new TabItemViewModel($"Untitled{Tabs.Count + 1}.tsv", document, vimState, gridViewModel);
 
@@ -89,7 +92,7 @@ public class MainViewModel : ViewModelBase
             {
                 if (e.PropertyName == nameof(VimState.CurrentMode))
                 {
-                    StatusBarViewModel.UpdateMode(vimState.CurrentMode);
+                    UpdateStatusBarMode(vimState);
                 }
                 else if (e.PropertyName == nameof(VimState.CursorPosition))
                 {
@@ -138,7 +141,10 @@ public class MainViewModel : ViewModelBase
             var gridViewModel = new TsvGridViewModel(commandHistory);
             gridViewModel.LoadDocument(document);
 
-            var vimState = new VimState();
+            var vimState = new VimState
+            {
+                CommandHistory = commandHistory
+            };
 
             var tab = new TabItemViewModel(filePath, document, vimState, gridViewModel);
 
@@ -290,7 +296,14 @@ public class MainViewModel : ViewModelBase
         if (tab == null)
             return;
 
-        StatusBarViewModel.UpdateMode(tab.VimState.CurrentMode);
+        UpdateStatusBarMode(tab.VimState);
         StatusBarViewModel.UpdatePosition(tab.VimState.CursorPosition.Row, tab.VimState.CursorPosition.Column);
+    }
+
+    private void UpdateStatusBarMode(VimState vimState)
+    {
+        // Get the mode display name from VimState (handles VISUAL LINE, VISUAL BLOCK, etc.)
+        var modeText = vimState.GetModeDisplayName();
+        StatusBarViewModel.UpdateMode(vimState.CurrentMode, modeText);
     }
 }

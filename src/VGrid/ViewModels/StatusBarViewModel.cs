@@ -38,16 +38,24 @@ public class StatusBarViewModel : ViewModelBase
         set => SetProperty(ref _modeBrush, value);
     }
 
-    public void UpdateMode(VimMode mode)
+    public void UpdateMode(VimMode mode, string? customModeText = null)
     {
-        ModeText = mode switch
+        // Use custom mode text if provided (for VISUAL LINE, VISUAL BLOCK)
+        if (!string.IsNullOrEmpty(customModeText))
         {
-            VimMode.Normal => "NORMAL",
-            VimMode.Insert => "INSERT",
-            VimMode.Visual => "VISUAL",
-            VimMode.Command => "COMMAND",
-            _ => "UNKNOWN"
-        };
+            ModeText = customModeText;
+        }
+        else
+        {
+            ModeText = mode switch
+            {
+                VimMode.Normal => "NORMAL",
+                VimMode.Insert => "INSERT",
+                VimMode.Visual => "VISUAL",
+                VimMode.Command => "COMMAND",
+                _ => "UNKNOWN"
+            };
+        }
 
         ModeBrush = mode switch
         {

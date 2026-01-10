@@ -52,10 +52,17 @@ public class NormalMode : IVimMode
             Key.I => SwitchToInsertMode(state),
             Key.A => SwitchToInsertModeAfter(state, document),
             Key.O => InsertLineBelow(state, document),
+            Key.V when modifiers.HasFlag(ModifierKeys.Shift) => SwitchToVisualLineMode(state),
+            Key.V when modifiers.HasFlag(ModifierKeys.Control) => SwitchToVisualBlockMode(state),
             Key.V => SwitchToVisualMode(state),
 
             // Escape (should stay in normal mode, but clear state)
             Key.Escape => ClearState(state),
+
+            // Paste operation
+            Key.P => PasteAfterCursor(state, document),
+
+            // Placeholder keys for future implementation
             Key.B =>true,
             Key.C =>true,
             Key.D =>true,
@@ -64,7 +71,6 @@ public class NormalMode : IVimMode
             Key.G =>true,
             Key.M =>true,
             Key.N =>true,
-            Key.P =>true,
             Key.Q =>true,
             Key.R =>true,
             Key.S =>true,
@@ -187,7 +193,67 @@ public class NormalMode : IVimMode
 
     private bool SwitchToVisualMode(VimState state)
     {
+        // Character-wise visual mode (v)
+        state.CurrentSelection = new SelectionRange(
+            VisualType.Character,
+            state.CursorPosition,
+            state.CursorPosition);
         state.SwitchMode(VimMode.Visual);
+        return true;
+    }
+
+    private bool SwitchToVisualLineMode(VimState state)
+    {
+        // Line-wise visual mode (Shift+V)
+        state.CurrentSelection = new SelectionRange(
+            VisualType.Line,
+            state.CursorPosition,
+            state.CursorPosition);
+        state.SwitchMode(VimMode.Visual);
+        return true;
+    }
+
+    private bool SwitchToVisualBlockMode(VimState state)
+    {
+        // Block-wise (column) visual mode (Ctrl+V)
+        state.CurrentSelection = new SelectionRange(
+            VisualType.Block,
+            state.CursorPosition,
+            state.CursorPosition);
+        state.SwitchMode(VimMode.Visual);
+        return true;
+    }
+
+    private bool PasteAfterCursor(VimState state, TsvDocument document)
+    {
+        if (state.LastYank == null)
+            return false;
+
+        var yank = state.LastYank;
+        var startPos = state.CursorPosition;
+
+        // Ensure document has enough rows and columns
+        int neededRows = startPos.Row + yank.Rows;
+        int neededCols = startPos.Column + yank.Columns;
+
+        document.EnsureSize(neededRows, Math.Max(neededCols, document.ColumnCount));
+
+        // Paste values
+        for (int r = 0; r < yank.Rows; r++)
+        {
+            for (int c = 0; c < yank.Columns; c++)
+            {
+                int targetRow = startPos.Row + r;
+                int targetCol = startPos.Column + c;
+
+                if (targetRow < document.RowCount && targetCol < document.Rows[targetRow].Cells.Count)
+                {
+                    // Paste the value
+                    document.Rows[targetRow].Cells[targetCol].Value = yank.Values[r, c];
+                }
+            }
+        }
+
         return true;
     }
 

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using VGrid.Commands;
 using VGrid.Models;
 
 namespace VGrid.VimEngine;
@@ -14,6 +15,8 @@ public class VimState : INotifyPropertyChanged
     private IVimMode? _modeHandler;
     private GridPosition _cursorPosition = new(0, 0);
     private int? _countPrefix;
+    private SelectionRange? _currentSelection;
+    private YankedContent? _lastYank;
     private readonly Dictionary<char, string> _registers = new();
     private readonly KeySequence _pendingKeys = new();
 
@@ -80,6 +83,43 @@ public class VimState : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// The current visual mode selection range
+    /// </summary>
+    public SelectionRange? CurrentSelection
+    {
+        get => _currentSelection;
+        set
+        {
+            if (_currentSelection != value)
+            {
+                _currentSelection = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The last yanked content
+    /// </summary>
+    public YankedContent? LastYank
+    {
+        get => _lastYank;
+        set
+        {
+            if (_lastYank != value)
+            {
+                _lastYank = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Command history for undo/redo operations
+    /// </summary>
+    public CommandHistory? CommandHistory { get; set; }
+
+    /// <summary>
     /// Registers for yank/paste operations
     /// </summary>
     public Dictionary<char, string> Registers => _registers;
@@ -100,9 +140,13 @@ public class VimState : INotifyPropertyChanged
         // Exit current mode
         _modeHandler?.OnExit(this);
 
-        // Switch mode
-        CurrentMode = mode;
+        // Update mode handler BEFORE updating CurrentMode
+        // This ensures GetModeDisplayName() returns the correct value
+        // when PropertyChanged fires
         _modeHandler = _modeHandlers[mode];
+
+        // Switch mode (this triggers PropertyChanged)
+        CurrentMode = mode;
 
         // Enter new mode
         _modeHandler.OnEnter(this);

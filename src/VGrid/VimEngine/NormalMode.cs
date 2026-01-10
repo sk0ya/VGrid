@@ -44,6 +44,11 @@ public class NormalMode : IVimMode
             Key.OemPeriod when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLineEnd(state, document), // >
             Key.D4 when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLineEnd(state, document), // $ (Shift+4)
 
+            // Search
+            Key.OemQuestion when !modifiers.HasFlag(ModifierKeys.Shift) => StartSearch(state), // '/' key
+            Key.N when modifiers.HasFlag(ModifierKeys.Shift) => NavigateToNextMatch(state, false), // 'N'
+            Key.N => NavigateToNextMatch(state, true), // 'n'
+
             // File movement
             Key.G when state.PendingKeys.Keys.LastOrDefault() == Key.G => MoveToFirstLine(state),
             Key.G when state.PendingKeys.Keys.Count == 0 => HandlePendingG(state),
@@ -80,7 +85,6 @@ public class NormalMode : IVimMode
             Key.F =>true,
             Key.G =>true,
             Key.M =>true,
-            Key.N =>true,
             Key.Q =>true,
             Key.R =>true,
             Key.S =>true,
@@ -394,5 +398,20 @@ public class NormalMode : IVimMode
             return true;
         }
         return false;
+    }
+
+    private bool StartSearch(VimState state)
+    {
+        state.SwitchMode(VimMode.Command);
+        return true;
+    }
+
+    private bool NavigateToNextMatch(VimState state, bool forward)
+    {
+        if (!state.IsSearchActive || state.SearchResults.Count == 0)
+            return false;
+
+        state.NavigateToNextMatch(forward);
+        return true;
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace VGrid.Models;
 
@@ -269,6 +270,62 @@ public class TsvDocument : INotifyPropertyChanged
         {
             Rows.Add(new Row(Rows.Count, minColumns));
         }
+    }
+
+    /// <summary>
+    /// Finds all cells matching the specified pattern
+    /// </summary>
+    /// <param name="pattern">The search pattern</param>
+    /// <param name="isRegex">Whether to treat the pattern as a regular expression</param>
+    /// <returns>List of grid positions where matches were found</returns>
+    public List<GridPosition> FindMatches(string pattern, bool isRegex)
+    {
+        var results = new List<GridPosition>();
+
+        if (string.IsNullOrEmpty(pattern))
+            return results;
+
+        if (isRegex)
+        {
+            try
+            {
+                var regex = new Regex(pattern, RegexOptions.IgnoreCase);
+
+                for (int r = 0; r < Rows.Count; r++)
+                {
+                    var row = Rows[r];
+                    for (int c = 0; c < row.Cells.Count; c++)
+                    {
+                        if (regex.IsMatch(row.Cells[c].Value))
+                        {
+                            results.Add(new GridPosition(r, c));
+                        }
+                    }
+                }
+            }
+            catch (ArgumentException)
+            {
+                // Invalid regex - return empty results
+                return results;
+            }
+        }
+        else
+        {
+            // Plain string search (case-insensitive)
+            for (int r = 0; r < Rows.Count; r++)
+            {
+                var row = Rows[r];
+                for (int c = 0; c < row.Cells.Count; c++)
+                {
+                    if (row.Cells[c].Value.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        results.Add(new GridPosition(r, c));
+                    }
+                }
+            }
+        }
+
+        return results;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

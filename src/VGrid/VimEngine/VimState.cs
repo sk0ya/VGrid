@@ -23,6 +23,10 @@ public class VimState : INotifyPropertyChanged
     private readonly HashSet<int> _selectedColumns = new();
     private int? _lastSelectedRowIndex;
     private int? _lastSelectedColumnIndex;
+    private string _searchPattern = string.Empty;
+    private List<GridPosition> _searchResults = new();
+    private int _currentMatchIndex = -1;
+    private bool _isSearchActive = false;
 
     // Mode handlers
     private readonly Dictionary<VimMode, IVimMode> _modeHandlers = new();
@@ -33,6 +37,7 @@ public class VimState : INotifyPropertyChanged
         _modeHandlers[VimMode.Normal] = new NormalMode();
         _modeHandlers[VimMode.Insert] = new InsertMode();
         _modeHandlers[VimMode.Visual] = new VisualMode();
+        _modeHandlers[VimMode.Command] = new CommandMode();
 
         // Set initial mode
         _modeHandler = _modeHandlers[VimMode.Normal];
@@ -253,6 +258,59 @@ public class VimState : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// The current search pattern
+    /// </summary>
+    public string SearchPattern
+    {
+        get => _searchPattern;
+        set
+        {
+            if (_searchPattern != value)
+            {
+                _searchPattern = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The list of search results
+    /// </summary>
+    public IReadOnlyList<GridPosition> SearchResults => _searchResults.AsReadOnly();
+
+    /// <summary>
+    /// The index of the current match in the search results
+    /// </summary>
+    public int CurrentMatchIndex
+    {
+        get => _currentMatchIndex;
+        set
+        {
+            if (_currentMatchIndex != value)
+            {
+                _currentMatchIndex = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Indicates whether a search is currently active
+    /// </summary>
+    public bool IsSearchActive
+    {
+        get => _isSearchActive;
+        set
+        {
+            if (_isSearchActive != value)
+            {
+                _isSearchActive = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
     /// Command history for undo/redo operations
     /// </summary>
     public CommandHistory? CommandHistory { get; set; }
@@ -328,6 +386,55 @@ public class VimState : INotifyPropertyChanged
     public string GetModeDisplayName()
     {
         return _modeHandler?.GetModeName() ?? "UNKNOWN";
+    }
+
+    /// <summary>
+    /// Sets the search results and moves to the first match
+    /// </summary>
+    public void SetSearchResults(List<GridPosition> results)
+    {
+        _searchResults = results;
+        _currentMatchIndex = results.Count > 0 ? 0 : -1;
+        _isSearchActive = results.Count > 0;
+        OnPropertyChanged(nameof(SearchResults));
+        OnPropertyChanged(nameof(CurrentMatchIndex));
+        OnPropertyChanged(nameof(IsSearchActive));
+    }
+
+    /// <summary>
+    /// Navigates to the next or previous search match
+    /// </summary>
+    public void NavigateToNextMatch(bool forward = true)
+    {
+        if (_searchResults.Count == 0)
+            return;
+
+        if (forward)
+        {
+            _currentMatchIndex = (_currentMatchIndex + 1) % _searchResults.Count;
+        }
+        else
+        {
+            _currentMatchIndex = (_currentMatchIndex - 1 + _searchResults.Count) % _searchResults.Count;
+        }
+
+        CursorPosition = _searchResults[_currentMatchIndex];
+        OnPropertyChanged(nameof(CurrentMatchIndex));
+    }
+
+    /// <summary>
+    /// Clears the current search
+    /// </summary>
+    public void ClearSearch()
+    {
+        _searchPattern = string.Empty;
+        _searchResults.Clear();
+        _currentMatchIndex = -1;
+        _isSearchActive = false;
+        OnPropertyChanged(nameof(SearchPattern));
+        OnPropertyChanged(nameof(SearchResults));
+        OnPropertyChanged(nameof(CurrentMatchIndex));
+        OnPropertyChanged(nameof(IsSearchActive));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -99,6 +99,26 @@ public class MainViewModel : ViewModelBase
                     StatusBarViewModel.UpdatePosition(vimState.CursorPosition.Row, vimState.CursorPosition.Column);
                     gridViewModel.CursorPosition = vimState.CursorPosition;
                 }
+                else if (e.PropertyName == nameof(VimState.SearchPattern))
+                {
+                    StatusBarViewModel.MessageText = vimState.SearchPattern;
+                }
+                else if (e.PropertyName == nameof(VimState.IsSearchActive))
+                {
+                    if (!vimState.IsSearchActive)
+                    {
+                        StatusBarViewModel.ClearMessage();
+                        ClearSearchHighlighting(tab.Document);
+                    }
+                    else
+                    {
+                        UpdateSearchHighlighting(tab);
+                    }
+                }
+                else if (e.PropertyName == nameof(VimState.CurrentMatchIndex))
+                {
+                    UpdateSearchHighlighting(tab);
+                }
             }
         };
 
@@ -161,6 +181,26 @@ public class MainViewModel : ViewModelBase
                     {
                         StatusBarViewModel.UpdatePosition(vimState.CursorPosition.Row, vimState.CursorPosition.Column);
                         gridViewModel.CursorPosition = vimState.CursorPosition;
+                    }
+                    else if (e.PropertyName == nameof(VimState.SearchPattern))
+                    {
+                        StatusBarViewModel.MessageText = vimState.SearchPattern;
+                    }
+                    else if (e.PropertyName == nameof(VimState.IsSearchActive))
+                    {
+                        if (!vimState.IsSearchActive)
+                        {
+                            StatusBarViewModel.ClearMessage();
+                            ClearSearchHighlighting(tab.Document);
+                        }
+                        else
+                        {
+                            UpdateSearchHighlighting(tab);
+                        }
+                    }
+                    else if (e.PropertyName == nameof(VimState.CurrentMatchIndex))
+                    {
+                        UpdateSearchHighlighting(tab);
                     }
                 }
             };
@@ -305,5 +345,31 @@ public class MainViewModel : ViewModelBase
         // Get the mode display name from VimState (handles VISUAL LINE, VISUAL BLOCK, etc.)
         var modeText = vimState.GetModeDisplayName();
         StatusBarViewModel.UpdateMode(vimState.CurrentMode, modeText);
+    }
+
+    private void ClearSearchHighlighting(TsvDocument document)
+    {
+        foreach (var row in document.Rows)
+        {
+            foreach (var cell in row.Cells)
+            {
+                cell.IsSearchMatch = false;
+            }
+        }
+    }
+
+    private void UpdateSearchHighlighting(TabItemViewModel tab)
+    {
+        // Clear all previous highlighting
+        ClearSearchHighlighting(tab.Document);
+
+        // Highlight current match only
+        if (tab.VimState.CurrentMatchIndex >= 0 &&
+            tab.VimState.CurrentMatchIndex < tab.VimState.SearchResults.Count)
+        {
+            var matchPos = tab.VimState.SearchResults[tab.VimState.CurrentMatchIndex];
+            var cell = tab.Document.Rows[matchPos.Row].Cells[matchPos.Column];
+            cell.IsSearchMatch = true;
+        }
     }
 }

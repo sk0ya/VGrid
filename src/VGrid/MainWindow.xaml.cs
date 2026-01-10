@@ -259,6 +259,15 @@ public partial class MainWindow : Window
         visualTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(1, 1, 1, 1)));
         style.Triggers.Add(visualTrigger);
 
+        // Search match Cell.IsSearchMatch trigger (yellow highlight for current search match)
+        var searchTrigger = new DataTrigger();
+        searchTrigger.Binding = new System.Windows.Data.Binding($"Cells[{columnIndex}].IsSearchMatch");
+        searchTrigger.Value = true;
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 153)))); // Yellow
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 215, 0))));
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
+        style.Triggers.Add(searchTrigger);
+
         return style;
     }
 
@@ -368,7 +377,13 @@ public partial class MainWindow : Window
                 InitializeVisualSelection(tab);
             }
 
-            if (tab.VimState.CurrentMode == VimEngine.VimMode.Insert)
+            if (tab.VimState.CurrentMode == VimEngine.VimMode.Command)
+            {
+                // Command mode - commit edits, stay in viewing mode
+                grid.CommitEdit(DataGridEditingUnit.Cell, true);
+                grid.CommitEdit(DataGridEditingUnit.Row, true);
+            }
+            else if (tab.VimState.CurrentMode == VimEngine.VimMode.Insert)
             {
                 // Enter Insert mode - begin editing the current cell
                 grid.Dispatcher.BeginInvoke(new Action(() =>

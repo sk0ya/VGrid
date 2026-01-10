@@ -11,6 +11,7 @@ public class Cell : INotifyPropertyChanged
     private string _value = string.Empty;
     private bool _isSelected;
     private bool _isEditing;
+    private bool _isSearchMatch;
 
     /// <summary>
     /// The text content of the cell
@@ -55,6 +56,22 @@ public class Cell : INotifyPropertyChanged
             if (_isEditing != value)
             {
                 _isEditing = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Indicates whether this cell is the current search match
+    /// </summary>
+    public bool IsSearchMatch
+    {
+        get => _isSearchMatch;
+        set
+        {
+            if (_isSearchMatch != value)
+            {
+                _isSearchMatch = value;
                 OnPropertyChanged();
             }
         }

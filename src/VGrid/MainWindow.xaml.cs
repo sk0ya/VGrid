@@ -348,8 +348,6 @@ public partial class MainWindow : Window
         if (_viewModel?.SelectedTab == null)
             return;
 
-        var currentMode = _viewModel.SelectedTab.VimState.CurrentMode;
-
         // Handle key through Vim state of the selected tab
         var handled = _viewModel.SelectedTab.VimState.HandleKey(
             e.Key,

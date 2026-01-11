@@ -435,19 +435,65 @@ public partial class MainWindow : Window
             // Attach KeyDown handler to the editing TextBox
             textBox.PreviewKeyDown += (s, evt) =>
             {
+                // Get the actual key - handle IME processed keys
+                Key actualKey = evt.Key;
+                if (evt.Key == Key.ImeProcessed)
+                {
+                    // When IME is on, the actual key is in ImeProcessedKey
+                    actualKey = evt.ImeProcessedKey;
+                }
+
                 // Handle Enter key to exit Insert mode
-                if (evt.Key == Key.Enter)
+                if (actualKey == Key.Enter)
                 {
                     // Switch to Normal mode
                     tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
                     evt.Handled = true;
                 }
                 // Handle Escape key to exit Insert mode
-                else if (evt.Key == Key.Escape)
+                else if (actualKey == Key.Escape)
                 {
                     // Switch to Normal mode
                     tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
                     evt.Handled = true;
+                }
+                // Handle 'jj' sequence (works with IME on/off)
+                else if (actualKey == Key.J && Keyboard.Modifiers == ModifierKeys.None)
+                {
+                    // Check if we already have a 'j' pending
+                    if (tab.VimState.PendingKeys.Keys.Count == 1 &&
+                        tab.VimState.PendingKeys.Keys[0] == Key.J &&
+                        !tab.VimState.PendingKeys.IsExpired(TimeSpan.FromMilliseconds(500)))
+                    {
+                        // Second 'j' pressed within timeout - switch to normal mode
+                        tab.VimState.PendingKeys.Clear();
+
+                        // Remove the first character that was typed (could be 'j' or IME character like 'っ')
+                        if (textBox.CaretIndex > 0 && textBox.Text.Length > 0)
+                        {
+                            int caretIndex = textBox.CaretIndex;
+                            textBox.Text = textBox.Text.Remove(caretIndex - 1, 1);
+                            textBox.CaretIndex = caretIndex - 1;
+                        }
+
+                        tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+                        evt.Handled = true; // Prevent the second 'j' from being typed
+                    }
+                    else
+                    {
+                        // First 'j' pressed - add to pending keys
+                        tab.VimState.PendingKeys.Clear();
+                        tab.VimState.PendingKeys.Add(Key.J);
+                        // Let the 'j' be processed normally (either as 'j' or through IME)
+                    }
+                }
+                else
+                {
+                    // Any other key - clear pending keys
+                    if (tab.VimState.PendingKeys.Keys.Count > 0)
+                    {
+                        tab.VimState.PendingKeys.Clear();
+                    }
                 }
             };
         }

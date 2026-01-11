@@ -17,12 +17,14 @@ namespace VGrid.ViewModels;
 public class MainViewModel : ViewModelBase
 {
     private readonly ITsvFileService _fileService;
+    private readonly ISettingsService _settingsService;
     private TabItemViewModel? _selectedTab;
     private string? _selectedFolderPath;
 
     public MainViewModel()
     {
         _fileService = new TsvFileService();
+        _settingsService = new SettingsService();
 
         Tabs = new ObservableCollection<TabItemViewModel>();
         StatusBarViewModel = new StatusBarViewModel();
@@ -36,8 +38,8 @@ public class MainViewModel : ViewModelBase
         CloseTabCommand = new RelayCommand<TabItemViewModel>(CloseTab);
         ExitCommand = new RelayCommand(Exit);
 
-        // Initialize with one empty tab
-        NewFile();
+        // Session restoration will be done after window loads
+        // Don't create a new file here - let RestoreSessionAsync handle it
     }
 
     public ObservableCollection<TabItemViewModel> Tabs { get; }
@@ -371,5 +373,63 @@ public class MainViewModel : ViewModelBase
             var cell = tab.Document.Rows[matchPos.Row].Cells[matchPos.Column];
             cell.IsSearchMatch = true;
         }
+    }
+
+    public async System.Threading.Tasks.Task RestoreSessionAsync()
+    {
+        var session = _settingsService.LoadSession();
+        if (session == null || session.OpenFiles.Count == 0)
+        {
+            // No session to restore, create a new file
+            NewFile();
+            return;
+        }
+
+        // Restore files on background thread
+        int validTabCount = 0;
+        foreach (var filePath in session.OpenFiles)
+        {
+            if (File.Exists(filePath))
+            {
+                await OpenFileAsync(filePath);
+                validTabCount++;
+            }
+        }
+
+        // If no valid tabs were restored, create a new file
+        if (validTabCount == 0)
+        {
+            NewFile();
+            return;
+        }
+
+        // Restore selected tab
+        if (session.SelectedTabIndex >= 0 && session.SelectedTabIndex < Tabs.Count)
+        {
+            SelectedTab = Tabs[session.SelectedTabIndex];
+        }
+
+        // Restore folder path
+        if (!string.IsNullOrEmpty(session.SelectedFolderPath) &&
+            Directory.Exists(session.SelectedFolderPath))
+        {
+            SelectedFolderPath = session.SelectedFolderPath;
+        }
+    }
+
+    public void SaveSession()
+    {
+        var session = new SessionSettings
+        {
+            OpenFiles = Tabs
+                .Where(t => !string.IsNullOrEmpty(t.FilePath) &&
+                           !t.FilePath.StartsWith("Untitled"))
+                .Select(t => t.FilePath!)
+                .ToList(),
+            SelectedTabIndex = SelectedTab != null ? Tabs.IndexOf(SelectedTab) : 0,
+            SelectedFolderPath = SelectedFolderPath
+        };
+
+        _settingsService.SaveSession(session);
     }
 }

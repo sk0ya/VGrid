@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -31,8 +32,11 @@ public partial class MainWindow : Window
             }
         };
 
-        // Set focus to the window
-        Loaded += (s, e) => Focus();
+        // Set focus to the window and restore session asynchronously
+        Loaded += MainWindow_Loaded;
+
+        // Save session on window closing
+        Closing += MainWindow_Closing;
     }
 
     private void PopulateFolderTree()
@@ -969,5 +973,21 @@ public partial class MainWindow : Window
                 };
             }
         }
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        Focus();
+
+        // Restore session asynchronously on background thread
+        if (_viewModel != null)
+        {
+            await _viewModel.RestoreSessionAsync();
+        }
+    }
+
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        _viewModel?.SaveSession();
     }
 }

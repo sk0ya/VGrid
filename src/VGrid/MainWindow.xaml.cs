@@ -801,14 +801,22 @@ public partial class MainWindow : Window
         var tab = _viewModel.SelectedTab;
         var currentMode = tab.VimState.CurrentMode;
 
+        // Get the actual key - handle IME processed keys
+        Key actualKey = e.Key;
+        if (e.Key == Key.ImeProcessed)
+        {
+            // When IME is on, the actual key is in ImeProcessedKey
+            actualKey = e.ImeProcessedKey;
+        }
+
         // Debug: Output key information to help identify the correct key
-        System.Diagnostics.Debug.WriteLine($"Key: {e.Key}, Modifiers: {Keyboard.Modifiers}, SystemKey: {e.SystemKey}");
+        System.Diagnostics.Debug.WriteLine($"Key: {e.Key}, ImeProcessedKey: {e.ImeProcessedKey}, ActualKey: {actualKey}, Modifiers: {Keyboard.Modifiers}");
 
         // Special handling for ':' key in Normal mode to ensure it enters Command mode
         // before DataGrid tries to start editing
         // Key.Oem1 is ':' on Japanese keyboard and ';' on US keyboard
         // Accept both with/without Shift to support both keyboard layouts
-        if (currentMode == VimEngine.VimMode.Normal && e.Key == Key.Oem1)
+        if (currentMode == VimEngine.VimMode.Normal && actualKey == Key.Oem1)
         {
             tab.VimState.CurrentCommandType = VimEngine.CommandType.ExCommand;
             tab.VimState.SwitchMode(VimEngine.VimMode.Command);
@@ -819,7 +827,7 @@ public partial class MainWindow : Window
         // Special handling for '/' key in Normal mode to ensure it enters Search mode
         // before DataGrid tries to start editing
         if (currentMode == VimEngine.VimMode.Normal &&
-            e.Key == Key.OemQuestion &&
+            actualKey == Key.OemQuestion &&
             !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
         {
             tab.VimState.CurrentCommandType = VimEngine.CommandType.Search;
@@ -830,7 +838,7 @@ public partial class MainWindow : Window
 
         // Handle key through Vim state of the selected tab
         var handled = tab.VimState.HandleKey(
-            e.Key,
+            actualKey,
             Keyboard.Modifiers,
             tab.GridViewModel.Document);
 

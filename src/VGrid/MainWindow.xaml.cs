@@ -249,15 +249,18 @@ public partial class MainWindow : Window
         var style = new Style(typeof(DataGridCell));
 
         // Base setters
-        style.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(224, 224, 224))));
+        style.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(224, 224, 224))));
         style.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
         style.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(4, 2, 4, 2)));
 
         // DataGrid's built-in selection trigger (blue highlight for current cell)
-        var selectionTrigger = new Trigger { Property = DataGridCell.IsSelectedProperty, Value = true };
-        selectionTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(212, 231, 247))));
+        var selectionTrigger = new Trigger {Property = DataGridCell.IsSelectedProperty, Value = true};
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty,
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(212, 231, 247))));
         selectionTrigger.Setters.Add(new Setter(DataGridCell.ForegroundProperty, System.Windows.Media.Brushes.Black));
-        selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 144, 226))));
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 144, 226))));
         selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
         style.Triggers.Add(selectionTrigger);
 
@@ -265,8 +268,10 @@ public partial class MainWindow : Window
         var visualTrigger = new DataTrigger();
         visualTrigger.Binding = new System.Windows.Data.Binding($"Cells[{columnIndex}].IsSelected");
         visualTrigger.Value = true;
-        visualTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 230, 204)))); // Orange
-        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 153, 0))));
+        visualTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty,
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 230, 204)))); // Orange
+        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 153, 0))));
         visualTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(1, 1, 1, 1)));
         style.Triggers.Add(visualTrigger);
 
@@ -274,8 +279,10 @@ public partial class MainWindow : Window
         var searchTrigger = new DataTrigger();
         searchTrigger.Binding = new System.Windows.Data.Binding($"Cells[{columnIndex}].IsSearchMatch");
         searchTrigger.Value = true;
-        searchTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 153)))); // Yellow
-        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 215, 0))));
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty,
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 153)))); // Yellow
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 215, 0))));
         searchTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
         style.Triggers.Add(searchTrigger);
 
@@ -456,6 +463,7 @@ public partial class MainWindow : Window
                         row.Cells[selection.Start.Column].IsSelected = true;
                     }
                 }
+
                 break;
 
             case VimEngine.VisualType.Line:
@@ -468,6 +476,7 @@ public partial class MainWindow : Window
                         cell.IsSelected = true;
                     }
                 }
+
                 break;
 
             case VimEngine.VisualType.Block:
@@ -482,6 +491,7 @@ public partial class MainWindow : Window
                         }
                     }
                 }
+
                 break;
         }
     }
@@ -537,7 +547,8 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void HandleRowSelection(ViewModels.TabItemViewModel tab, int rowIndex, bool isCtrlPressed, bool isShiftPressed)
+    private void HandleRowSelection(ViewModels.TabItemViewModel tab, int rowIndex, bool isCtrlPressed,
+        bool isShiftPressed)
     {
         // If not in Visual Line mode, enter it
         if (tab.VimState.CurrentMode != VimEngine.VimMode.Visual ||
@@ -587,7 +598,8 @@ public partial class MainWindow : Window
         UpdateHeaderSelectionHighlighting(tab);
     }
 
-    private void HandleColumnSelection(ViewModels.TabItemViewModel tab, int columnIndex, bool isCtrlPressed, bool isShiftPressed)
+    private void HandleColumnSelection(ViewModels.TabItemViewModel tab, int columnIndex, bool isCtrlPressed,
+        bool isShiftPressed)
     {
         // If not in Visual Block mode, enter it
         if (tab.VimState.CurrentMode != VimEngine.VimMode.Visual ||
@@ -688,6 +700,7 @@ public partial class MainWindow : Window
             if (child is T parent)
                 return parent;
         }
+
         return null;
     }
 
@@ -760,7 +773,7 @@ public partial class MainWindow : Window
             Padding = new Thickness(2),
             BorderThickness = new Thickness(1),
             BorderBrush = new SolidColorBrush(Colors.CornflowerBlue),
-            Tag = filePath,  // Store original file path
+            Tag = filePath, // Store original file path
             Focusable = true
         };
 
@@ -783,6 +796,7 @@ public partial class MainWindow : Window
                     // Restore original header
                     item.Header = fileName;
                 }
+
                 // Return focus to TreeView
                 FolderTreeView.Focus();
                 e.Handled = true;
@@ -893,6 +907,30 @@ public partial class MainWindow : Window
                 tab.FilePath = newFilePath;
                 var newFileName = Path.GetFileName(newFilePath);
                 tab.Header = tab.IsDirty ? $"{newFileName}*" : newFileName;
+            }
+        }
+    }
+
+    private void TsvGrid_OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        var dataGrid = sender as DataGrid;
+        if (dataGrid != null)
+        {
+            if (dataGrid.DataContext is TabItemViewModel tsvGridViewModel)
+            {
+                tsvGridViewModel.VimState.PropertyChanged += (s, evt) =>
+                {
+                    if (evt.PropertyName == nameof(tsvGridViewModel.VimState.CursorPosition) &&
+                        tsvGridViewModel == _viewModel?.SelectedTab)
+                    {
+                        UpdateDataGridSelection(dataGrid, tsvGridViewModel);
+                    }
+                    else if (evt.PropertyName == nameof(tsvGridViewModel.VimState.CurrentMode) &&
+                             tsvGridViewModel == _viewModel?.SelectedTab)
+                    {
+                        HandleModeChange(dataGrid, tsvGridViewModel);
+                    }
+                };
             }
         }
     }

@@ -164,6 +164,7 @@
                                       IsReadOnly="False"
                                       SelectionMode="Extended"
                                       SelectionUnit="Cell"
+                                      DataContextChanged="TsvGrid_OnDataContextChanged"
                                       HeadersVisibility="All"
                                       Focusable="False"
                                       EnableRowVirtualization="True"

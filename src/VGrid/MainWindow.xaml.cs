@@ -196,6 +196,9 @@ public partial class MainWindow : Window
             // Subscribe to DataGrid selection changes to update VimState
             grid.CurrentCellChanged += (s, evt) => { TsvGrid_CurrentCellChanged(grid, grid.DataContext as TabItemViewModel);};
 
+            // Subscribe to cell editing to handle Enter/Escape keys in Insert mode
+            grid.PreparingCellForEdit += TsvGrid_PreparingCellForEdit;
+
             // Set row headers
             grid.LoadingRow += (s, evt) => { evt.Row.Header = (evt.Row.GetIndex() + 1).ToString(); };
 
@@ -374,6 +377,33 @@ public partial class MainWindow : Window
         }
     }
 
+    private void TsvGrid_PreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)
+    {
+        if (e.EditingElement is System.Windows.Controls.TextBox textBox && _viewModel?.SelectedTab != null)
+        {
+            var tab = _viewModel.SelectedTab;
+
+            // Attach KeyDown handler to the editing TextBox
+            textBox.PreviewKeyDown += (s, evt) =>
+            {
+                // Handle Enter key to exit Insert mode
+                if (evt.Key == Key.Enter)
+                {
+                    // Switch to Normal mode
+                    tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+                    evt.Handled = true;
+                }
+                // Handle Escape key to exit Insert mode
+                else if (evt.Key == Key.Escape)
+                {
+                    // Switch to Normal mode
+                    tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+                    evt.Handled = true;
+                }
+            };
+        }
+    }
+
     private void HandleModeChange(DataGrid grid, TabItemViewModel tab)
     {
         if (grid == null || tab == null)
@@ -414,9 +444,15 @@ public partial class MainWindow : Window
             }
             else
             {
-                // Exit Insert mode - commit the edit
+                // Exit Insert mode - commit the edit and return focus to grid
                 grid.CommitEdit(DataGridEditingUnit.Cell, true);
                 grid.CommitEdit(DataGridEditingUnit.Row, true);
+
+                // Ensure focus returns to the grid so Normal mode key handling works
+                grid.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    grid.Focus();
+                }), System.Windows.Threading.DispatcherPriority.Input);
             }
         }
         catch

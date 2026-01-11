@@ -152,4 +152,57 @@ public class NormalModeWordTests
         var cell = document.GetCell(new GridPosition(1, 1));
         Assert.Equal("B", cell?.Value);
     }
+
+    [Fact]
+    public void CtrlV_PastesCellValue()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+
+        var row2 = new Row(1, new[] { "D", "E", "F" });
+        document.Rows.Add(row2);
+
+        var state = new VimState();
+        state.CommandHistory = new CommandHistory();
+        state.CursorPosition = new GridPosition(0, 1); // Cell "B"
+
+        var mode = new NormalMode();
+
+        // Act - copy cell "B" with Ctrl+C
+        mode.HandleKey(state, Key.C, ModifierKeys.Control, document);
+
+        // Move to cell "E"
+        state.CursorPosition = new GridPosition(1, 1);
+
+        // Paste with Ctrl+V
+        mode.HandleKey(state, Key.V, ModifierKeys.Control, document);
+
+        // Assert - cell "E" should now contain "B"
+        var cell = document.GetCell(new GridPosition(1, 1));
+        Assert.Equal("B", cell?.Value);
+    }
+
+    [Fact]
+    public void CtrlShiftV_EntersBlockVisualMode()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+
+        var state = new VimState();
+        state.CursorPosition = new GridPosition(0, 0);
+
+        var mode = new NormalMode();
+
+        // Act - press Ctrl+Shift+V
+        mode.HandleKey(state, Key.V, ModifierKeys.Control | ModifierKeys.Shift, document);
+
+        // Assert - should be in Visual mode with Block type
+        Assert.Equal(VimMode.Visual, state.CurrentMode);
+        Assert.NotNull(state.CurrentSelection);
+        Assert.Equal(VisualType.Block, state.CurrentSelection.Type);
+    }
 }

@@ -36,6 +36,18 @@ public class NormalMode : IVimMode
             return YankCurrentCell(state, document);
         }
 
+        // Handle Ctrl+V to paste
+        if (key == Key.V && modifiers.HasFlag(ModifierKeys.Control) && !modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            return PasteAfterCursor(state, document);
+        }
+
+        // Handle Ctrl+Shift+V for block visual mode (column selection)
+        if (key == Key.V && modifiers.HasFlag(ModifierKeys.Control) && modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            return SwitchToVisualBlockMode(state);
+        }
+
         // Handle navigation keys
         bool handled = key switch
         {
@@ -76,7 +88,6 @@ public class NormalMode : IVimMode
             Key.A => SwitchToInsertModeAfter(state, document),
             Key.O => InsertLineBelow(state, document),
             Key.V when modifiers.HasFlag(ModifierKeys.Shift) => SwitchToVisualLineMode(state),
-            Key.V when modifiers.HasFlag(ModifierKeys.Control) => SwitchToVisualBlockMode(state),
             Key.V => SwitchToVisualMode(state),
 
             // Escape (should stay in normal mode, but clear state)

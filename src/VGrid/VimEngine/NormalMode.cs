@@ -99,6 +99,7 @@ public class NormalMode : IVimMode
             // Delete operations
             Key.D when state.PendingKeys.Keys.LastOrDefault() == Key.D => DeleteLine(state, document),
             Key.D when state.PendingKeys.Keys.Count == 0 => HandlePendingD(state),
+            Key.X => DeleteCurrentCell(state, document),
 
             // Undo operation
             Key.U => Undo(state),
@@ -115,7 +116,6 @@ public class NormalMode : IVimMode
             Key.S =>true,
             Key.T =>true,
             Key.W when state.PendingKeys.Keys.Count < 2 =>true, // W is only a placeholder when not part of yiw/yaw/diw/daw
-            Key.X =>true,
             Key.Z =>true,
 
             _ => false
@@ -588,6 +588,48 @@ public class NormalMode : IVimMode
             Rows = 1,
             Columns = 1
         };
+
+        return true;
+    }
+
+    private bool DeleteCurrentCell(VimState state, TsvDocument document)
+    {
+        // Delete current cell with 'x' (yank and clear)
+        if (state.CursorPosition.Row >= document.RowCount)
+        {
+            return true;
+        }
+
+        var cell = document.GetCell(state.CursorPosition);
+        if (cell == null)
+        {
+            return true;
+        }
+
+        // First, yank the cell value
+        string[,] values = new string[1, 1];
+        values[0, 0] = cell.Value;
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Character,
+            Rows = 1,
+            Columns = 1
+        };
+
+        // Then clear the cell value
+        var command = new Commands.EditCellCommand(document, state.CursorPosition, string.Empty);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
 
         return true;
     }

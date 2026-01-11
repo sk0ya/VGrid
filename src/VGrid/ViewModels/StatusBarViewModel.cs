@@ -61,7 +61,7 @@ public class StatusBarViewModel : ViewModelBase
         {
             VimMode.Normal => new SolidColorBrush(Colors.CornflowerBlue),
             VimMode.Insert => new SolidColorBrush(Colors.LimeGreen),
-            VimMode.Visual => new SolidColorBrush(Colors.Orange),
+            VimMode.Visual => new SolidColorBrush(Colors.DodgerBlue),
             VimMode.Command => new SolidColorBrush(Colors.MediumPurple),
             _ => new SolidColorBrush(Colors.Gray)
         };

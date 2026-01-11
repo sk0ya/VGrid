@@ -264,15 +264,15 @@ public partial class MainWindow : Window
         selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
         style.Triggers.Add(selectionTrigger);
 
-        // Visual mode Cell.IsSelected trigger (orange highlight for visual selection)
+        // Visual mode Cell.IsSelected trigger (blue highlight for visual selection)
         var visualTrigger = new DataTrigger();
         visualTrigger.Binding = new System.Windows.Data.Binding($"Cells[{columnIndex}].IsSelected");
         visualTrigger.Value = true;
         visualTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty,
-            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 230, 204)))); // Orange
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(212, 231, 247)))); // Blue
         visualTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
-            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 153, 0))));
-        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(1, 1, 1, 1)));
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 144, 226))));
+        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
         style.Triggers.Add(visualTrigger);
 
         // Search match Cell.IsSearchMatch trigger (yellow highlight for current search match)

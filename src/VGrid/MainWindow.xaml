@@ -167,6 +167,7 @@
                                       SelectionMode="Extended"
                                       SelectionUnit="Cell"
                                       DataContextChanged="TsvGrid_OnDataContextChanged"
+                                      BeginningEdit="TsvGrid_BeginningEdit"
                                       HeadersVisibility="All"
                                       Focusable="False"
                                       EnableRowVirtualization="True"

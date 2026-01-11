@@ -67,6 +67,11 @@ public class NormalMode : IVimMode
             Key.N when modifiers.HasFlag(ModifierKeys.Shift) => NavigateToNextMatch(state, false), // 'N'
             Key.N => NavigateToNextMatch(state, true), // 'n'
 
+            // Ex-commands
+            // Key.Oem1 is ':' on Japanese keyboard and ';' on US keyboard
+            // Both with/without Shift are treated as ':' for command mode
+            Key.Oem1 => StartExCommand(state), // ':' key
+
             // File movement
             Key.G when state.PendingKeys.Keys.LastOrDefault() == Key.G => MoveToFirstLine(state),
             Key.G when state.PendingKeys.Keys.Count == 0 => HandlePendingG(state),
@@ -464,6 +469,13 @@ public class NormalMode : IVimMode
 
     private bool StartSearch(VimState state)
     {
+        state.SwitchMode(VimMode.Command);
+        return true;
+    }
+
+    private bool StartExCommand(VimState state)
+    {
+        state.CurrentCommandType = CommandType.ExCommand;
         state.SwitchMode(VimMode.Command);
         return true;
     }

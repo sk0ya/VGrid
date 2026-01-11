@@ -17,12 +17,15 @@ public class CommandMode : IVimMode
     public void OnEnter(VimState state)
     {
         _inputBuffer.Clear();
+        // Set initial pattern to show the trigger character
+        state.SearchPattern = state.CurrentCommandType == CommandType.Search ? "/" : ":";
     }
 
     public void OnExit(VimState state)
     {
         _inputBuffer.Clear();
         state.SearchPattern = string.Empty;
+        state.CurrentCommandType = CommandType.Search; // Reset to default
     }
 
     public bool HandleKey(VimState state, Key key, ModifierKeys modifiers, TsvDocument document)
@@ -35,10 +38,17 @@ public class CommandMode : IVimMode
             return true;
         }
 
-        // Enter - execute search, return to Normal
+        // Enter - execute command, return to Normal
         if (key == Key.Enter)
         {
-            ExecuteSearch(state, document);
+            if (state.CurrentCommandType == CommandType.Search)
+            {
+                ExecuteSearch(state, document);
+            }
+            else
+            {
+                ExecuteExCommand(state);
+            }
             state.SwitchMode(VimMode.Normal);
             return true;
         }
@@ -49,7 +59,8 @@ public class CommandMode : IVimMode
             if (_inputBuffer.Length > 0)
             {
                 _inputBuffer.Length--;
-                state.SearchPattern = "/" + _inputBuffer.ToString();
+                string prefix = state.CurrentCommandType == CommandType.Search ? "/" : ":";
+                state.SearchPattern = prefix + _inputBuffer.ToString();
             }
             return true;
         }
@@ -59,7 +70,8 @@ public class CommandMode : IVimMode
         if (charInput != null)
         {
             _inputBuffer.Append(charInput);
-            state.SearchPattern = "/" + _inputBuffer.ToString();
+            string prefix = state.CurrentCommandType == CommandType.Search ? "/" : ":";
+            state.SearchPattern = prefix + _inputBuffer.ToString();
             return true;
         }
 
@@ -97,6 +109,45 @@ public class CommandMode : IVimMode
         if (results.Count > 0)
         {
             state.CursorPosition = results[0];
+        }
+    }
+
+    /// <summary>
+    /// Executes an ex-command with the current input buffer
+    /// </summary>
+    private void ExecuteExCommand(VimState state)
+    {
+        string commandText = _inputBuffer.ToString();
+
+        // Empty command - just return to normal mode
+        if (string.IsNullOrWhiteSpace(commandText))
+        {
+            return;
+        }
+
+        // Parse the command
+        var command = ExCommandParser.Parse(commandText);
+
+        if (!command.IsValid)
+        {
+            // Invalid command - show error message
+            state.ErrorMessage = command.ErrorMessage;
+            return;
+        }
+
+        // Execute the command by raising appropriate event
+        switch (command.Type)
+        {
+            case ExCommandType.Write:
+                state.OnSaveRequested();
+                break;
+            case ExCommandType.Quit:
+                state.OnQuitRequested(command.Force);
+                break;
+            case ExCommandType.WriteQuit:
+                state.OnSaveRequested();
+                state.OnQuitRequested(command.Force);
+                break;
         }
     }
 

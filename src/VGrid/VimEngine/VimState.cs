@@ -7,6 +7,22 @@ using VGrid.Models;
 namespace VGrid.VimEngine;
 
 /// <summary>
+/// Specifies the type of command being entered in Command mode
+/// </summary>
+public enum CommandType
+{
+    /// <summary>
+    /// Search command (triggered by '/')
+    /// </summary>
+    Search,
+
+    /// <summary>
+    /// Ex-command (triggered by ':')
+    /// </summary>
+    ExCommand
+}
+
+/// <summary>
 /// Specifies where the caret should be positioned when entering insert mode
 /// </summary>
 public enum CellEditCaretPosition
@@ -44,6 +60,8 @@ public class VimState : INotifyPropertyChanged
     private int _currentMatchIndex = -1;
     private bool _isSearchActive = false;
     private CellEditCaretPosition _cellEditCaretPosition = CellEditCaretPosition.End;
+    private CommandType _commandType = CommandType.Search;
+    private string _errorMessage = string.Empty;
 
     // Mode handlers
     private readonly Dictionary<VimMode, IVimMode> _modeHandlers = new();
@@ -344,6 +362,38 @@ public class VimState : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// The type of command being entered in Command mode
+    /// </summary>
+    public CommandType CurrentCommandType
+    {
+        get => _commandType;
+        set
+        {
+            if (_commandType != value)
+            {
+                _commandType = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Error message from command execution
+    /// </summary>
+    public string ErrorMessage
+    {
+        get => _errorMessage;
+        set
+        {
+            if (_errorMessage != value)
+            {
+                _errorMessage = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
     /// Command history for undo/redo operations
     /// </summary>
     public CommandHistory? CommandHistory { get; set; }
@@ -464,10 +514,40 @@ public class VimState : INotifyPropertyChanged
         _searchResults.Clear();
         _currentMatchIndex = -1;
         _isSearchActive = false;
+        _commandType = CommandType.Search;
+        _errorMessage = string.Empty;
         OnPropertyChanged(nameof(SearchPattern));
         OnPropertyChanged(nameof(SearchResults));
         OnPropertyChanged(nameof(CurrentMatchIndex));
         OnPropertyChanged(nameof(IsSearchActive));
+        OnPropertyChanged(nameof(ErrorMessage));
+    }
+
+    /// <summary>
+    /// Event raised when a save operation is requested
+    /// </summary>
+    public event EventHandler? SaveRequested;
+
+    /// <summary>
+    /// Event raised when a quit operation is requested
+    /// </summary>
+    public event EventHandler<bool>? QuitRequested;
+
+    /// <summary>
+    /// Raises the SaveRequested event
+    /// </summary>
+    public void OnSaveRequested()
+    {
+        SaveRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Raises the QuitRequested event
+    /// </summary>
+    /// <param name="forceQuit">True if quit should be forced without prompting</param>
+    public void OnQuitRequested(bool forceQuit)
+    {
+        QuitRequested?.Invoke(this, forceQuit);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

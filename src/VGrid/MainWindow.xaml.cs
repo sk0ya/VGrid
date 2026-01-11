@@ -392,6 +392,26 @@ public partial class MainWindow : Window
         }
     }
 
+    private void TsvGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+    {
+        if (_viewModel?.SelectedTab == null)
+            return;
+
+        var tab = _viewModel.SelectedTab;
+        var currentMode = tab.VimState.CurrentMode;
+
+        // Only allow edit in Insert mode
+        // In Normal mode, we handle mode switching explicitly in HandleKey
+        if (currentMode == VimEngine.VimMode.Insert)
+        {
+            return;
+        }
+
+        // Cancel edit in all other modes (Normal, Command, Visual)
+        // The mode switching will be handled by VimState.HandleKey
+        e.Cancel = true;
+    }
+
     private void TsvGrid_PreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)
     {
         if (e.EditingElement is System.Windows.Controls.TextBox textBox && _viewModel?.SelectedTab != null)
@@ -778,11 +798,41 @@ public partial class MainWindow : Window
         if (Keyboard.FocusedElement is System.Windows.Controls.TextBox)
             return;
 
+        var tab = _viewModel.SelectedTab;
+        var currentMode = tab.VimState.CurrentMode;
+
+        // Debug: Output key information to help identify the correct key
+        System.Diagnostics.Debug.WriteLine($"Key: {e.Key}, Modifiers: {Keyboard.Modifiers}, SystemKey: {e.SystemKey}");
+
+        // Special handling for ':' key in Normal mode to ensure it enters Command mode
+        // before DataGrid tries to start editing
+        // Key.Oem1 is ':' on Japanese keyboard and ';' on US keyboard
+        // Accept both with/without Shift to support both keyboard layouts
+        if (currentMode == VimEngine.VimMode.Normal && e.Key == Key.Oem1)
+        {
+            tab.VimState.CurrentCommandType = VimEngine.CommandType.ExCommand;
+            tab.VimState.SwitchMode(VimEngine.VimMode.Command);
+            e.Handled = true;
+            return;
+        }
+
+        // Special handling for '/' key in Normal mode to ensure it enters Search mode
+        // before DataGrid tries to start editing
+        if (currentMode == VimEngine.VimMode.Normal &&
+            e.Key == Key.OemQuestion &&
+            !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            tab.VimState.CurrentCommandType = VimEngine.CommandType.Search;
+            tab.VimState.SwitchMode(VimEngine.VimMode.Command);
+            e.Handled = true;
+            return;
+        }
+
         // Handle key through Vim state of the selected tab
-        var handled = _viewModel.SelectedTab.VimState.HandleKey(
+        var handled = tab.VimState.HandleKey(
             e.Key,
             Keyboard.Modifiers,
-            _viewModel.SelectedTab.GridViewModel.Document);
+            tab.GridViewModel.Document);
 
         if (handled)
         {

@@ -129,6 +129,37 @@ public class MainViewModel : ViewModelBase
                 {
                     UpdateSearchHighlighting(tab);
                 }
+                else if (e.PropertyName == nameof(VimState.ErrorMessage))
+                {
+                    if (!string.IsNullOrEmpty(vimState.ErrorMessage))
+                    {
+                        StatusBarViewModel.ShowMessage(vimState.ErrorMessage);
+                    }
+                }
+            }
+        };
+
+        // Subscribe to file operation events
+        vimState.SaveRequested += (s, e) =>
+        {
+            if (tab == SelectedTab)
+            {
+                SaveFile();
+            }
+        };
+
+        vimState.QuitRequested += (s, forceQuit) =>
+        {
+            if (tab == SelectedTab)
+            {
+                if (forceQuit)
+                {
+                    ForceCloseTab(tab);
+                }
+                else
+                {
+                    CloseTab(tab);
+                }
             }
         };
 
@@ -212,6 +243,37 @@ public class MainViewModel : ViewModelBase
                     {
                         UpdateSearchHighlighting(tab);
                     }
+                    else if (e.PropertyName == nameof(VimState.ErrorMessage))
+                    {
+                        if (!string.IsNullOrEmpty(vimState.ErrorMessage))
+                        {
+                            StatusBarViewModel.ShowMessage(vimState.ErrorMessage);
+                        }
+                    }
+                }
+            };
+
+            // Subscribe to file operation events
+            vimState.SaveRequested += (s, e) =>
+            {
+                if (tab == SelectedTab)
+                {
+                    SaveFile();
+                }
+            };
+
+            vimState.QuitRequested += (s, forceQuit) =>
+            {
+                if (tab == SelectedTab)
+                {
+                    if (forceQuit)
+                    {
+                        ForceCloseTab(tab);
+                    }
+                    else
+                    {
+                        CloseTab(tab);
+                    }
                 }
             };
 
@@ -245,7 +307,7 @@ public class MainViewModel : ViewModelBase
                !SelectedTab.FilePath.StartsWith("Untitled");
     }
 
-    private async void SaveFile()
+    public async void SaveFile()
     {
         if (SelectedTab == null)
             return;
@@ -320,6 +382,29 @@ public class MainViewModel : ViewModelBase
                 SelectedTab = previousSelected;
             }
         }
+
+        Tabs.Remove(tab);
+
+        // If we closed the selected tab, select another
+        if (SelectedTab == tab || SelectedTab == null)
+        {
+            SelectedTab = Tabs.LastOrDefault();
+        }
+
+        // If no tabs left, create a new one
+        if (Tabs.Count == 0)
+        {
+            NewFile();
+        }
+    }
+
+    /// <summary>
+    /// Closes a tab without prompting for save (for :q!)
+    /// </summary>
+    private void ForceCloseTab(TabItemViewModel? tab)
+    {
+        if (tab == null)
+            return;
 
         Tabs.Remove(tab);
 

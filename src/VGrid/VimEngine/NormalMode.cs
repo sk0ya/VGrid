@@ -91,6 +91,7 @@ public class NormalMode : IVimMode
             // Mode switching
             Key.I => SwitchToInsertMode(state),
             Key.A => SwitchToInsertModeAfter(state, document),
+            Key.O when modifiers.HasFlag(ModifierKeys.Shift) => InsertLineAbove(state, document),
             Key.O => InsertLineBelow(state, document),
             Key.V when modifiers.HasFlag(ModifierKeys.Shift) => SwitchToVisualLineMode(state),
             Key.V => SwitchToVisualMode(state),
@@ -239,6 +240,15 @@ public class NormalMode : IVimMode
         // Insert a new row below the current row
         document.InsertRow(state.CursorPosition.Row + 1);
         state.CursorPosition = new GridPosition(state.CursorPosition.Row + 1, 0);
+        state.SwitchMode(VimMode.Insert);
+        return true;
+    }
+
+    private bool InsertLineAbove(VimState state, TsvDocument document)
+    {
+        // Insert a new row above the current row
+        document.InsertRow(state.CursorPosition.Row);
+        state.CursorPosition = new GridPosition(state.CursorPosition.Row, 0);
         state.SwitchMode(VimMode.Insert);
         return true;
     }

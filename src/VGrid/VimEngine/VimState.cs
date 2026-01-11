@@ -7,6 +7,22 @@ using VGrid.Models;
 namespace VGrid.VimEngine;
 
 /// <summary>
+/// Specifies where the caret should be positioned when entering insert mode
+/// </summary>
+public enum CellEditCaretPosition
+{
+    /// <summary>
+    /// Position caret at the start of the cell content
+    /// </summary>
+    Start,
+
+    /// <summary>
+    /// Position caret at the end of the cell content
+    /// </summary>
+    End
+}
+
+/// <summary>
 /// Central state manager for Vim behavior
 /// </summary>
 public class VimState : INotifyPropertyChanged
@@ -27,6 +43,7 @@ public class VimState : INotifyPropertyChanged
     private List<GridPosition> _searchResults = new();
     private int _currentMatchIndex = -1;
     private bool _isSearchActive = false;
+    private CellEditCaretPosition _cellEditCaretPosition = CellEditCaretPosition.End;
 
     // Mode handlers
     private readonly Dictionary<VimMode, IVimMode> _modeHandlers = new();
@@ -305,6 +322,22 @@ public class VimState : INotifyPropertyChanged
             if (_isSearchActive != value)
             {
                 _isSearchActive = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Specifies where the caret should be positioned when entering insert mode
+    /// </summary>
+    public CellEditCaretPosition CellEditCaretPosition
+    {
+        get => _cellEditCaretPosition;
+        set
+        {
+            if (_cellEditCaretPosition != value)
+            {
+                _cellEditCaretPosition = value;
                 OnPropertyChanged();
             }
         }

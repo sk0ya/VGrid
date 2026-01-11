@@ -398,6 +398,20 @@ public partial class MainWindow : Window
         {
             var tab = _viewModel.SelectedTab;
 
+            // Set caret position based on VimState setting
+            textBox.Loaded += (s, evt) =>
+            {
+                if (tab.VimState.CellEditCaretPosition == VimEngine.CellEditCaretPosition.Start)
+                {
+                    textBox.CaretIndex = 0;
+                }
+                else
+                {
+                    textBox.CaretIndex = textBox.Text.Length;
+                }
+                textBox.Focus();
+            };
+
             // Attach KeyDown handler to the editing TextBox
             textBox.PreviewKeyDown += (s, evt) =>
             {

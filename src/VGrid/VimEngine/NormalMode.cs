@@ -182,15 +182,16 @@ public class NormalMode : IVimMode
 
     private bool SwitchToInsertMode(VimState state)
     {
+        // Set caret position to start of cell when entering insert mode with 'i'
+        state.CellEditCaretPosition = CellEditCaretPosition.Start;
         state.SwitchMode(VimMode.Insert);
         return true;
     }
 
     private bool SwitchToInsertModeAfter(VimState state, TsvDocument document)
     {
-        // Move cursor one position to the right, then enter insert mode
-        var newPos = state.CursorPosition.MoveRight(1).Clamp(document);
-        state.CursorPosition = newPos;
+        // Set caret position to end of cell when entering insert mode with 'a'
+        state.CellEditCaretPosition = CellEditCaretPosition.End;
         state.SwitchMode(VimMode.Insert);
         return true;
     }

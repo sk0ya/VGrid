@@ -65,6 +65,12 @@ public class VisualMode : IVimMode
             return true;
         }
 
+        // Ctrl+C copies the selection
+        if (key == Key.C && modifiers.HasFlag(ModifierKeys.Control))
+        {
+            return YankSelection(state, document);
+        }
+
         // Handle movement keys
         bool moved = key switch
         {

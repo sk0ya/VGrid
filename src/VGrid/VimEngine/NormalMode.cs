@@ -53,6 +53,18 @@ public class NormalMode : IVimMode
             Key.G when state.PendingKeys.Keys.LastOrDefault() == Key.G => MoveToFirstLine(state),
             Key.G when state.PendingKeys.Keys.Count == 0 => HandlePendingG(state),
 
+            // Yank operations
+            Key.Y when state.PendingKeys.Keys.LastOrDefault() == Key.Y => YankLine(state, document),
+            Key.Y when state.PendingKeys.Keys.Count == 0 => HandlePendingY(state),
+
+            // Word text object for yank/delete (yiw, yaw, diw, daw)
+            Key.W when state.PendingKeys.Keys.Count == 2 && state.PendingKeys.Keys[0] == Key.Y &&
+                      (state.PendingKeys.Keys[1] == Key.I || state.PendingKeys.Keys[1] == Key.A) => YankWord(state, document),
+            Key.W when state.PendingKeys.Keys.Count == 2 && state.PendingKeys.Keys[0] == Key.D &&
+                      (state.PendingKeys.Keys[1] == Key.I || state.PendingKeys.Keys[1] == Key.A) => DeleteWord(state, document),
+            Key.I when state.PendingKeys.Keys.Count == 1 && (state.PendingKeys.Keys[0] == Key.Y || state.PendingKeys.Keys[0] == Key.D) => HandleTextObject(state, Key.I),
+            Key.A when state.PendingKeys.Keys.Count == 1 && (state.PendingKeys.Keys[0] == Key.Y || state.PendingKeys.Keys[0] == Key.D) => HandleTextObject(state, Key.A),
+
             // Mode switching
             Key.I => SwitchToInsertMode(state),
             Key.A => SwitchToInsertModeAfter(state, document),
@@ -66,10 +78,6 @@ public class NormalMode : IVimMode
 
             // Paste operation
             Key.P => PasteAfterCursor(state, document),
-
-            // Yank operations
-            Key.Y when state.PendingKeys.Keys.LastOrDefault() == Key.Y => YankLine(state, document),
-            Key.Y when state.PendingKeys.Keys.Count == 0 => HandlePendingY(state),
 
             // Delete operations
             Key.D when state.PendingKeys.Keys.LastOrDefault() == Key.D => DeleteLine(state, document),
@@ -89,7 +97,7 @@ public class NormalMode : IVimMode
             Key.R =>true,
             Key.S =>true,
             Key.T =>true,
-            Key.W =>true,
+            Key.W when state.PendingKeys.Keys.Count < 2 =>true, // W is only a placeholder when not part of yiw/yaw/diw/daw
             Key.X =>true,
             Key.Z =>true,
 
@@ -97,8 +105,14 @@ public class NormalMode : IVimMode
         };
 
         // Clear count prefix after command execution
-        // Don't clear for multi-key commands (G, Y, D) on first press
-        if (handled && key != Key.G && key != Key.Y && key != Key.D)
+        // Don't clear for multi-key commands when building sequences
+        bool isMultiKeySequence = (key == Key.G && state.PendingKeys.Keys.Count > 0) ||
+                                   (key == Key.Y && state.PendingKeys.Keys.Count > 0) ||
+                                   (key == Key.D && state.PendingKeys.Keys.Count > 0) ||
+                                   ((key == Key.I || key == Key.A) && state.PendingKeys.Keys.Count > 1) ||
+                                   (key == Key.W && state.PendingKeys.Keys.Count > 1);
+
+        if (handled && !isMultiKeySequence)
         {
             state.CountPrefix = null;
             state.PendingKeys.Clear();
@@ -241,7 +255,7 @@ public class NormalMode : IVimMode
     private bool PasteAfterCursor(VimState state, TsvDocument document)
     {
         if (state.LastYank == null)
-            return false;
+            return true; // Key is handled, but nothing to paste
 
         var yank = state.LastYank;
         var startPos = state.CursorPosition;
@@ -335,7 +349,10 @@ public class NormalMode : IVimMode
     {
         // Yank entire current row
         if (state.CursorPosition.Row >= document.RowCount)
-            return false;
+        {
+            state.PendingKeys.Clear();
+            return true; // Key is handled, but no row to yank
+        }
 
         var row = document.Rows[state.CursorPosition.Row];
         var columnCount = row.Cells.Count;
@@ -371,7 +388,10 @@ public class NormalMode : IVimMode
     {
         // Delete entire row (not just clear cells)
         if (state.CursorPosition.Row >= document.RowCount)
-            return false;
+        {
+            state.PendingKeys.Clear();
+            return true; // Key is handled, but no row to delete
+        }
 
         var row = document.Rows[state.CursorPosition.Row];
         var columnCount = row.Cells.Count;
@@ -421,9 +441,8 @@ public class NormalMode : IVimMode
         if (state.CommandHistory != null && state.CommandHistory.CanUndo)
         {
             state.CommandHistory.Undo();
-            return true;
         }
-        return false;
+        return true; // Key is always handled, even if there's nothing to undo
     }
 
     private bool StartSearch(VimState state)
@@ -435,9 +454,95 @@ public class NormalMode : IVimMode
     private bool NavigateToNextMatch(VimState state, bool forward)
     {
         if (!state.IsSearchActive || state.SearchResults.Count == 0)
-            return false;
+            return true; // Key is handled, but no search results to navigate
 
         state.NavigateToNextMatch(forward);
+        return true;
+    }
+
+    private bool HandleTextObject(VimState state, Key textObjectKey)
+    {
+        // Add text object modifier (i or a) to pending keys
+        state.PendingKeys.Add(textObjectKey);
+        return true;
+    }
+
+    private bool YankWord(VimState state, TsvDocument document)
+    {
+        // In TSV editor, "word" = current cell
+        // yiw and yaw both yank the current cell value
+        if (state.CursorPosition.Row >= document.RowCount)
+        {
+            state.PendingKeys.Clear();
+            return true;
+        }
+
+        var cell = document.GetCell(state.CursorPosition);
+        if (cell == null)
+        {
+            state.PendingKeys.Clear();
+            return true;
+        }
+
+        // Store yanked content as a single cell
+        string[,] values = new string[1, 1];
+        values[0, 0] = cell.Value;
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Character,
+            Rows = 1,
+            Columns = 1
+        };
+
+        state.PendingKeys.Clear();
+        return true;
+    }
+
+    private bool DeleteWord(VimState state, TsvDocument document)
+    {
+        // In TSV editor, "word" = current cell
+        // diw and daw both yank and clear the current cell value
+        if (state.CursorPosition.Row >= document.RowCount)
+        {
+            state.PendingKeys.Clear();
+            return true;
+        }
+
+        var cell = document.GetCell(state.CursorPosition);
+        if (cell == null)
+        {
+            state.PendingKeys.Clear();
+            return true;
+        }
+
+        // First, yank the cell value
+        string[,] values = new string[1, 1];
+        values[0, 0] = cell.Value;
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Character,
+            Rows = 1,
+            Columns = 1
+        };
+
+        // Then clear the cell value
+        var command = new Commands.EditCellCommand(document, state.CursorPosition, string.Empty);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        state.PendingKeys.Clear();
         return true;
     }
 }

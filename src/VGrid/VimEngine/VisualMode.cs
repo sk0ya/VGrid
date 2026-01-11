@@ -273,7 +273,13 @@ public class VisualMode : IVimMode
             return DeleteLineSelection(state, document, selection);
         }
 
-        // Handle character-wise and block-wise deletion (clear cell values)
+        // Handle block-wise deletion (delete entire columns)
+        if (_visualType == VisualType.Block)
+        {
+            return DeleteBlockSelection(state, document, selection);
+        }
+
+        // Handle character-wise deletion (clear cell values)
         // First, yank the selection (like Vim: delete = yank + delete)
         int rows = selection.RowCount;
         int cols = selection.ColumnCount;
@@ -501,6 +507,69 @@ public class VisualMode : IVimMode
         };
 
         // Return to normal mode after yank
+        state.SwitchMode(VimMode.Normal);
+        return true;
+    }
+
+    private bool DeleteBlockSelection(VimState state, TsvDocument document, SelectionRange selection)
+    {
+        // Yank entire columns before deleting
+        int colCount = selection.ColumnCount;
+        int startCol = selection.StartColumn;
+        int rowCount = document.RowCount;
+
+        // Yank all cells from selected columns
+        string[,] values = new string[rowCount, colCount];
+        for (int r = 0; r < rowCount; r++)
+        {
+            var row = document.Rows[r];
+            for (int c = 0; c < colCount; c++)
+            {
+                int docCol = startCol + c;
+                if (docCol < row.Cells.Count)
+                {
+                    values[r, c] = row.Cells[docCol].Value;
+                }
+                else
+                {
+                    values[r, c] = string.Empty;
+                }
+            }
+        }
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Block,
+            Rows = rowCount,
+            Columns = colCount
+        };
+
+        // Delete columns from right to left to maintain correct indices
+        for (int c = colCount - 1; c >= 0; c--)
+        {
+            int docCol = startCol + c;
+            if (docCol < document.ColumnCount)
+            {
+                var command = new DeleteColumnCommand(document, docCol);
+                if (state.CommandHistory != null)
+                {
+                    state.CommandHistory.Execute(command);
+                }
+                else
+                {
+                    command.Execute();
+                }
+            }
+        }
+
+        // Adjust cursor position if needed
+        if (state.CursorPosition.Column >= document.ColumnCount && document.ColumnCount > 0)
+        {
+            state.CursorPosition = new GridPosition(state.CursorPosition.Row, document.ColumnCount - 1);
+        }
+
+        // Return to normal mode after delete
         state.SwitchMode(VimMode.Normal);
         return true;
     }

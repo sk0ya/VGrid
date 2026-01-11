@@ -53,7 +53,6 @@ VimキーバインドをサポートするTSV（Tab-Separated Values）エディ
 - ソート・フィルタ
 - コマンドモード（`:w`, `:q`, `:wq`）
 - Undo/Redo統合
-- ファイルのrenameなどの操作
 - git連携 差分の表示
 - vimのカスタム
 

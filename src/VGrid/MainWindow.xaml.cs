@@ -194,7 +194,7 @@ public partial class MainWindow : Window
             };
 
             // Subscribe to DataGrid selection changes to update VimState
-            grid.CurrentCellChanged += (s, evt) => { TsvGrid_CurrentCellChanged(grid, tabItem); };
+            grid.CurrentCellChanged += (s, evt) => { TsvGrid_CurrentCellChanged(grid, grid.DataContext as TabItemViewModel);};
 
             // Set row headers
             grid.LoadingRow += (s, evt) => { evt.Row.Header = (evt.Row.GetIndex() + 1).ToString(); };

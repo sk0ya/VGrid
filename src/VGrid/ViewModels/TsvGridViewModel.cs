@@ -96,6 +96,28 @@ public class TsvGridViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Inserts a new row at the specified index
+    /// </summary>
+    public void InsertRow(int rowIndex)
+    {
+        var command = new InsertRowCommand(_document, rowIndex);
+        _commandHistory.Execute(command);
+        OnPropertyChanged(nameof(Rows));
+        OnPropertyChanged(nameof(RowCount));
+    }
+
+    /// <summary>
+    /// Inserts a new column at the specified index
+    /// </summary>
+    public void InsertColumn(int columnIndex)
+    {
+        var command = new InsertColumnCommand(_document, columnIndex);
+        _commandHistory.Execute(command);
+        OnPropertyChanged(nameof(Rows));
+        OnPropertyChanged(nameof(ColumnCount));
+    }
+
+    /// <summary>
     /// Sorts the grid by the specified column
     /// </summary>
     public void Sort(int columnIndex, bool ascending = true)

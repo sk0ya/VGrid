@@ -37,6 +37,10 @@ public class MainViewModel : ViewModelBase
         SaveAsFileCommand = new RelayCommand(SaveFileAs);
         CloseTabCommand = new RelayCommand<TabItemViewModel>(CloseTab);
         ExitCommand = new RelayCommand(Exit);
+        InsertRowAboveCommand = new RelayCommand<int>(InsertRowAbove);
+        InsertRowBelowCommand = new RelayCommand<int>(InsertRowBelow);
+        InsertColumnLeftCommand = new RelayCommand<int>(InsertColumnLeft);
+        InsertColumnRightCommand = new RelayCommand<int>(InsertColumnRight);
 
         // Session restoration will be done after window loads
         // Don't create a new file here - let RestoreSessionAsync handle it
@@ -70,6 +74,10 @@ public class MainViewModel : ViewModelBase
     public WpfCommand SaveAsFileCommand { get; }
     public WpfCommand CloseTabCommand { get; }
     public WpfCommand ExitCommand { get; }
+    public WpfCommand InsertRowAboveCommand { get; }
+    public WpfCommand InsertRowBelowCommand { get; }
+    public WpfCommand InsertColumnLeftCommand { get; }
+    public WpfCommand InsertColumnRightCommand { get; }
 
     public string WindowTitle => "VGrid - TSV Editor with Vim Keybindings";
 
@@ -331,6 +339,48 @@ public class MainViewModel : ViewModelBase
     private void Exit()
     {
         System.Windows.Application.Current.Shutdown();
+    }
+
+    private void InsertRowAbove(int rowIndex)
+    {
+        if (SelectedTab == null)
+            return;
+
+        SelectedTab.GridViewModel.InsertRow(rowIndex);
+        SelectedTab.VimState.CursorPosition = new Models.GridPosition(rowIndex, 0);
+        StatusBarViewModel.ShowMessage($"Inserted row at {rowIndex}");
+    }
+
+    private void InsertRowBelow(int rowIndex)
+    {
+        if (SelectedTab == null)
+            return;
+
+        int insertIndex = rowIndex + 1;
+        SelectedTab.GridViewModel.InsertRow(insertIndex);
+        SelectedTab.VimState.CursorPosition = new Models.GridPosition(insertIndex, 0);
+        StatusBarViewModel.ShowMessage($"Inserted row at {insertIndex}");
+    }
+
+    private void InsertColumnLeft(int columnIndex)
+    {
+        if (SelectedTab == null)
+            return;
+
+        SelectedTab.GridViewModel.InsertColumn(columnIndex);
+        SelectedTab.VimState.CursorPosition = new Models.GridPosition(0, columnIndex);
+        StatusBarViewModel.ShowMessage($"Inserted column at {columnIndex}");
+    }
+
+    private void InsertColumnRight(int columnIndex)
+    {
+        if (SelectedTab == null)
+            return;
+
+        int insertIndex = columnIndex + 1;
+        SelectedTab.GridViewModel.InsertColumn(insertIndex);
+        SelectedTab.VimState.CursorPosition = new Models.GridPosition(0, insertIndex);
+        StatusBarViewModel.ShowMessage($"Inserted column at {insertIndex}");
     }
 
     private void UpdateStatusBarForTab(TabItemViewModel? tab)

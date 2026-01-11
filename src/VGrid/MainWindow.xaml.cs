@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using VGrid.Models;
 using VGrid.ViewModels;
 
 namespace VGrid;
@@ -194,6 +195,16 @@ public partial class MainWindow : Window
                          tabItem == _viewModel?.SelectedTab)
                 {
                     HandleModeChange(grid, tabItem);
+                }
+            };
+
+            // Subscribe to Document ColumnCount changes to regenerate columns
+            tabItem.Document.PropertyChanged += (s, evt) =>
+            {
+                if (evt.PropertyName == nameof(TsvDocument.ColumnCount) &&
+                    tabItem == _viewModel?.SelectedTab)
+                {
+                    GenerateColumns(grid, tabItem);
                 }
             };
 
@@ -984,6 +995,57 @@ public partial class MainWindow : Window
         {
             await _viewModel.RestoreSessionAsync();
         }
+    }
+
+    private void RowHeader_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        var header = sender as System.Windows.Controls.Primitives.DataGridRowHeader;
+        if (header == null || _viewModel == null)
+            return;
+
+        // Get row index from DataGridRow
+        var row = FindVisualParent<DataGridRow>(header);
+        if (row == null)
+            return;
+
+        int rowIndex = row.GetIndex();
+
+        // Create context menu
+        var contextMenu = new ContextMenu();
+
+        var insertAboveMenuItem = new MenuItem { Header = "Insert Row Above" };
+        insertAboveMenuItem.Click += (s, args) => _viewModel.InsertRowAboveCommand.Execute(rowIndex);
+        contextMenu.Items.Add(insertAboveMenuItem);
+
+        var insertBelowMenuItem = new MenuItem { Header = "Insert Row Below" };
+        insertBelowMenuItem.Click += (s, args) => _viewModel.InsertRowBelowCommand.Execute(rowIndex);
+        contextMenu.Items.Add(insertBelowMenuItem);
+
+        header.ContextMenu = contextMenu;
+        contextMenu.IsOpen = true;
+    }
+
+    private void ColumnHeader_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        var header = sender as System.Windows.Controls.Primitives.DataGridColumnHeader;
+        if (header == null || _viewModel == null)
+            return;
+
+        int columnIndex = header.Column.DisplayIndex;
+
+        // Create context menu
+        var contextMenu = new ContextMenu();
+
+        var insertLeftMenuItem = new MenuItem { Header = "Insert Column Left" };
+        insertLeftMenuItem.Click += (s, args) => _viewModel.InsertColumnLeftCommand.Execute(columnIndex);
+        contextMenu.Items.Add(insertLeftMenuItem);
+
+        var insertRightMenuItem = new MenuItem { Header = "Insert Column Right" };
+        insertRightMenuItem.Click += (s, args) => _viewModel.InsertColumnRightCommand.Execute(columnIndex);
+        contextMenu.Items.Add(insertRightMenuItem);
+
+        header.ContextMenu = contextMenu;
+        contextMenu.IsOpen = true;
     }
 
     private void MainWindow_Closing(object? sender, CancelEventArgs e)

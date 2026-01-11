@@ -35,6 +35,7 @@
             <Setter Property="Padding" Value="5,3"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ColumnHeader_PreviewMouseLeftButtonDown"/>
+            <EventSetter Event="MouseRightButtonUp" Handler="ColumnHeader_MouseRightButtonUp"/>
         </Style>
 
         <!-- Excel-like Row Header Style -->
@@ -47,6 +48,7 @@
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="Width" Value="40"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="RowHeader_PreviewMouseLeftButtonDown"/>
+            <EventSetter Event="MouseRightButtonUp" Handler="RowHeader_MouseRightButtonUp"/>
         </Style>
 
         <!-- Excel-like Cell Style -->

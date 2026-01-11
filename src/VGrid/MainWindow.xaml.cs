@@ -794,6 +794,10 @@ public partial class MainWindow : Window
         if (_viewModel?.SelectedTab == null)
             return;
 
+        // If Vim mode is disabled, let DataGrid handle keys normally
+        if (!_viewModel.IsVimModeEnabled)
+            return;
+
         // Don't handle keys if a TextBox has focus (for file rename)
         if (Keyboard.FocusedElement is System.Windows.Controls.TextBox)
             return;

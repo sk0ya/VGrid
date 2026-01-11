@@ -19,4 +19,9 @@ public class SessionSettings
     /// Path of the folder that was selected in the folder explorer.
     /// </summary>
     public string? SelectedFolderPath { get; set; }
+
+    /// <summary>
+    /// Whether Vim keybindings are enabled. Default is true.
+    /// </summary>
+    public bool IsVimModeEnabled { get; set; } = true;
 }

@@ -49,8 +49,6 @@ VimキーバインドをサポートするTSV（Tab-Separated Values）エディ
 - 単語移動（`w`, `b`, `e`）
 - 検索・置換（`/`, `?`, `:%s/old/new/g`）
 - ソート・フィルタ
-- コマンドモード（`:w`, `:q`, `:wq`）
-- Undo/Redo統合
 - git連携 差分の表示
 - vimのカスタム
 

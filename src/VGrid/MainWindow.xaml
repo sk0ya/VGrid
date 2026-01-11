@@ -92,6 +92,11 @@
                 <Separator/>
                 <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
             </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="Enable _Vim Mode"
+                          IsCheckable="True"
+                          IsChecked="{Binding IsVimModeEnabled, Mode=TwoWay}"/>
+            </MenuItem>
         </Menu>
 
         <!-- Status Bar -->

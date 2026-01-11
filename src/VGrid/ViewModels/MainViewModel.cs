@@ -20,6 +20,7 @@ public class MainViewModel : ViewModelBase
     private readonly ISettingsService _settingsService;
     private TabItemViewModel? _selectedTab;
     private string? _selectedFolderPath;
+    private bool _isVimModeEnabled = true;
 
     public MainViewModel()
     {
@@ -41,6 +42,7 @@ public class MainViewModel : ViewModelBase
         InsertRowBelowCommand = new RelayCommand<int>(InsertRowBelow);
         InsertColumnLeftCommand = new RelayCommand<int>(InsertColumnLeft);
         InsertColumnRightCommand = new RelayCommand<int>(InsertColumnRight);
+        ToggleVimModeCommand = new RelayCommand(ToggleVimMode);
 
         // Session restoration will be done after window loads
         // Don't create a new file here - let RestoreSessionAsync handle it
@@ -67,6 +69,18 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _selectedFolderPath, value);
     }
 
+    public bool IsVimModeEnabled
+    {
+        get => _isVimModeEnabled;
+        set
+        {
+            if (SetProperty(ref _isVimModeEnabled, value))
+            {
+                StatusBarViewModel.ShowMessage(value ? "Vim mode enabled" : "Vim mode disabled");
+            }
+        }
+    }
+
     public WpfCommand NewFileCommand { get; }
     public WpfCommand OpenFileCommand { get; }
     public WpfCommand OpenFolderCommand { get; }
@@ -78,6 +92,7 @@ public class MainViewModel : ViewModelBase
     public WpfCommand InsertRowBelowCommand { get; }
     public WpfCommand InsertColumnLeftCommand { get; }
     public WpfCommand InsertColumnRightCommand { get; }
+    public WpfCommand ToggleVimModeCommand { get; }
 
     public string WindowTitle => "VGrid - TSV Editor with Vim Keybindings";
 
@@ -468,6 +483,12 @@ public class MainViewModel : ViewModelBase
         StatusBarViewModel.ShowMessage($"Inserted column at {insertIndex}");
     }
 
+    private void ToggleVimMode()
+    {
+        IsVimModeEnabled = !IsVimModeEnabled;
+        StatusBarViewModel.ShowMessage(IsVimModeEnabled ? "Vim mode enabled" : "Vim mode disabled");
+    }
+
     private void UpdateStatusBarForTab(TabItemViewModel? tab)
     {
         if (tab == null)
@@ -520,6 +541,9 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        // Restore Vim mode setting
+        IsVimModeEnabled = session.IsVimModeEnabled;
+
         // Restore files on background thread
         int validTabCount = 0;
         foreach (var filePath in session.OpenFiles)
@@ -562,7 +586,8 @@ public class MainViewModel : ViewModelBase
                 .Select(t => t.FilePath!)
                 .ToList(),
             SelectedTabIndex = SelectedTab != null ? Tabs.IndexOf(SelectedTab) : 0,
-            SelectedFolderPath = SelectedFolderPath
+            SelectedFolderPath = SelectedFolderPath,
+            IsVimModeEnabled = IsVimModeEnabled
         };
 
         _settingsService.SaveSession(session);

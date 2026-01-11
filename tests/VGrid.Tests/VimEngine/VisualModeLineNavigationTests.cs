@@ -196,4 +196,115 @@ public class VisualModeLineNavigationTests
         // Assert - should move to column 3 (last non-empty cell)
         Assert.Equal(3, state.CursorPosition.Column);
     }
+
+    [Fact]
+    public void Zero_MovesToFirstRowFirstColumnWithSelection()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+        var row2 = new Row(1, new[] { "D", "E", "F" });
+        document.Rows.Add(row2);
+        var row3 = new Row(2, new[] { "G", "H", "I" });
+        document.Rows.Add(row3);
+
+        var state = new VimState();
+        state.CursorPosition = new GridPosition(2, 2); // Start at row 2, column 2
+        state.CurrentSelection = new SelectionRange(
+            VisualType.Character,
+            state.CursorPosition,
+            state.CursorPosition);
+
+        // Switch to Visual mode explicitly
+        state.SwitchMode(VimMode.Visual);
+
+        var mode = new VisualMode();
+        mode.OnEnter(state);
+
+        // Act - simulate '0' key
+        mode.HandleKey(state, Key.D0, ModifierKeys.None, document);
+
+        // Assert - should move to row 0, column 0
+        Assert.Equal(0, state.CursorPosition.Row);
+        Assert.Equal(0, state.CursorPosition.Column);
+
+        // Assert - selection should span from (0,0) to (2,2)
+        Assert.NotNull(state.CurrentSelection);
+        Assert.Equal(0, state.CurrentSelection.StartRow);
+        Assert.Equal(0, state.CurrentSelection.StartColumn);
+        Assert.Equal(2, state.CurrentSelection.EndRow);
+        Assert.Equal(2, state.CurrentSelection.EndColumn);
+    }
+
+    [Fact]
+    public void Zero_FromMiddlePosition_CreatesSelectionToOrigin()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+        var row2 = new Row(1, new[] { "D", "E", "F" });
+        document.Rows.Add(row2);
+
+        var state = new VimState();
+        state.CursorPosition = new GridPosition(1, 1); // Start at row 1, column 1
+        state.CurrentSelection = new SelectionRange(
+            VisualType.Character,
+            state.CursorPosition,
+            state.CursorPosition);
+
+        // Switch to Visual mode explicitly
+        state.SwitchMode(VimMode.Visual);
+
+        var mode = new VisualMode();
+        mode.OnEnter(state);
+
+        // Act - simulate '0' key
+        mode.HandleKey(state, Key.D0, ModifierKeys.None, document);
+
+        // Assert - should move to row 0, column 0
+        Assert.Equal(0, state.CursorPosition.Row);
+        Assert.Equal(0, state.CursorPosition.Column);
+
+        // Assert - selection should be updated
+        Assert.NotNull(state.CurrentSelection);
+        Assert.Equal(VimMode.Visual, state.CurrentMode);
+    }
+
+    [Fact]
+    public void Zero_InVisualLineMode_MovesToFirstRowFirstColumn()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+        var row2 = new Row(1, new[] { "D", "E", "F" });
+        document.Rows.Add(row2);
+        var row3 = new Row(2, new[] { "G", "H", "I" });
+        document.Rows.Add(row3);
+
+        var state = new VimState();
+        state.CursorPosition = new GridPosition(2, 1); // Start at row 2, column 1
+        state.CurrentSelection = new SelectionRange(
+            VisualType.Line,
+            state.CursorPosition,
+            state.CursorPosition);
+
+        // Switch to Visual mode explicitly
+        state.SwitchMode(VimMode.Visual);
+
+        var mode = new VisualMode();
+        mode.OnEnter(state);
+
+        // Act - simulate '0' key
+        mode.HandleKey(state, Key.D0, ModifierKeys.None, document);
+
+        // Assert - should move to row 0, column 0
+        Assert.Equal(0, state.CursorPosition.Row);
+        Assert.Equal(0, state.CursorPosition.Column);
+
+        // Assert - should still be in Visual mode
+        Assert.Equal(VimMode.Visual, state.CurrentMode);
+    }
 }

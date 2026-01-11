@@ -139,4 +139,76 @@ public class NormalModeLineNavigationTests
         Assert.Equal(4, state.CursorPosition.Column);
         Assert.Equal(0, state.CursorPosition.Row);
     }
+
+    [Fact]
+    public void Zero_MovesToFirstRowFirstColumn()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+        var row2 = new Row(1, new[] { "D", "E", "F" });
+        document.Rows.Add(row2);
+        var row3 = new Row(2, new[] { "G", "H", "I" });
+        document.Rows.Add(row3);
+
+        var state = new VimState();
+        state.CommandHistory = new CommandHistory();
+        state.CursorPosition = new GridPosition(2, 2); // Row 2, Column 2
+
+        var mode = new NormalMode();
+
+        // Act - simulate '0' key
+        mode.HandleKey(state, Key.D0, ModifierKeys.None, document);
+
+        // Assert - should move to row 0, column 0
+        Assert.Equal(0, state.CursorPosition.Row);
+        Assert.Equal(0, state.CursorPosition.Column);
+    }
+
+    [Fact]
+    public void Zero_FromMiddleRow_MovesToFirstRowFirstColumn()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+        var row2 = new Row(1, new[] { "D", "E", "F" });
+        document.Rows.Add(row2);
+
+        var state = new VimState();
+        state.CommandHistory = new CommandHistory();
+        state.CursorPosition = new GridPosition(1, 1); // Row 1, Column 1
+
+        var mode = new NormalMode();
+
+        // Act - simulate '0' key
+        mode.HandleKey(state, Key.D0, ModifierKeys.None, document);
+
+        // Assert - should move to row 0, column 0
+        Assert.Equal(0, state.CursorPosition.Row);
+        Assert.Equal(0, state.CursorPosition.Column);
+    }
+
+    [Fact]
+    public void Zero_AlreadyAtFirstRowFirstColumn_StaysAtSamePosition()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+
+        var state = new VimState();
+        state.CommandHistory = new CommandHistory();
+        state.CursorPosition = new GridPosition(0, 0); // Already at row 0, column 0
+
+        var mode = new NormalMode();
+
+        // Act - simulate '0' key
+        mode.HandleKey(state, Key.D0, ModifierKeys.None, document);
+
+        // Assert - should stay at row 0, column 0
+        Assert.Equal(0, state.CursorPosition.Row);
+        Assert.Equal(0, state.CursorPosition.Column);
+    }
 }

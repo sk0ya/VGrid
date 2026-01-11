@@ -92,6 +92,7 @@ public class VisualMode : IVimMode
             Key.K => MoveSelection(state, document, state.CursorPosition.MoveUp(1)),
             Key.L when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastNonEmptyColumnWithSelection(state, document),
             Key.L => MoveSelection(state, document, state.CursorPosition.MoveRight(1)),
+            Key.D0 => MoveSelection(state, document, new GridPosition(0, 0)),
             Key.W => MoveToNextNonEmptyCellWithSelection(state, document),
             Key.B => MoveToPreviousNonEmptyCellWithSelection(state, document),
             _ => false

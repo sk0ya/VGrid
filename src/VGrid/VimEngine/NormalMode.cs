@@ -60,7 +60,7 @@ public class NormalMode : IVimMode
             Key.L => MoveRight(state, document, count),
 
             // Line movement
-            Key.D0 when state.CountPrefix == null => MoveToLineStart(state),
+            Key.D0 when state.CountPrefix == null => MoveToFirstRowFirstColumn(state),
             Key.OemPeriod when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLineEnd(state, document), // >
             Key.D4 when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLineEnd(state, document), // $ (Shift+4)
 
@@ -198,6 +198,12 @@ public class NormalMode : IVimMode
     private bool MoveToLineStart(VimState state)
     {
         state.CursorPosition = state.CursorPosition.MoveToLineStart();
+        return true;
+    }
+
+    private bool MoveToFirstRowFirstColumn(VimState state)
+    {
+        state.CursorPosition = new GridPosition(0, 0);
         return true;
     }
 

@@ -30,6 +30,12 @@ public class NormalMode : IVimMode
         // Get the count (default to 1 if no prefix)
         int count = state.CountPrefix ?? 1;
 
+        // Handle Ctrl+C to copy current cell
+        if (key == Key.C && modifiers.HasFlag(ModifierKeys.Control))
+        {
+            return YankCurrentCell(state, document);
+        }
+
         // Handle navigation keys
         bool handled = key switch
         {
@@ -543,6 +549,35 @@ public class NormalMode : IVimMode
         }
 
         state.PendingKeys.Clear();
+        return true;
+    }
+
+    private bool YankCurrentCell(VimState state, TsvDocument document)
+    {
+        // Yank current cell with Ctrl+C
+        if (state.CursorPosition.Row >= document.RowCount)
+        {
+            return true;
+        }
+
+        var cell = document.GetCell(state.CursorPosition);
+        if (cell == null)
+        {
+            return true;
+        }
+
+        // Store yanked content as a single cell
+        string[,] values = new string[1, 1];
+        values[0, 0] = cell.Value;
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Character,
+            Rows = 1,
+            Columns = 1
+        };
+
         return true;
     }
 }

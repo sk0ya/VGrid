@@ -497,6 +497,12 @@ public partial class MainWindow : Window
                 grid.CommitEdit(DataGridEditingUnit.Cell, true);
                 grid.CommitEdit(DataGridEditingUnit.Row, true);
 
+                // Check if we need to apply bulk edit from Visual mode
+                if (tab.VimState.PendingBulkEditRange != null)
+                {
+                    ApplyBulkEdit(tab);
+                }
+
                 // Ensure focus returns to the grid so Normal mode key handling works
                 grid.Dispatcher.BeginInvoke(new Action(() =>
                 {
@@ -1127,5 +1133,104 @@ public partial class MainWindow : Window
     private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
         _viewModel?.SaveSession();
+    }
+
+    private void ApplyBulkEdit(TabItemViewModel tab)
+    {
+        if (tab.VimState.PendingBulkEditRange == null)
+            return;
+
+        var range = tab.VimState.PendingBulkEditRange;
+        var document = tab.Document;
+        var caretPosition = tab.VimState.CellEditCaretPosition;
+        var originalValue = tab.VimState.OriginalCellValueForBulkEdit;
+
+        // Get the value from the first cell in the selection range (the one that was edited)
+        var editedCell = document.GetCell(new GridPosition(range.StartRow, range.StartColumn));
+        if (editedCell == null)
+        {
+            tab.VimState.PendingBulkEditRange = null;
+            tab.VimState.OriginalCellValueForBulkEdit = string.Empty;
+            return;
+        }
+
+        var newValue = editedCell.Value;
+
+        // Detect the inserted text by comparing original and new values
+        string insertedText = string.Empty;
+        if (caretPosition == VimEngine.CellEditCaretPosition.Start)
+        {
+            // Text was inserted at the start
+            if (newValue.EndsWith(originalValue))
+            {
+                insertedText = newValue.Substring(0, newValue.Length - originalValue.Length);
+            }
+        }
+        else // CellEditCaretPosition.End
+        {
+            // Text was inserted at the end
+            if (newValue.StartsWith(originalValue))
+            {
+                insertedText = newValue.Substring(originalValue.Length);
+            }
+        }
+
+        // Apply the inserted text to all cells in the selection range
+        // Skip the first cell (range.StartRow, range.StartColumn) as it was already edited
+        var cellUpdates = new Dictionary<GridPosition, string>();
+        for (int r = 0; r < range.RowCount; r++)
+        {
+            for (int c = 0; c < range.ColumnCount; c++)
+            {
+                int docRow = range.StartRow + r;
+                int docCol = range.StartColumn + c;
+
+                // Skip the first cell that was already edited
+                if (docRow == range.StartRow && docCol == range.StartColumn)
+                    continue;
+
+                if (docRow < document.RowCount && docCol < document.Rows[docRow].Cells.Count)
+                {
+                    var cell = document.Rows[docRow].Cells[docCol];
+                    string updatedValue;
+
+                    if (caretPosition == VimEngine.CellEditCaretPosition.Start)
+                    {
+                        // Insert at the start
+                        updatedValue = insertedText + cell.Value;
+                    }
+                    else
+                    {
+                        // Insert at the end
+                        updatedValue = cell.Value + insertedText;
+                    }
+
+                    cellUpdates[new GridPosition(docRow, docCol)] = updatedValue;
+                }
+            }
+        }
+
+        // Apply all updates using a command for undo support
+        if (cellUpdates.Count > 0)
+        {
+            var positions = cellUpdates.Keys.ToList();
+            var values = new Dictionary<GridPosition, string>(cellUpdates);
+
+            // Create a modified BulkEditCellsCommand that applies different values to each cell
+            var command = new Commands.BulkEditCellsWithValuesCommand(document, values);
+
+            if (tab.VimState.CommandHistory != null)
+            {
+                tab.VimState.CommandHistory.Execute(command);
+            }
+            else
+            {
+                command.Execute();
+            }
+        }
+
+        // Clear the pending bulk edit range
+        tab.VimState.PendingBulkEditRange = null;
+        tab.VimState.OriginalCellValueForBulkEdit = string.Empty;
     }
 }

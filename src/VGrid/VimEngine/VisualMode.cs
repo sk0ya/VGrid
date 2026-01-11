@@ -71,6 +71,18 @@ public class VisualMode : IVimMode
             return YankSelection(state, document);
         }
 
+        // Handle 'i' to edit selected cells with cursor at start
+        if (key == Key.I && modifiers == ModifierKeys.None)
+        {
+            return StartBulkEdit(state, document, CellEditCaretPosition.Start);
+        }
+
+        // Handle 'a' to edit selected cells with cursor at end
+        if (key == Key.A && modifiers == ModifierKeys.None)
+        {
+            return StartBulkEdit(state, document, CellEditCaretPosition.End);
+        }
+
         // Handle movement keys
         bool moved = key switch
         {
@@ -560,6 +572,33 @@ public class VisualMode : IVimMode
 
         // Return to normal mode after yank
         state.SwitchMode(VimMode.Normal);
+        return true;
+    }
+
+    private bool StartBulkEdit(VimState state, TsvDocument document, CellEditCaretPosition caretPosition)
+    {
+        // Save the current selection range for bulk editing
+        state.PendingBulkEditRange = state.CurrentSelection;
+
+        // Set the caret position for the upcoming insert mode
+        state.CellEditCaretPosition = caretPosition;
+
+        // Save the original value of the first cell for detecting inserted text
+        if (state.CurrentSelection != null)
+        {
+            var firstCellPos = new GridPosition(
+                state.CurrentSelection.StartRow,
+                state.CurrentSelection.StartColumn);
+
+            var firstCell = document.GetCell(firstCellPos);
+            state.OriginalCellValueForBulkEdit = firstCell?.Value ?? string.Empty;
+
+            // Move cursor to the start of the selection for editing
+            state.CursorPosition = firstCellPos;
+        }
+
+        // Switch to Insert mode to edit the first cell
+        state.SwitchMode(VimMode.Insert);
         return true;
     }
 

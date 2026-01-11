@@ -62,6 +62,8 @@ public class VimState : INotifyPropertyChanged
     private CellEditCaretPosition _cellEditCaretPosition = CellEditCaretPosition.End;
     private CommandType _commandType = CommandType.Search;
     private string _errorMessage = string.Empty;
+    private SelectionRange? _pendingBulkEditRange;
+    private string _originalCellValueForBulkEdit = string.Empty;
 
     // Mode handlers
     private readonly Dictionary<VimMode, IVimMode> _modeHandlers = new();
@@ -388,6 +390,38 @@ public class VimState : INotifyPropertyChanged
             if (_errorMessage != value)
             {
                 _errorMessage = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Pending bulk edit range for Visual mode 'i' and 'a' commands
+    /// </summary>
+    public SelectionRange? PendingBulkEditRange
+    {
+        get => _pendingBulkEditRange;
+        set
+        {
+            if (_pendingBulkEditRange != value)
+            {
+                _pendingBulkEditRange = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Original cell value before bulk edit (used to detect inserted text)
+    /// </summary>
+    public string OriginalCellValueForBulkEdit
+    {
+        get => _originalCellValueForBulkEdit;
+        set
+        {
+            if (_originalCellValueForBulkEdit != value)
+            {
+                _originalCellValueForBulkEdit = value;
                 OnPropertyChanged();
             }
         }

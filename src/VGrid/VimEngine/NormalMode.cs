@@ -52,9 +52,11 @@ public class NormalMode : IVimMode
         bool handled = key switch
         {
             // Basic movement (hjkl)
+            Key.H when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLineStart(state),
             Key.H => MoveLeft(state, document, count),
             Key.J => MoveDown(state, document, count),
             Key.K => MoveUp(state, document, count),
+            Key.L when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastNonEmptyColumn(state, document),
             Key.L => MoveRight(state, document, count),
 
             // Line movement
@@ -202,6 +204,34 @@ public class NormalMode : IVimMode
     private bool MoveToLineEnd(VimState state, TsvDocument document)
     {
         state.CursorPosition = state.CursorPosition.MoveToLineEnd(document);
+        return true;
+    }
+
+    private bool MoveToLastNonEmptyColumn(VimState state, TsvDocument document)
+    {
+        // Find the last non-empty cell in the current row
+        int currentRow = state.CursorPosition.Row;
+        if (currentRow >= document.RowCount)
+            return true;
+
+        var row = document.Rows[currentRow];
+        int lastNonEmptyCol = -1;
+
+        for (int col = row.Cells.Count - 1; col >= 0; col--)
+        {
+            if (!string.IsNullOrEmpty(row.Cells[col].Value))
+            {
+                lastNonEmptyCol = col;
+                break;
+            }
+        }
+
+        // If found, move to that column; otherwise stay at current position
+        if (lastNonEmptyCol >= 0)
+        {
+            state.CursorPosition = new GridPosition(currentRow, lastNonEmptyCol);
+        }
+
         return true;
     }
 

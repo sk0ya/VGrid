@@ -86,9 +86,11 @@ public class VisualMode : IVimMode
         // Handle movement keys
         bool moved = key switch
         {
+            Key.H when modifiers.HasFlag(ModifierKeys.Shift) => MoveSelection(state, document, state.CursorPosition.MoveToLineStart()),
             Key.H => MoveSelection(state, document, state.CursorPosition.MoveLeft(1)),
             Key.J => MoveSelection(state, document, state.CursorPosition.MoveDown(1)),
             Key.K => MoveSelection(state, document, state.CursorPosition.MoveUp(1)),
+            Key.L when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastNonEmptyColumnWithSelection(state, document),
             Key.L => MoveSelection(state, document, state.CursorPosition.MoveRight(1)),
             Key.W => MoveToNextNonEmptyCellWithSelection(state, document),
             Key.B => MoveToPreviousNonEmptyCellWithSelection(state, document),
@@ -664,6 +666,34 @@ public class VisualMode : IVimMode
 
         // Return to normal mode after delete
         state.SwitchMode(VimMode.Normal);
+        return true;
+    }
+
+    private bool MoveToLastNonEmptyColumnWithSelection(VimState state, TsvDocument document)
+    {
+        // Find the last non-empty cell in the current row
+        int currentRow = state.CursorPosition.Row;
+        if (currentRow >= document.RowCount)
+            return true;
+
+        var row = document.Rows[currentRow];
+        int lastNonEmptyCol = -1;
+
+        for (int col = row.Cells.Count - 1; col >= 0; col--)
+        {
+            if (!string.IsNullOrEmpty(row.Cells[col].Value))
+            {
+                lastNonEmptyCol = col;
+                break;
+            }
+        }
+
+        // If found, move to that column with selection; otherwise stay at current position
+        if (lastNonEmptyCol >= 0)
+        {
+            MoveSelection(state, document, new GridPosition(currentRow, lastNonEmptyCol));
+        }
+
         return true;
     }
 

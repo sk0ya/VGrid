@@ -267,7 +267,32 @@ public class NormalMode : IVimMode
             return true;
         }
 
-        // Handle character-wise and block-wise paste (overwrite values)
+        // Handle block-wise paste (insert new columns to the right of cursor)
+        if (yank.SourceType == VisualType.Block)
+        {
+            // Insert new columns to the right of the current column
+            for (int c = 0; c < yank.Columns; c++)
+            {
+                int insertCol = startPos.Column + 1 + c;
+                document.InsertColumn(insertCol);
+
+                // Fill the new column with yanked values
+                for (int r = 0; r < yank.Rows && r < document.RowCount; r++)
+                {
+                    var row = document.Rows[r];
+                    if (insertCol < row.Cells.Count)
+                    {
+                        row.Cells[insertCol].Value = yank.Values[r, c];
+                    }
+                }
+            }
+
+            // Move cursor to the first inserted column
+            state.CursorPosition = new GridPosition(startPos.Row, startPos.Column + 1);
+            return true;
+        }
+
+        // Handle character-wise paste (overwrite values)
         int neededRows = startPos.Row + yank.Rows;
         int neededCols = startPos.Column + yank.Columns;
 

@@ -419,7 +419,13 @@ public class VisualMode : IVimMode
             return YankLineSelection(state, document, selection);
         }
 
-        // Handle character-wise and block-wise yank
+        // Handle block-wise yank (yank entire columns)
+        if (_visualType == VisualType.Block)
+        {
+            return YankBlockSelection(state, document, selection);
+        }
+
+        // Handle character-wise yank
         // Calculate dimensions
         int rows = selection.RowCount;
         int cols = selection.ColumnCount;
@@ -504,6 +510,46 @@ public class VisualMode : IVimMode
             SourceType = VisualType.Line,
             Rows = rowCount,
             Columns = maxCols
+        };
+
+        // Return to normal mode after yank
+        state.SwitchMode(VimMode.Normal);
+        return true;
+    }
+
+    private bool YankBlockSelection(VimState state, TsvDocument document, SelectionRange selection)
+    {
+        // Yank entire columns (like block-wise yank)
+        int colCount = selection.ColumnCount;
+        int startCol = selection.StartColumn;
+        int rowCount = document.RowCount;
+
+        // Yank all cells from selected columns
+        string[,] values = new string[rowCount, colCount];
+        for (int r = 0; r < rowCount; r++)
+        {
+            var row = document.Rows[r];
+            for (int c = 0; c < colCount; c++)
+            {
+                int docCol = startCol + c;
+                if (docCol < row.Cells.Count)
+                {
+                    values[r, c] = row.Cells[docCol].Value;
+                }
+                else
+                {
+                    values[r, c] = string.Empty;
+                }
+            }
+        }
+
+        // Store yanked content in VimState
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Block,
+            Rows = rowCount,
+            Columns = colCount
         };
 
         // Return to normal mode after yank

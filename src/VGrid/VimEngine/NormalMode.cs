@@ -109,8 +109,11 @@ public class NormalMode : IVimMode
             // Undo operation
             Key.U => Undo(state),
 
+            // Word movement
+            Key.W when state.PendingKeys.Keys.Count < 2 => MoveToNextNonEmptyCell(state, document),
+            Key.B => MoveToPreviousNonEmptyCell(state, document),
+
             // Placeholder keys for future implementation
-            Key.B =>true,
             Key.C =>true,
             Key.E =>true,
             Key.F =>true,
@@ -120,7 +123,6 @@ public class NormalMode : IVimMode
             Key.R =>true,
             Key.S =>true,
             Key.T =>true,
-            Key.W when state.PendingKeys.Keys.Count < 2 =>true, // W is only a placeholder when not part of yiw/yaw/diw/daw
             Key.Z =>true,
 
             _ => false
@@ -643,6 +645,76 @@ public class NormalMode : IVimMode
             command.Execute();
         }
 
+        return true;
+    }
+
+    private bool MoveToNextNonEmptyCell(VimState state, TsvDocument document)
+    {
+        // Start searching from the cell after the current position
+        int startRow = state.CursorPosition.Row;
+        int startCol = state.CursorPosition.Column + 1;
+
+        // Search in the current row first
+        for (int col = startCol; col < document.ColumnCount; col++)
+        {
+            var cell = document.GetCell(startRow, col);
+            if (cell != null && !string.IsNullOrEmpty(cell.Value))
+            {
+                state.CursorPosition = new GridPosition(startRow, col);
+                return true;
+            }
+        }
+
+        // Search in subsequent rows
+        for (int row = startRow + 1; row < document.RowCount; row++)
+        {
+            for (int col = 0; col < document.ColumnCount; col++)
+            {
+                var cell = document.GetCell(row, col);
+                if (cell != null && !string.IsNullOrEmpty(cell.Value))
+                {
+                    state.CursorPosition = new GridPosition(row, col);
+                    return true;
+                }
+            }
+        }
+
+        // No non-empty cell found, stay at current position
+        return true;
+    }
+
+    private bool MoveToPreviousNonEmptyCell(VimState state, TsvDocument document)
+    {
+        // Start searching from the cell before the current position
+        int startRow = state.CursorPosition.Row;
+        int startCol = state.CursorPosition.Column - 1;
+
+        // Search in the current row first (backwards)
+        for (int col = startCol; col >= 0; col--)
+        {
+            var cell = document.GetCell(startRow, col);
+            if (cell != null && !string.IsNullOrEmpty(cell.Value))
+            {
+                state.CursorPosition = new GridPosition(startRow, col);
+                return true;
+            }
+        }
+
+        // Search in previous rows (backwards)
+        for (int row = startRow - 1; row >= 0; row--)
+        {
+            for (int col = document.ColumnCount - 1; col >= 0; col--)
+            {
+                var cell = document.GetCell(row, col);
+                if (cell != null && !string.IsNullOrEmpty(cell.Value))
+                {
+                    state.CursorPosition = new GridPosition(row, col);
+                    return true;
+                }
+            }
+        }
+
+        // No non-empty cell found, stay at current position
         return true;
     }
 }

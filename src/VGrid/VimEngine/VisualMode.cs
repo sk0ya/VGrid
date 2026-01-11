@@ -90,6 +90,8 @@ public class VisualMode : IVimMode
             Key.J => MoveSelection(state, document, state.CursorPosition.MoveDown(1)),
             Key.K => MoveSelection(state, document, state.CursorPosition.MoveUp(1)),
             Key.L => MoveSelection(state, document, state.CursorPosition.MoveRight(1)),
+            Key.W => MoveToNextNonEmptyCellWithSelection(state, document),
+            Key.B => MoveToPreviousNonEmptyCellWithSelection(state, document),
             _ => false
         };
 
@@ -662,6 +664,76 @@ public class VisualMode : IVimMode
 
         // Return to normal mode after delete
         state.SwitchMode(VimMode.Normal);
+        return true;
+    }
+
+    private bool MoveToNextNonEmptyCellWithSelection(VimState state, TsvDocument document)
+    {
+        // Start searching from the cell after the current position
+        int startRow = state.CursorPosition.Row;
+        int startCol = state.CursorPosition.Column + 1;
+
+        // Search in the current row first
+        for (int col = startCol; col < document.ColumnCount; col++)
+        {
+            var cell = document.GetCell(startRow, col);
+            if (cell != null && !string.IsNullOrEmpty(cell.Value))
+            {
+                MoveSelection(state, document, new GridPosition(startRow, col));
+                return true;
+            }
+        }
+
+        // Search in subsequent rows
+        for (int row = startRow + 1; row < document.RowCount; row++)
+        {
+            for (int col = 0; col < document.ColumnCount; col++)
+            {
+                var cell = document.GetCell(row, col);
+                if (cell != null && !string.IsNullOrEmpty(cell.Value))
+                {
+                    MoveSelection(state, document, new GridPosition(row, col));
+                    return true;
+                }
+            }
+        }
+
+        // No non-empty cell found, stay at current position
+        return true;
+    }
+
+    private bool MoveToPreviousNonEmptyCellWithSelection(VimState state, TsvDocument document)
+    {
+        // Start searching from the cell before the current position
+        int startRow = state.CursorPosition.Row;
+        int startCol = state.CursorPosition.Column - 1;
+
+        // Search in the current row first (backwards)
+        for (int col = startCol; col >= 0; col--)
+        {
+            var cell = document.GetCell(startRow, col);
+            if (cell != null && !string.IsNullOrEmpty(cell.Value))
+            {
+                MoveSelection(state, document, new GridPosition(startRow, col));
+                return true;
+            }
+        }
+
+        // Search in previous rows (backwards)
+        for (int row = startRow - 1; row >= 0; row--)
+        {
+            for (int col = document.ColumnCount - 1; col >= 0; col--)
+            {
+                var cell = document.GetCell(row, col);
+                if (cell != null && !string.IsNullOrEmpty(cell.Value))
+                {
+                    MoveSelection(state, document, new GridPosition(row, col));
+                    return true;
+                }
+            }
+        }
+
+        // No non-empty cell found, stay at current position
         return true;
     }
 }

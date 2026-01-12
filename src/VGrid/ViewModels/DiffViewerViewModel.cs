@@ -64,11 +64,11 @@ public class DiffViewerViewModel : ViewModelBase
             if (_commit1Hash == null && _commit2Hash == null)
                 return "No commits selected";
             else if (_commit1Hash == null)
-                return $"Working Directory vs {_commit2Hash?[..7]}";
+                return $"Working Directory vs {GetShortCommitHash(_commit2Hash)}";
             else if (_commit2Hash == null)
-                return $"{_commit1Hash[..7]} vs Working Directory";
+                return $"{GetShortCommitHash(_commit1Hash)} vs Working Directory";
             else
-                return $"{_commit1Hash[..7]} vs {_commit2Hash[..7]}";
+                return $"{GetShortCommitHash(_commit1Hash)} vs {GetShortCommitHash(_commit2Hash)}";
         }
     }
 
@@ -79,7 +79,7 @@ public class DiffViewerViewModel : ViewModelBase
             if (_commit1Hash == null)
                 return "Working Directory";
             else
-                return _commit1Hash[..7];
+                return GetShortCommitHash(_commit1Hash);
         }
     }
 
@@ -90,8 +90,24 @@ public class DiffViewerViewModel : ViewModelBase
             if (_commit2Hash == null)
                 return "Working Directory";
             else
-                return _commit2Hash[..7];
+                return GetShortCommitHash(_commit2Hash);
         }
+    }
+
+    /// <summary>
+    /// Gets short version of commit hash or the full string if it's too short (like "HEAD")
+    /// </summary>
+    private string GetShortCommitHash(string? hash)
+    {
+        if (string.IsNullOrEmpty(hash))
+            return string.Empty;
+
+        // If it's a special ref like "HEAD" or short already, return as-is
+        if (hash.Length <= 7)
+            return hash;
+
+        // Otherwise return first 7 characters
+        return hash[..7];
     }
 
     public RelayCommand CloseCommand { get; }

@@ -133,7 +133,7 @@
 
             <!-- Left Panel with Tabs -->
             <Border Grid.Column="0" BorderBrush="#CCCCCC" BorderThickness="0,0,1,0">
-                <TabControl>
+                <TabControl TabStripPlacement="Bottom">
                     <!-- EXPLORER Tab -->
                     <TabItem Header="EXPLORER">
                         <DockPanel Background="#F5F5F5">

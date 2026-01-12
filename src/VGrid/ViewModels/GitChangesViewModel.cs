@@ -374,41 +374,40 @@ public class GitChangesViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Shows diff for the file
     /// </summary>
-    private void ShowDiff(UncommittedFile? file)
+    private async void ShowDiff(UncommittedFile? file)
     {
         if (file == null || string.IsNullOrEmpty(file.FilePath))
             return;
 
         try
         {
-            // Use git diff command to show changes
-            var startInfo = new System.Diagnostics.ProcessStartInfo
+            // Get repository root
+            var repoRoot = await _gitService.GetRepositoryRootAsync(file.FilePath);
+            if (string.IsNullOrEmpty(repoRoot))
             {
-                FileName = "git",
-                Arguments = $"diff \"{file.FilePath}\"",
-                WorkingDirectory = Path.GetDirectoryName(file.FilePath),
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true
-            };
-
-            var process = System.Diagnostics.Process.Start(startInfo);
-            if (process != null)
-            {
-                var output = process.StandardOutput.ReadToEnd();
-                process.WaitForExit();
-
-                if (!string.IsNullOrWhiteSpace(output))
-                {
-                    // Show diff in a message box for now (could be improved with a dedicated diff viewer)
-                    System.Windows.MessageBox.Show(output, $"Diff: {file.FileName}",
-                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
-                }
-                else
-                {
-                    _statusBarViewModel?.ShowMessage("No differences to show");
-                }
+                _statusBarViewModel?.ShowMessage("Could not find Git repository root");
+                return;
             }
+
+            // Create DiffViewerViewModel with HEAD vs Working Directory
+            var diffViewModel = new DiffViewerViewModel(
+                repoRoot,
+                "HEAD",  // Compare with HEAD commit
+                null,    // vs Working Directory
+                _gitService
+            );
+
+            // Get relative path and set as selected file
+            var relativePath = Path.GetRelativePath(repoRoot, file.FilePath).Replace('\\', '/');
+            diffViewModel.SelectedFile = relativePath;
+
+            // Show diff viewer window
+            var diffWindow = new Views.DiffViewerWindow(diffViewModel)
+            {
+                Owner = System.Windows.Application.Current.MainWindow,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner
+            };
+            diffWindow.Show();
         }
         catch (Exception ex)
         {

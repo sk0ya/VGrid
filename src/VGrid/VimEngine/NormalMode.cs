@@ -78,6 +78,10 @@ public class NormalMode : IVimMode
             Key.G when state.PendingKeys.Keys.LastOrDefault() == Key.G => MoveToFirstLine(state),
             Key.G when state.PendingKeys.Keys.Count == 0 => HandlePendingG(state),
 
+            // Leader key (Space) operations
+            Key.W when state.PendingKeys.Keys.LastOrDefault() == Key.Space => SaveFile(state),
+            Key.Space when state.PendingKeys.Keys.Count == 0 => HandlePendingSpace(state),
+
             // Yank operations
             Key.Y when state.PendingKeys.Keys.LastOrDefault() == Key.Y => YankLine(state, document),
             Key.Y when state.PendingKeys.Keys.Count == 0 => HandlePendingY(state),
@@ -136,6 +140,7 @@ public class NormalMode : IVimMode
         bool isMultiKeySequence = (key == Key.G && state.PendingKeys.Keys.Count > 0) ||
                                    (key == Key.Y && state.PendingKeys.Keys.Count > 0) ||
                                    (key == Key.D && state.PendingKeys.Keys.Count > 0) ||
+                                   (key == Key.Space && state.PendingKeys.Keys.Count > 0) ||
                                    ((key == Key.I || key == Key.A) && state.PendingKeys.Keys.Count > 1) ||
                                    (key == Key.W && state.PendingKeys.Keys.Count > 1);
 
@@ -761,6 +766,21 @@ public class NormalMode : IVimMode
         }
 
         // No non-empty cell found, stay at current position
+        return true;
+    }
+
+    private bool HandlePendingSpace(VimState state)
+    {
+        // Add Space to pending keys, wait for next key (e.g., 'w' for save)
+        state.PendingKeys.Add(Key.Space);
+        return true;
+    }
+
+    private bool SaveFile(VimState state)
+    {
+        // Trigger save operation via VimState event
+        state.OnSaveRequested();
+        state.PendingKeys.Clear();
         return true;
     }
 }

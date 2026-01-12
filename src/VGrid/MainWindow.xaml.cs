@@ -386,6 +386,15 @@ public partial class MainWindow : Window
             // Set row headers
             grid.LoadingRow += (s, evt) => { evt.Row.Header = (evt.Row.GetIndex() + 1).ToString(); };
 
+            // Update row headers when items are regenerated (after add/delete operations)
+            grid.ItemContainerGenerator.StatusChanged += (s, evt) =>
+            {
+                if (grid.ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
+                {
+                    UpdateAllRowHeaders(grid);
+                }
+            };
+
             // Wait for grid to finish loading before initial selection
             grid.Dispatcher.BeginInvoke(new Action(() => { UpdateDataGridSelection(grid, tabItem); }),
                 System.Windows.Threading.DispatcherPriority.Loaded);
@@ -493,6 +502,21 @@ public partial class MainWindow : Window
         }
 
         return columnName;
+    }
+
+    private void UpdateAllRowHeaders(DataGrid grid)
+    {
+        if (grid == null)
+            return;
+
+        for (int i = 0; i < grid.Items.Count; i++)
+        {
+            var row = grid.ItemContainerGenerator.ContainerFromIndex(i) as DataGridRow;
+            if (row != null)
+            {
+                row.Header = (i + 1).ToString();
+            }
+        }
     }
 
     private void UpdateDataGridSelection(DataGrid grid, TabItemViewModel tab)

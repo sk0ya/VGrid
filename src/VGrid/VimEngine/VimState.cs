@@ -568,6 +568,11 @@ public class VimState : INotifyPropertyChanged
     public event EventHandler<bool>? QuitRequested;
 
     /// <summary>
+    /// Event raised when Vim search is activated (to coordinate with FindReplace panel)
+    /// </summary>
+    public event EventHandler? VimSearchActivated;
+
+    /// <summary>
     /// Raises the SaveRequested event
     /// </summary>
     public void OnSaveRequested()
@@ -582,6 +587,14 @@ public class VimState : INotifyPropertyChanged
     public void OnQuitRequested(bool forceQuit)
     {
         QuitRequested?.Invoke(this, forceQuit);
+    }
+
+    /// <summary>
+    /// Raises the VimSearchActivated event
+    /// </summary>
+    public void OnVimSearchActivated()
+    {
+        VimSearchActivated?.Invoke(this, EventArgs.Empty);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -1,0 +1,132 @@
+<UserControl x:Class="VGrid.Views.FindReplacePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </UserControl.Resources>
+
+    <Border Background="White"
+            BorderBrush="#CCCCCC"
+            BorderThickness="1"
+            CornerRadius="3"
+            Padding="6"
+            Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+            Width="300">
+
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Direction="315" ShadowDepth="2" BlurRadius="6" Opacity="0.25"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Search Row -->
+            <Grid Grid.Row="0" Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBox x:Name="SearchTextBox"
+                         Grid.Column="0"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Padding="5,3"
+                         FontSize="12"
+                         VerticalContentAlignment="Center"
+                         BorderBrush="#CCCCCC"
+                         BorderThickness="1"/>
+
+                <Button Grid.Column="1"
+                        Content="×"
+                        Command="{Binding CloseCommand}"
+                        Width="20"
+                        Height="20"
+                        Margin="3,0,0,0"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Cursor="Hand">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Foreground" Value="#666666"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Foreground" Value="#333333"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+
+            <!-- Replace Row -->
+            <TextBox Grid.Row="1"
+                     Text="{Binding ReplaceText, UpdateSourceTrigger=PropertyChanged}"
+                     Margin="0,0,0,4"
+                     Padding="5,3"
+                     FontSize="12"
+                     VerticalContentAlignment="Center"
+                     BorderBrush="#CCCCCC"
+                     BorderThickness="1"/>
+
+            <!-- Options Row -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,4">
+                <CheckBox Content="Aa"
+                          IsChecked="{Binding IsCaseSensitive}"
+                          Margin="0,0,10,0"
+                          VerticalAlignment="Center"
+                          ToolTip="Match Case"
+                          FontSize="11"/>
+                <CheckBox Content=".*"
+                          IsChecked="{Binding UseRegex}"
+                          VerticalAlignment="Center"
+                          ToolTip="Use Regex"
+                          FontSize="11"/>
+                <TextBlock Text="{Binding MatchCountText}"
+                           Foreground="Gray"
+                           FontSize="10"
+                           Margin="10,0,0,0"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Action Buttons Row -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,0">
+                <Button Content="▲"
+                        Command="{Binding FindPreviousCommand}"
+                        Margin="0,0,3,0"
+                        Padding="6,2"
+                        MinWidth="35"
+                        FontSize="10"
+                        ToolTip="Find Previous"/>
+                <Button Content="▼"
+                        Command="{Binding FindNextCommand}"
+                        Margin="0,0,3,0"
+                        Padding="6,2"
+                        MinWidth="35"
+                        FontSize="10"
+                        ToolTip="Find Next"/>
+                <Button Content="Replace"
+                        Command="{Binding ReplaceCommand}"
+                        Margin="0,0,3,0"
+                        Padding="6,2"
+                        MinWidth="60"
+                        FontSize="11"/>
+                <Button Content="Replace All"
+                        Command="{Binding ReplaceAllCommand}"
+                        Padding="6,2"
+                        MinWidth="60"
+                        FontSize="11"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

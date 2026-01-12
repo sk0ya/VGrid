@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -280,9 +281,21 @@ public partial class MainWindow : Window
         selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
             new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 144, 226))));
         selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
-        style.Triggers.Add(selectionTrigger);
+
+        // Search match Cell.IsSearchMatch trigger (yellow highlight for current search match)
+        // Added FIRST so that blue selection can override it
+        var searchTrigger = new DataTrigger();
+        searchTrigger.Binding = new System.Windows.Data.Binding($"Cells[{columnIndex}].IsSearchMatch");
+        searchTrigger.Value = true;
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty,
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 153)))); // Yellow
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
+            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 215, 0))));
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
+        style.Triggers.Add(searchTrigger);
 
         // Visual mode Cell.IsSelected trigger (blue highlight for visual selection)
+        // Added AFTER search trigger so blue selection overrides yellow search
         var visualTrigger = new DataTrigger();
         visualTrigger.Binding = new System.Windows.Data.Binding($"Cells[{columnIndex}].IsSelected");
         visualTrigger.Value = true;
@@ -293,16 +306,8 @@ public partial class MainWindow : Window
         visualTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
         style.Triggers.Add(visualTrigger);
 
-        // Search match Cell.IsSearchMatch trigger (yellow highlight for current search match)
-        var searchTrigger = new DataTrigger();
-        searchTrigger.Binding = new System.Windows.Data.Binding($"Cells[{columnIndex}].IsSearchMatch");
-        searchTrigger.Value = true;
-        searchTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty,
-            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 153)))); // Yellow
-        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
-            new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 215, 0))));
-        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
-        style.Triggers.Add(searchTrigger);
+        // Selection with focus trigger (highest priority - added last)
+        style.Triggers.Add(selectionTrigger);
 
         return style;
     }
@@ -355,12 +360,84 @@ public partial class MainWindow : Window
                 grid.Items[pos.Row],
                 grid.Columns[pos.Column]);
 
-            grid.Focus();
+            // Check if FindReplace panel is open - if so, don't move focus to the cell
+            bool isFindReplaceOpen = tab.FindReplaceViewModel?.IsVisible ?? false;
+
+            if (!isFindReplaceOpen)
+            {
+                // Focus the DataGrid and try to focus the specific cell
+                grid.Focus();
+
+                // Force update layout to ensure cell is generated
+                grid.UpdateLayout();
+
+                // Try to focus the specific cell for better visibility
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        // Get the row container
+                        var row = grid.ItemContainerGenerator.ContainerFromIndex(pos.Row) as DataGridRow;
+                        if (row != null)
+                        {
+                            // Get the cell
+                            var cell = GetCell(grid, row, pos.Column);
+                            if (cell != null)
+                            {
+                                cell.Focus();
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore errors - cell focusing is best-effort
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
         }
         finally
         {
             _isUpdatingSelection = false;
         }
+    }
+
+    private DataGridCell? GetCell(DataGrid grid, DataGridRow row, int columnIndex)
+    {
+        if (row == null || columnIndex < 0 || columnIndex >= grid.Columns.Count)
+            return null;
+
+        var presenter = FindVisualChild<DataGridCellsPresenter>(row);
+        if (presenter == null)
+            return null;
+
+        var cell = presenter.ItemContainerGenerator.ContainerFromIndex(columnIndex) as DataGridCell;
+        if (cell == null)
+        {
+            // Cell might be virtualized, force it to be generated
+            grid.ScrollIntoView(row.Item, grid.Columns[columnIndex]);
+            cell = presenter.ItemContainerGenerator.ContainerFromIndex(columnIndex) as DataGridCell;
+        }
+
+        return cell;
+    }
+
+    private T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        if (parent == null)
+            return null;
+
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild)
+                return typedChild;
+
+            var result = FindVisualChild<T>(child);
+            if (result != null)
+                return result;
+        }
+
+        return null;
     }
 
     private void TsvGrid_CurrentCellChanged(DataGrid grid, TabItemViewModel tab)
@@ -846,12 +923,50 @@ public partial class MainWindow : Window
         if (_viewModel?.SelectedTab == null)
             return;
 
+        // Don't handle keys if a TextBox has focus (for file rename or FindReplace panel)
+        // This must be checked BEFORE Ctrl+F handling to prevent conflicts
+        if (Keyboard.FocusedElement is System.Windows.Controls.TextBox textBox)
+        {
+            // Allow Ctrl+F even when TextBox has focus (to open/focus FindReplace panel)
+            if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                var findReplaceVM = _viewModel.SelectedTab.FindReplaceViewModel;
+                if (findReplaceVM != null)
+                {
+                    // Clear Vim search when opening FindReplace
+                    _viewModel.SelectedTab.VimState.ClearSearch();
+
+                    // Open FindReplace panel
+                    findReplaceVM.Open();
+
+                    e.Handled = true;
+                    return;
+                }
+            }
+
+            // For all other keys, let TextBox handle them normally
+            return;
+        }
+
+        // Handle Ctrl+F for Find/Replace panel (works regardless of Vim mode)
+        if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            var findReplaceVM = _viewModel.SelectedTab.FindReplaceViewModel;
+            if (findReplaceVM != null)
+            {
+                // Clear Vim search when opening FindReplace
+                _viewModel.SelectedTab.VimState.ClearSearch();
+
+                // Open FindReplace panel
+                findReplaceVM.Open();
+
+                e.Handled = true;
+                return;
+            }
+        }
+
         // If Vim mode is disabled, let DataGrid handle keys normally
         if (!_viewModel.IsVimModeEnabled)
-            return;
-
-        // Don't handle keys if a TextBox has focus (for file rename)
-        if (Keyboard.FocusedElement is System.Windows.Controls.TextBox)
             return;
 
         var tab = _viewModel.SelectedTab;

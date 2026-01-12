@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:VGrid"
         xmlns:converters="clr-namespace:VGrid.Converters"
+        xmlns:views="clr-namespace:VGrid.Views"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" Height="700" Width="1200"
         PreviewKeyDown="Window_PreviewKeyDown">
@@ -160,34 +161,44 @@
                 </TabControl.ItemTemplate>
                 <TabControl.ContentTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="Gray" BorderThickness="0" Margin="0">
-                            <DataGrid x:Name="TsvGrid"
-                                      ItemsSource="{Binding GridViewModel.Rows}"
-                                      AutoGenerateColumns="False"
-                                      CanUserAddRows="False"
-                                      CanUserDeleteRows="False"
-                                      CanUserReorderColumns="False"
-                                      CanUserSortColumns="False"
-                                      IsReadOnly="False"
-                                      SelectionMode="Extended"
-                                      SelectionUnit="Cell"
-                                      DataContextChanged="TsvGrid_OnDataContextChanged"
-                                      BeginningEdit="TsvGrid_BeginningEdit"
-                                      HeadersVisibility="All"
-                                      Focusable="False"
-                                      EnableRowVirtualization="True"
-                                      EnableColumnVirtualization="True"
-                                      VirtualizingPanel.IsVirtualizing="True"
-                                      VirtualizingPanel.VirtualizationMode="Recycling"
-                                      Style="{StaticResource ExcelDataGridStyle}"
-                                      ColumnHeaderStyle="{StaticResource ExcelColumnHeaderStyle}"
-                                      RowHeaderStyle="{StaticResource ExcelRowHeaderStyle}"
-                                      CellStyle="{StaticResource ExcelCellStyle}"
-                                      Loaded="TsvGrid_Loaded"
-                                      Margin="0">
-                                <!-- Columns will be generated dynamically in code-behind -->
-                            </DataGrid>
-                        </Border>
+                        <Grid>
+                            <!-- DataGrid Layer -->
+                            <Border BorderBrush="Gray" BorderThickness="0" Margin="0">
+                                <DataGrid x:Name="TsvGrid"
+                                          ItemsSource="{Binding GridViewModel.Rows}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          CanUserDeleteRows="False"
+                                          CanUserReorderColumns="False"
+                                          CanUserSortColumns="False"
+                                          IsReadOnly="False"
+                                          SelectionMode="Extended"
+                                          SelectionUnit="Cell"
+                                          DataContextChanged="TsvGrid_OnDataContextChanged"
+                                          BeginningEdit="TsvGrid_BeginningEdit"
+                                          HeadersVisibility="All"
+                                          Focusable="False"
+                                          EnableRowVirtualization="True"
+                                          EnableColumnVirtualization="True"
+                                          VirtualizingPanel.IsVirtualizing="True"
+                                          VirtualizingPanel.VirtualizationMode="Recycling"
+                                          Style="{StaticResource ExcelDataGridStyle}"
+                                          ColumnHeaderStyle="{StaticResource ExcelColumnHeaderStyle}"
+                                          RowHeaderStyle="{StaticResource ExcelRowHeaderStyle}"
+                                          CellStyle="{StaticResource ExcelCellStyle}"
+                                          Loaded="TsvGrid_Loaded"
+                                          Margin="0">
+                                    <!-- Columns will be generated dynamically in code-behind -->
+                                </DataGrid>
+                            </Border>
+
+                            <!-- Find/Replace Panel Overlay -->
+                            <views:FindReplacePanel DataContext="{Binding FindReplaceViewModel}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="20,10,20,0"
+                                                   Panel.ZIndex="100"/>
+                        </Grid>
                     </DataTemplate>
                 </TabControl.ContentTemplate>
             </TabControl>

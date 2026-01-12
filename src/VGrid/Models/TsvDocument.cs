@@ -277,8 +277,9 @@ public class TsvDocument : INotifyPropertyChanged
     /// </summary>
     /// <param name="pattern">The search pattern</param>
     /// <param name="isRegex">Whether to treat the pattern as a regular expression</param>
+    /// <param name="isCaseSensitive">Whether to perform case-sensitive matching (default: false for backward compatibility)</param>
     /// <returns>List of grid positions where matches were found</returns>
-    public List<GridPosition> FindMatches(string pattern, bool isRegex)
+    public List<GridPosition> FindMatches(string pattern, bool isRegex, bool isCaseSensitive = false)
     {
         var results = new List<GridPosition>();
 
@@ -289,7 +290,8 @@ public class TsvDocument : INotifyPropertyChanged
         {
             try
             {
-                var regex = new Regex(pattern, RegexOptions.IgnoreCase);
+                var options = isCaseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase;
+                var regex = new Regex(pattern, options);
 
                 for (int r = 0; r < Rows.Count; r++)
                 {
@@ -311,13 +313,17 @@ public class TsvDocument : INotifyPropertyChanged
         }
         else
         {
-            // Plain string search (case-insensitive)
+            // Plain string search with configurable case sensitivity
+            var comparison = isCaseSensitive
+                ? StringComparison.Ordinal
+                : StringComparison.OrdinalIgnoreCase;
+
             for (int r = 0; r < Rows.Count; r++)
             {
                 var row = Rows[r];
                 for (int c = 0; c < row.Cells.Count; c++)
                 {
-                    if (row.Cells[c].Value.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    if (row.Cells[c].Value.Contains(pattern, comparison))
                     {
                         results.Add(new GridPosition(r, c));
                     }

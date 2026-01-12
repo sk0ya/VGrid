@@ -20,6 +20,19 @@ public class TabItemViewModel : ViewModelBase
         GridViewModel = gridViewModel;
         _header = System.IO.Path.GetFileName(filePath) ?? "Untitled";
 
+        // Initialize FindReplaceViewModel
+        if (vimState.CommandHistory != null)
+        {
+            FindReplaceViewModel = new FindReplaceViewModel(document, vimState, vimState.CommandHistory);
+
+            // Subscribe to VimSearchActivated event to close FindReplace panel
+            vimState.VimSearchActivated += (s, e) => FindReplaceViewModel.Close();
+        }
+        else
+        {
+            throw new ArgumentException("VimState must have CommandHistory initialized", nameof(vimState));
+        }
+
         // Subscribe to document changes
         document.PropertyChanged += (s, e) =>
         {
@@ -34,6 +47,7 @@ public class TabItemViewModel : ViewModelBase
     public TsvDocument Document { get; }
     public VimState VimState { get; }
     public TsvGridViewModel GridViewModel { get; }
+    public FindReplaceViewModel FindReplaceViewModel { get; }
 
     public string Header
     {

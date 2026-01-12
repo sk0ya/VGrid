@@ -110,6 +110,9 @@ public class CommandMode : IVimMode
         {
             state.CursorPosition = results[0];
         }
+
+        // Notify that Vim search is active (to close FindReplace panel)
+        state.OnVimSearchActivated();
     }
 
     /// <summary>

@@ -1168,6 +1168,17 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Handle Ctrl+S for Save File (works regardless of Vim mode)
+        if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            if (_viewModel.SaveFileCommand.CanExecute(null))
+            {
+                _viewModel.SaveFileCommand.Execute(null);
+            }
+            e.Handled = true;
+            return;
+        }
+
         // If Vim mode is disabled, let DataGrid handle keys normally
         if (!_viewModel.IsVimModeEnabled)
             return;

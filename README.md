@@ -46,7 +46,6 @@ VimキーバインドをサポートするTSV（Tab-Separated Values）エディ
 ### 未実装 (Phase 10-20)
 
 今後実装予定の機能:
-- 検索・置換（`?`, `:%s/old/new/g`）
 - ソート・フィルタ
 - git連携 差分の表示
 - vimのカスタム

@@ -21,6 +21,7 @@ public class MainViewModel : ViewModelBase
     private TabItemViewModel? _selectedTab;
     private string? _selectedFolderPath;
     private bool _isVimModeEnabled = true;
+    private string _filterText = string.Empty;
 
     public MainViewModel()
     {
@@ -79,6 +80,12 @@ public class MainViewModel : ViewModelBase
                 StatusBarViewModel.ShowMessage(value ? "Vim mode enabled" : "Vim mode disabled");
             }
         }
+    }
+
+    public string FilterText
+    {
+        get => _filterText;
+        set => SetProperty(ref _filterText, value);
     }
 
     public WpfCommand NewFileCommand { get; }

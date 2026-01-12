@@ -130,8 +130,35 @@
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top" Text="EXPLORER" FontWeight="Bold"
                                Padding="10,8" Background="#E8E8E8" Foreground="#333"/>
+                    <Border DockPanel.Dock="Top" Padding="5" Background="#F5F5F5">
+                        <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="22"
+                                 Padding="3"
+                                 VerticalContentAlignment="Center"
+                                 BorderBrush="#CCCCCC"
+                                 BorderThickness="1">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Style.Triggers>
+                                        <Trigger Property="Text" Value="">
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <VisualBrush AlignmentX="Left" AlignmentY="Center" Stretch="None">
+                                                        <VisualBrush.Visual>
+                                                            <TextBlock Text="Filter files..." Foreground="#999" Margin="3,0,0,0"/>
+                                                        </VisualBrush.Visual>
+                                                    </VisualBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </Border>
                     <TreeView x:Name="FolderTreeView" BorderThickness="0" Background="#F5F5F5"
-                              Margin="0" Padding="5" KeyDown="FolderTreeView_KeyDown">
+                              Margin="0" Padding="5" KeyDown="FolderTreeView_KeyDown"
+                              MouseRightButtonUp="FolderTreeView_MouseRightButtonUp">
                         <!-- Tree items will be populated in code-behind -->
                     </TreeView>
                 </DockPanel>

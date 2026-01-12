@@ -25,10 +25,14 @@ public partial class MainWindow : Window
         _viewModel = new MainViewModel();
         DataContext = _viewModel;
 
-        // Subscribe to SelectedFolderPath changes
+        // Subscribe to SelectedFolderPath and FilterText changes
         _viewModel.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(_viewModel.SelectedFolderPath))
+            {
+                PopulateFolderTree();
+            }
+            else if (e.PropertyName == nameof(_viewModel.FilterText))
             {
                 PopulateFolderTree();
             }
@@ -50,12 +54,28 @@ public partial class MainWindow : Window
 
         try
         {
+            var rootName = Path.GetFileName(_viewModel.SelectedFolderPath) ?? _viewModel.SelectedFolderPath;
+            var filterText = _viewModel.FilterText ?? string.Empty;
+
             var rootItem = new TreeViewItem
             {
-                Header = Path.GetFileName(_viewModel.SelectedFolderPath) ?? _viewModel.SelectedFolderPath,
+                Header = CreateHighlightedHeader(rootName, filterText),
                 Tag = _viewModel.SelectedFolderPath,
                 IsExpanded = true
             };
+
+            // Add context menu for root directory
+            var rootContextMenu = new ContextMenu();
+
+            var newFileMenuItem = new MenuItem { Header = "新しいファイル(_F)" };
+            newFileMenuItem.Click += NewFileMenuItem_Click;
+            rootContextMenu.Items.Add(newFileMenuItem);
+
+            var newFolderMenuItem = new MenuItem { Header = "新しいフォルダ(_N)" };
+            newFolderMenuItem.Click += NewFolderMenuItem_Click;
+            rootContextMenu.Items.Add(newFolderMenuItem);
+
+            rootItem.ContextMenu = rootContextMenu;
 
             PopulateTreeNode(rootItem, _viewModel.SelectedFolderPath);
             FolderTreeView.Items.Add(rootItem);
@@ -74,18 +94,56 @@ public partial class MainWindow : Window
     {
         try
         {
+            var filterText = _viewModel?.FilterText ?? string.Empty;
+            var hasFilter = !string.IsNullOrWhiteSpace(filterText);
+
             // Add subdirectories
             var directories = Directory.GetDirectories(path);
             foreach (var dir in directories)
             {
+                var dirName = Path.GetFileName(dir);
+
+                // If filter is active, check if directory name matches or if it contains matching files
+                if (hasFilter)
+                {
+                    // Check if directory name matches filter
+                    bool dirMatches = dirName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0;
+
+                    // Check if directory contains matching files (recursively)
+                    bool hasMatchingContent = dirMatches || DirectoryContainsMatchingFiles(dir, filterText);
+
+                    if (!hasMatchingContent)
+                        continue;
+                }
+
                 var dirItem = new TreeViewItem
                 {
-                    Header = Path.GetFileName(dir),
+                    Header = CreateHighlightedHeader(dirName, filterText),
                     Tag = dir
                 };
                 // Add a dummy item for lazy loading
                 dirItem.Items.Add("Loading...");
                 dirItem.Expanded += TreeViewItem_Expanded;
+
+                // Add context menu for directories
+                var contextMenu = new ContextMenu();
+
+                var renameFolderMenuItem = new MenuItem { Header = "フォルダ名の変更(_R)" };
+                renameFolderMenuItem.Click += RenameFolderMenuItem_Click;
+                contextMenu.Items.Add(renameFolderMenuItem);
+
+                contextMenu.Items.Add(new Separator());
+
+                var newFileMenuItem = new MenuItem { Header = "新しいファイル(_F)" };
+                newFileMenuItem.Click += NewFileMenuItem_Click;
+                contextMenu.Items.Add(newFileMenuItem);
+
+                var newFolderMenuItem = new MenuItem { Header = "新しいフォルダ(_N)" };
+                newFolderMenuItem.Click += NewFolderMenuItem_Click;
+                contextMenu.Items.Add(newFolderMenuItem);
+
+                dirItem.ContextMenu = contextMenu;
+
                 node.Items.Add(dirItem);
             }
 
@@ -96,9 +154,15 @@ public partial class MainWindow : Window
 
             foreach (var file in files)
             {
+                var fileName = Path.GetFileName(file);
+
+                // Apply filter if active
+                if (hasFilter && fileName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+
                 var fileItem = new TreeViewItem
                 {
-                    Header = Path.GetFileName(file),
+                    Header = CreateHighlightedHeader(fileName, filterText),
                     Tag = file
                 };
 
@@ -119,6 +183,90 @@ public partial class MainWindow : Window
         {
             // Ignore errors for inaccessible directories
         }
+    }
+
+    private bool DirectoryContainsMatchingFiles(string path, string filterText)
+    {
+        try
+        {
+            // Check files in current directory
+            var files = Directory.GetFiles(path, "*.tsv")
+                .Concat(Directory.GetFiles(path, "*.txt"))
+                .Concat(Directory.GetFiles(path, "*.tab"));
+
+            foreach (var file in files)
+            {
+                var fileName = Path.GetFileName(file);
+                if (fileName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            // Check subdirectories recursively
+            var directories = Directory.GetDirectories(path);
+            foreach (var dir in directories)
+            {
+                var dirName = Path.GetFileName(dir);
+
+                // Check if directory name matches
+                if (dirName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+
+                // Check if subdirectory contains matching files
+                if (DirectoryContainsMatchingFiles(dir, filterText))
+                    return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            // Ignore errors for inaccessible directories
+            return false;
+        }
+    }
+
+    private object CreateHighlightedHeader(string text, string filterText)
+    {
+        // If no filter, return plain text
+        if (string.IsNullOrWhiteSpace(filterText))
+            return text;
+
+        var textBlock = new System.Windows.Controls.TextBlock();
+        int currentIndex = 0;
+
+        while (currentIndex < text.Length)
+        {
+            // Find next match
+            int matchIndex = text.IndexOf(filterText, currentIndex, StringComparison.OrdinalIgnoreCase);
+
+            if (matchIndex == -1)
+            {
+                // No more matches - add remaining text
+                if (currentIndex < text.Length)
+                {
+                    textBlock.Inlines.Add(new System.Windows.Documents.Run(text.Substring(currentIndex)));
+                }
+                break;
+            }
+
+            // Add text before match
+            if (matchIndex > currentIndex)
+            {
+                textBlock.Inlines.Add(new System.Windows.Documents.Run(text.Substring(currentIndex, matchIndex - currentIndex)));
+            }
+
+            // Add highlighted match
+            var matchRun = new System.Windows.Documents.Run(text.Substring(matchIndex, filterText.Length))
+            {
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 0)), // Yellow
+                FontWeight = FontWeights.Bold
+            };
+            textBlock.Inlines.Add(matchRun);
+
+            currentIndex = matchIndex + filterText.Length;
+        }
+
+        return textBlock;
     }
 
     private void TreeViewItem_Expanded(object sender, RoutedEventArgs e)
@@ -1023,11 +1171,19 @@ public partial class MainWindow : Window
     {
         if (e.Key == Key.F2 && FolderTreeView.SelectedItem is TreeViewItem item)
         {
-            var filePath = item.Tag as string;
-            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            var itemPath = item.Tag as string;
+            if (!string.IsNullOrEmpty(itemPath))
             {
-                BeginRenameTreeItem(item);
-                e.Handled = true;
+                if (File.Exists(itemPath))
+                {
+                    BeginRenameTreeItem(item, false);
+                    e.Handled = true;
+                }
+                else if (Directory.Exists(itemPath))
+                {
+                    BeginRenameTreeItem(item, true);
+                    e.Handled = true;
+                }
             }
         }
     }
@@ -1042,19 +1198,64 @@ public partial class MainWindow : Window
             var filePath = item.Tag as string;
             if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
             {
-                BeginRenameTreeItem(item);
+                BeginRenameTreeItem(item, false);
             }
         }
     }
 
-    private void BeginRenameTreeItem(TreeViewItem item)
+    private void RenameFolderMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        var filePath = item.Tag as string;
-        if (string.IsNullOrEmpty(filePath))
+        // Get the TreeViewItem from the MenuItem's parent ContextMenu
+        if (sender is MenuItem menuItem &&
+            menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is TreeViewItem item)
+        {
+            var folderPath = item.Tag as string;
+            if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+            {
+                BeginRenameTreeItem(item, true);
+            }
+        }
+    }
+
+    private void NewFileMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Get the TreeViewItem from the MenuItem's parent ContextMenu
+        if (sender is MenuItem menuItem &&
+            menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is TreeViewItem item)
+        {
+            var folderPath = item.Tag as string;
+            if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+            {
+                CreateNewFile(item, folderPath);
+            }
+        }
+    }
+
+    private void NewFolderMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Get the TreeViewItem from the MenuItem's parent ContextMenu
+        if (sender is MenuItem menuItem &&
+            menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is TreeViewItem item)
+        {
+            var folderPath = item.Tag as string;
+            if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+            {
+                CreateNewFolder(item, folderPath);
+            }
+        }
+    }
+
+    private void BeginRenameTreeItem(TreeViewItem item, bool isFolder)
+    {
+        var itemPath = item.Tag as string;
+        if (string.IsNullOrEmpty(itemPath))
             return;
 
-        var fileName = Path.GetFileName(filePath);
-        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(filePath);
+        var itemName = isFolder ? new DirectoryInfo(itemPath).Name : Path.GetFileName(itemPath);
+        var itemNameWithoutExt = isFolder ? itemName : Path.GetFileNameWithoutExtension(itemPath);
 
         // Flag to prevent double processing
         bool isProcessed = false;
@@ -1062,12 +1263,12 @@ public partial class MainWindow : Window
         // Create a TextBox for editing
         var textBox = new System.Windows.Controls.TextBox
         {
-            Text = fileName,
+            Text = itemName,
             Margin = new Thickness(0),
             Padding = new Thickness(2),
             BorderThickness = new Thickness(1),
             BorderBrush = new SolidColorBrush(Colors.CornflowerBlue),
-            Tag = filePath, // Store original file path
+            Tag = itemPath, // Store original path
             Focusable = true
         };
 
@@ -1080,15 +1281,19 @@ public partial class MainWindow : Window
             if (e.Key == Key.Enter)
             {
                 isProcessed = true;
-                var newFileName = textBox.Text.Trim();
-                if (!string.IsNullOrEmpty(newFileName) && newFileName != fileName)
+                var newName = textBox.Text.Trim();
+                if (!string.IsNullOrEmpty(newName) && newName != itemName)
                 {
-                    RenameFile(filePath, newFileName, item);
+                    if (isFolder)
+                        RenameFolder(itemPath, newName, item);
+                    else
+                        RenameFile(itemPath, newName, item);
                 }
                 else
                 {
-                    // Restore original header
-                    item.Header = fileName;
+                    // Restore original header with highlighting
+                    var filterText = _viewModel?.FilterText ?? string.Empty;
+                    item.Header = CreateHighlightedHeader(itemName, filterText);
                 }
 
                 // Return focus to TreeView
@@ -1098,8 +1303,9 @@ public partial class MainWindow : Window
             else if (e.Key == Key.Escape)
             {
                 isProcessed = true;
-                // Cancel rename
-                item.Header = fileName;
+                // Cancel rename - restore original header with highlighting
+                var filterText = _viewModel?.FilterText ?? string.Empty;
+                item.Header = CreateHighlightedHeader(itemName, filterText);
                 // Return focus to TreeView
                 FolderTreeView.Focus();
                 e.Handled = true;
@@ -1113,28 +1319,32 @@ public partial class MainWindow : Window
                 return;
 
             isProcessed = true;
-            var newFileName = textBox.Text.Trim();
-            if (!string.IsNullOrEmpty(newFileName) && newFileName != fileName)
+            var newName = textBox.Text.Trim();
+            if (!string.IsNullOrEmpty(newName) && newName != itemName)
             {
-                RenameFile(filePath, newFileName, item);
+                if (isFolder)
+                    RenameFolder(itemPath, newName, item);
+                else
+                    RenameFile(itemPath, newName, item);
             }
             else
             {
-                // Restore original header
-                item.Header = fileName;
+                // Restore original header with highlighting
+                var filterText = _viewModel?.FilterText ?? string.Empty;
+                item.Header = CreateHighlightedHeader(itemName, filterText);
             }
         };
 
         // Replace header with TextBox
         item.Header = textBox;
 
-        // Focus the TextBox and select filename without extension
+        // Focus the TextBox and select item name without extension
         Dispatcher.BeginInvoke(new Action(() =>
         {
             textBox.Focus();
             Keyboard.Focus(textBox);
-            // Select filename without extension
-            textBox.Select(0, fileNameWithoutExt.Length);
+            // Select item name without extension
+            textBox.Select(0, itemNameWithoutExt.Length);
         }), System.Windows.Threading.DispatcherPriority.Input);
     }
 
@@ -1156,15 +1366,17 @@ public partial class MainWindow : Window
                     "エラー",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
-                item.Header = Path.GetFileName(oldFilePath);
+                var filterText = _viewModel?.FilterText ?? string.Empty;
+                item.Header = CreateHighlightedHeader(Path.GetFileName(oldFilePath), filterText);
                 return;
             }
 
             // Rename the file
             File.Move(oldFilePath, newFilePath);
 
-            // Update TreeViewItem
-            item.Header = newFileName;
+            // Update TreeViewItem with highlighting
+            var currentFilterText = _viewModel?.FilterText ?? string.Empty;
+            item.Header = CreateHighlightedHeader(newFileName, currentFilterText);
             item.Tag = newFilePath;
 
             // Update any open tabs that reference this file
@@ -1182,7 +1394,62 @@ public partial class MainWindow : Window
                 "エラー",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
-            item.Header = Path.GetFileName(oldFilePath);
+            var filterText = _viewModel?.FilterText ?? string.Empty;
+            item.Header = CreateHighlightedHeader(Path.GetFileName(oldFilePath), filterText);
+
+            // Return focus to TreeView
+            FolderTreeView.Focus();
+        }
+    }
+
+    private void RenameFolder(string oldFolderPath, string newFolderName, TreeViewItem item)
+    {
+        try
+        {
+            var parentDirectory = Path.GetDirectoryName(oldFolderPath);
+            if (string.IsNullOrEmpty(parentDirectory))
+                return;
+
+            var newFolderPath = Path.Combine(parentDirectory, newFolderName);
+
+            // Check if folder already exists
+            if (Directory.Exists(newFolderPath) && newFolderPath != oldFolderPath)
+            {
+                System.Windows.MessageBox.Show(
+                    $"フォルダ '{newFolderName}' は既に存在します。",
+                    "エラー",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                var filterText = _viewModel?.FilterText ?? string.Empty;
+                item.Header = CreateHighlightedHeader(new DirectoryInfo(oldFolderPath).Name, filterText);
+                return;
+            }
+
+            // Rename the folder
+            Directory.Move(oldFolderPath, newFolderPath);
+
+            // Update TreeViewItem with highlighting
+            var currentFilterText = _viewModel?.FilterText ?? string.Empty;
+            item.Header = CreateHighlightedHeader(newFolderName, currentFilterText);
+            item.Tag = newFolderPath;
+
+            // Update any open tabs that reference files in this folder
+            UpdateOpenTabsForFolderRename(oldFolderPath, newFolderPath);
+
+            _viewModel?.StatusBarViewModel.ShowMessage($"Renamed folder: {newFolderName}");
+
+            // Return focus to TreeView
+            FolderTreeView.Focus();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"フォルダ名の変更に失敗しました: {ex.Message}",
+                "エラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            var filterText = _viewModel?.FilterText ?? string.Empty;
+            item.Header = CreateHighlightedHeader(new DirectoryInfo(oldFolderPath).Name, filterText);
 
             // Return focus to TreeView
             FolderTreeView.Focus();
@@ -1202,6 +1469,188 @@ public partial class MainWindow : Window
                 var newFileName = Path.GetFileName(newFilePath);
                 tab.Header = tab.IsDirty ? $"{newFileName}*" : newFileName;
             }
+        }
+    }
+
+    private void UpdateOpenTabsForFolderRename(string oldFolderPath, string newFolderPath)
+    {
+        if (_viewModel == null)
+            return;
+
+        foreach (var tab in _viewModel.Tabs)
+        {
+            if (!string.IsNullOrEmpty(tab.FilePath) && tab.FilePath.StartsWith(oldFolderPath))
+            {
+                // Update file path to reflect new folder path
+                tab.FilePath = tab.FilePath.Replace(oldFolderPath, newFolderPath);
+                var newFileName = Path.GetFileName(tab.FilePath);
+                tab.Header = tab.IsDirty ? $"{newFileName}*" : newFileName;
+            }
+        }
+    }
+
+    private void CreateNewFile(TreeViewItem parentItem, string folderPath)
+    {
+        try
+        {
+            // Generate a unique file name
+            string newFileName = "NewFile.tsv";
+            string newFilePath = Path.Combine(folderPath, newFileName);
+            int counter = 1;
+
+            while (File.Exists(newFilePath))
+            {
+                newFileName = $"NewFile{counter}.tsv";
+                newFilePath = Path.Combine(folderPath, newFileName);
+                counter++;
+            }
+
+            // Create the file
+            File.WriteAllText(newFilePath, string.Empty);
+
+            // Expand the parent node if not already expanded
+            if (!parentItem.IsExpanded)
+            {
+                parentItem.IsExpanded = true;
+            }
+
+            // Refresh the tree node to show the new file
+            RefreshTreeNode(parentItem);
+
+            // Find the newly created file item and start rename
+            var newFileItem = FindTreeItemByPath(parentItem, newFilePath);
+            if (newFileItem != null)
+            {
+                newFileItem.IsSelected = true;
+                BeginRenameTreeItem(newFileItem, false);
+            }
+
+            _viewModel?.StatusBarViewModel.ShowMessage($"Created: {newFileName}");
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"ファイルの作成に失敗しました: {ex.Message}",
+                "エラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private void CreateNewFolder(TreeViewItem parentItem, string folderPath)
+    {
+        try
+        {
+            // Generate a unique folder name
+            string newFolderName = "NewFolder";
+            string newFolderPath = Path.Combine(folderPath, newFolderName);
+            int counter = 1;
+
+            while (Directory.Exists(newFolderPath))
+            {
+                newFolderName = $"NewFolder{counter}";
+                newFolderPath = Path.Combine(folderPath, newFolderName);
+                counter++;
+            }
+
+            // Create the folder
+            Directory.CreateDirectory(newFolderPath);
+
+            // Expand the parent node if not already expanded
+            if (!parentItem.IsExpanded)
+            {
+                parentItem.IsExpanded = true;
+            }
+
+            // Refresh the tree node to show the new folder
+            RefreshTreeNode(parentItem);
+
+            // Find the newly created folder item and start rename
+            var newFolderItem = FindTreeItemByPath(parentItem, newFolderPath);
+            if (newFolderItem != null)
+            {
+                newFolderItem.IsSelected = true;
+                BeginRenameTreeItem(newFolderItem, true);
+            }
+
+            _viewModel?.StatusBarViewModel.ShowMessage($"Created folder: {newFolderName}");
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"フォルダの作成に失敗しました: {ex.Message}",
+                "エラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private void RefreshTreeNode(TreeViewItem node)
+    {
+        var path = node.Tag as string;
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+            return;
+
+        // Clear current items
+        node.Items.Clear();
+
+        // Repopulate the node
+        PopulateTreeNode(node, path);
+    }
+
+    private TreeViewItem? FindTreeItemByPath(TreeViewItem parent, string path)
+    {
+        foreach (var item in parent.Items)
+        {
+            if (item is TreeViewItem treeItem)
+            {
+                if (treeItem.Tag is string itemPath && itemPath == path)
+                {
+                    return treeItem;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void FolderTreeView_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        // Check if we clicked on the TreeView background (not on an item)
+        var clickedElement = e.OriginalSource as DependencyObject;
+
+        // Walk up the visual tree to see if we clicked on a TreeViewItem
+        var treeViewItem = FindVisualParent<TreeViewItem>(clickedElement);
+
+        if (treeViewItem == null && _viewModel?.SelectedFolderPath != null)
+        {
+            // Clicked on background - show context menu for root folder
+            var contextMenu = new ContextMenu();
+
+            var newFileMenuItem = new MenuItem { Header = "新しいファイル(_F)" };
+            newFileMenuItem.Click += (s, args) =>
+            {
+                // Create file in root folder
+                if (FolderTreeView.Items.Count > 0 && FolderTreeView.Items[0] is TreeViewItem rootItem)
+                {
+                    CreateNewFile(rootItem, _viewModel.SelectedFolderPath);
+                }
+            };
+            contextMenu.Items.Add(newFileMenuItem);
+
+            var newFolderMenuItem = new MenuItem { Header = "新しいフォルダ(_N)" };
+            newFolderMenuItem.Click += (s, args) =>
+            {
+                // Create folder in root folder
+                if (FolderTreeView.Items.Count > 0 && FolderTreeView.Items[0] is TreeViewItem rootItem)
+                {
+                    CreateNewFolder(rootItem, _viewModel.SelectedFolderPath);
+                }
+            };
+            contextMenu.Items.Add(newFolderMenuItem);
+
+            contextMenu.PlacementTarget = FolderTreeView;
+            contextMenu.IsOpen = true;
+            e.Handled = true;
         }
     }
 

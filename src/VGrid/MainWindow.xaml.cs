@@ -18,6 +18,8 @@ public partial class MainWindow : Window
 {
     private MainViewModel? _viewModel;
     private bool _isUpdatingSelection = false;
+    private System.Windows.Point _dragStartPoint;
+    private TreeViewItem? _draggedItem;
 
     public MainWindow()
     {
@@ -61,8 +63,14 @@ public partial class MainWindow : Window
             {
                 Header = CreateHighlightedHeader(rootName, filterText),
                 Tag = _viewModel.SelectedFolderPath,
-                IsExpanded = true
+                IsExpanded = true,
+                AllowDrop = true
             };
+
+            // Add drag-and-drop event handlers for root
+            rootItem.DragOver += TreeViewItem_DragOver;
+            rootItem.Drop += TreeViewItem_Drop;
+            rootItem.DragLeave += TreeViewItem_DragLeave;
 
             // Add context menu for root directory
             var rootContextMenu = new ContextMenu();
@@ -119,11 +127,19 @@ public partial class MainWindow : Window
                 var dirItem = new TreeViewItem
                 {
                     Header = CreateHighlightedHeader(dirName, filterText),
-                    Tag = dir
+                    Tag = dir,
+                    AllowDrop = true
                 };
                 // Add a dummy item for lazy loading
                 dirItem.Items.Add("Loading...");
                 dirItem.Expanded += TreeViewItem_Expanded;
+
+                // Add drag-and-drop event handlers
+                dirItem.PreviewMouseLeftButtonDown += TreeViewItem_PreviewMouseLeftButtonDown;
+                dirItem.PreviewMouseMove += TreeViewItem_PreviewMouseMove;
+                dirItem.DragOver += TreeViewItem_DragOver;
+                dirItem.Drop += TreeViewItem_Drop;
+                dirItem.DragLeave += TreeViewItem_DragLeave;
 
                 // Add context menu for directories
                 var contextMenu = new ContextMenu();
@@ -165,6 +181,10 @@ public partial class MainWindow : Window
                     Header = CreateHighlightedHeader(fileName, filterText),
                     Tag = file
                 };
+
+                // Add drag-and-drop event handlers for files
+                fileItem.PreviewMouseLeftButtonDown += TreeViewItem_PreviewMouseLeftButtonDown;
+                fileItem.PreviewMouseMove += TreeViewItem_PreviewMouseMove;
 
                 // Add context menu only for files
                 var contextMenu = new ContextMenu();
@@ -1591,11 +1611,50 @@ public partial class MainWindow : Window
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
             return;
 
+        // Save expansion state of child items
+        var expandedPaths = new HashSet<string>();
+        SaveExpansionState(node, expandedPaths);
+
         // Clear current items
         node.Items.Clear();
 
         // Repopulate the node
         PopulateTreeNode(node, path);
+
+        // Restore expansion state
+        RestoreExpansionState(node, expandedPaths);
+    }
+
+    private void SaveExpansionState(TreeViewItem node, HashSet<string> expandedPaths)
+    {
+        foreach (var item in node.Items)
+        {
+            if (item is TreeViewItem childItem)
+            {
+                var childPath = childItem.Tag as string;
+                if (!string.IsNullOrEmpty(childPath) && childItem.IsExpanded)
+                {
+                    expandedPaths.Add(childPath);
+                    SaveExpansionState(childItem, expandedPaths);
+                }
+            }
+        }
+    }
+
+    private void RestoreExpansionState(TreeViewItem node, HashSet<string> expandedPaths)
+    {
+        foreach (var item in node.Items)
+        {
+            if (item is TreeViewItem childItem)
+            {
+                var childPath = childItem.Tag as string;
+                if (!string.IsNullOrEmpty(childPath) && expandedPaths.Contains(childPath))
+                {
+                    childItem.IsExpanded = true;
+                    RestoreExpansionState(childItem, expandedPaths);
+                }
+            }
+        }
     }
 
     private TreeViewItem? FindTreeItemByPath(TreeViewItem parent, string path)
@@ -1652,6 +1711,226 @@ public partial class MainWindow : Window
             contextMenu.IsOpen = true;
             e.Handled = true;
         }
+    }
+
+    private void TreeViewItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is TreeViewItem item)
+        {
+            _dragStartPoint = e.GetPosition(null);
+            _draggedItem = item;
+        }
+    }
+
+    private void TreeViewItem_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (e.LeftButton == MouseButtonState.Pressed && _draggedItem != null)
+        {
+            System.Windows.Point currentPosition = e.GetPosition(null);
+            System.Windows.Vector diff = _dragStartPoint - currentPosition;
+
+            // Check if we've moved far enough to start a drag operation
+            if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+            {
+                var itemPath = _draggedItem.Tag as string;
+                if (!string.IsNullOrEmpty(itemPath))
+                {
+                    // Create drag data
+                    var dragData = new System.Windows.DataObject("TreeViewItem", _draggedItem);
+                    dragData.SetData(System.Windows.DataFormats.FileDrop, new[] { itemPath });
+
+                    // Start drag-and-drop operation
+                    DragDrop.DoDragDrop(_draggedItem, dragData, System.Windows.DragDropEffects.Move);
+
+                    // Reset drag state
+                    _draggedItem = null;
+                }
+            }
+        }
+    }
+
+    private void TreeViewItem_DragOver(object sender, System.Windows.DragEventArgs e)
+    {
+        if (sender is TreeViewItem targetItem)
+        {
+            var targetPath = targetItem.Tag as string;
+
+            // Only allow drop on folders
+            if (!string.IsNullOrEmpty(targetPath) && Directory.Exists(targetPath))
+            {
+                // Check if we're dragging a TreeViewItem
+                if (e.Data.GetDataPresent("TreeViewItem"))
+                {
+                    var draggedItem = e.Data.GetData("TreeViewItem") as TreeViewItem;
+                    var draggedPath = draggedItem?.Tag as string;
+
+                    // Don't allow dropping on itself or its descendants
+                    if (!string.IsNullOrEmpty(draggedPath) && draggedPath != targetPath &&
+                        !targetPath.StartsWith(draggedPath + Path.DirectorySeparatorChar))
+                    {
+                        e.Effects = System.Windows.DragDropEffects.Move;
+
+                        // Visual feedback - highlight the drop target
+                        targetItem.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 0, 120, 215));
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+        }
+
+        e.Effects = System.Windows.DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void TreeViewItem_DragLeave(object sender, System.Windows.DragEventArgs e)
+    {
+        if (sender is TreeViewItem item)
+        {
+            // Remove visual feedback
+            item.Background = System.Windows.Media.Brushes.Transparent;
+        }
+    }
+
+    private void TreeViewItem_Drop(object sender, System.Windows.DragEventArgs e)
+    {
+        if (sender is TreeViewItem targetItem)
+        {
+            // Remove visual feedback
+            targetItem.Background = System.Windows.Media.Brushes.Transparent;
+
+            var targetPath = targetItem.Tag as string;
+
+            if (!string.IsNullOrEmpty(targetPath) && Directory.Exists(targetPath))
+            {
+                if (e.Data.GetDataPresent("TreeViewItem"))
+                {
+                    var draggedItem = e.Data.GetData("TreeViewItem") as TreeViewItem;
+                    var sourcePath = draggedItem?.Tag as string;
+
+                    if (!string.IsNullOrEmpty(sourcePath) && sourcePath != targetPath)
+                    {
+                        MoveItemToFolder(sourcePath, targetPath, draggedItem, targetItem);
+                    }
+                }
+            }
+        }
+    }
+
+    private void MoveItemToFolder(string sourcePath, string targetFolderPath, TreeViewItem? sourceItem, TreeViewItem targetFolderItem)
+    {
+        try
+        {
+            bool isFile = File.Exists(sourcePath);
+            bool isFolder = Directory.Exists(sourcePath);
+
+            if (!isFile && !isFolder)
+            {
+                return;
+            }
+
+            string itemName = isFile ? Path.GetFileName(sourcePath) : new DirectoryInfo(sourcePath).Name;
+            string newPath = Path.Combine(targetFolderPath, itemName);
+
+            // Check if source and target are in the same folder
+            string? sourceParentPath = isFile ? Path.GetDirectoryName(sourcePath) : Directory.GetParent(sourcePath)?.FullName;
+            if (sourceParentPath != null && Path.GetFullPath(sourceParentPath) == Path.GetFullPath(targetFolderPath))
+            {
+                // Same folder - no need to move
+                return;
+            }
+
+            // Check if target already exists
+            if ((isFile && File.Exists(newPath)) || (isFolder && Directory.Exists(newPath)))
+            {
+                var result = System.Windows.MessageBox.Show(
+                    $"'{itemName}' は既に移動先に存在します。上書きしますか？",
+                    "確認",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+
+                // Delete existing target
+                if (isFile)
+                    File.Delete(newPath);
+                else
+                    Directory.Delete(newPath, true);
+            }
+
+            // Perform the move
+            if (isFile)
+            {
+                File.Move(sourcePath, newPath);
+            }
+            else
+            {
+                Directory.Move(sourcePath, newPath);
+            }
+
+            // Update any open tabs that reference this file or files in this folder
+            if (isFile)
+            {
+                UpdateOpenTabsForRename(sourcePath, newPath);
+            }
+            else
+            {
+                UpdateOpenTabsForFolderRename(sourcePath, newPath);
+            }
+
+            // Refresh only the affected folders to preserve tree expansion state
+            // Find and refresh the source parent folder (sourceParentPath already calculated above)
+            if (!string.IsNullOrEmpty(sourceParentPath))
+            {
+                var sourceParentItem = FindTreeViewItemByPathRecursive(FolderTreeView, sourceParentPath);
+                if (sourceParentItem != null)
+                {
+                    RefreshTreeNode(sourceParentItem);
+                }
+            }
+
+            // Expand and refresh the target folder
+            if (!targetFolderItem.IsExpanded)
+            {
+                targetFolderItem.IsExpanded = true;
+            }
+            RefreshTreeNode(targetFolderItem);
+
+            _viewModel?.StatusBarViewModel.ShowMessage($"Moved: {itemName} to {Path.GetFileName(targetFolderPath)}");
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"移動に失敗しました: {ex.Message}",
+                "エラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private TreeViewItem? FindTreeViewItemByPathRecursive(ItemsControl parent, string targetPath)
+    {
+        foreach (var item in parent.Items)
+        {
+            if (item is TreeViewItem treeItem)
+            {
+                var itemPath = treeItem.Tag as string;
+                if (!string.IsNullOrEmpty(itemPath) && Path.GetFullPath(itemPath) == Path.GetFullPath(targetPath))
+                {
+                    return treeItem;
+                }
+
+                // Search recursively in children
+                var result = FindTreeViewItemByPathRecursive(treeItem, targetPath);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+        }
+        return null;
     }
 
     private void TsvGrid_OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)

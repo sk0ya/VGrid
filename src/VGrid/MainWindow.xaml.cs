@@ -1133,6 +1133,17 @@ public partial class MainWindow : Window
             }
         }
 
+        // Handle Ctrl+G for Git History (works regardless of Vim mode)
+        if (e.Key == Key.G && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            if (_viewModel.ViewGitHistoryCommand.CanExecute(null))
+            {
+                _viewModel.ViewGitHistoryCommand.Execute(null);
+            }
+            e.Handled = true;
+            return;
+        }
+
         // If Vim mode is disabled, let DataGrid handle keys normally
         if (!_viewModel.IsVimModeEnabled)
             return;

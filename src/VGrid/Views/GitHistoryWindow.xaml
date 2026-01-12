@@ -1,0 +1,37 @@
+<Window x:Class="VGrid.Views.GitHistoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Git History" Height="600" Width="800"
+        WindowStartupLocation="CenterOwner">
+
+    <DockPanel>
+        <!-- Commit History List -->
+        <Border BorderBrush="#CCC" BorderThickness="1" Margin="10">
+            <ListBox x:Name="CommitListBox"
+                         ItemsSource="{Binding Commits}"
+                         SelectionMode="Extended"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         MouseDoubleClick="CommitListBox_MouseDoubleClick">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayText, Mode=OneWay}"
+                                       Margin="5"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="View Diff vs Working Directory"
+                                      Command="{Binding ViewDiffVsWorkingCommand}"/>
+                            <MenuItem Header="View Diff vs Parent Commit"
+                                      Command="{Binding ViewDiffVsParentCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="Compare Selected Commits"
+                                      Command="{Binding ViewDiffBetweenCommitsCommand}"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                </ListBox>
+        </Border>
+    </DockPanel>
+</Window>

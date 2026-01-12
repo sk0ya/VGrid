@@ -98,6 +98,11 @@
                           IsCheckable="True"
                           IsChecked="{Binding IsVimModeEnabled, Mode=TwoWay}"/>
             </MenuItem>
+            <MenuItem Header="_Git">
+                <MenuItem Header="_View Git History..."
+                          Command="{Binding ViewGitHistoryCommand}"
+                          InputGestureText="Ctrl+G"/>
+            </MenuItem>
         </Menu>
 
         <!-- Status Bar -->

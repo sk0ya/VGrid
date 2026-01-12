@@ -18,6 +18,7 @@ public class MainViewModel : ViewModelBase
 {
     private readonly ITsvFileService _fileService;
     private readonly ISettingsService _settingsService;
+    private readonly IGitService _gitService;
     private TabItemViewModel? _selectedTab;
     private string? _selectedFolderPath;
     private bool _isVimModeEnabled = true;
@@ -27,6 +28,7 @@ public class MainViewModel : ViewModelBase
     {
         _fileService = new TsvFileService();
         _settingsService = new SettingsService();
+        _gitService = new GitService();
 
         Tabs = new ObservableCollection<TabItemViewModel>();
         StatusBarViewModel = new StatusBarViewModel();
@@ -44,6 +46,7 @@ public class MainViewModel : ViewModelBase
         InsertColumnLeftCommand = new RelayCommand<int>(InsertColumnLeft);
         InsertColumnRightCommand = new RelayCommand<int>(InsertColumnRight);
         ToggleVimModeCommand = new RelayCommand(ToggleVimMode);
+        ViewGitHistoryCommand = new RelayCommand(async () => await ViewGitHistoryAsync(), CanViewGitHistory);
 
         // Session restoration will be done after window loads
         // Don't create a new file here - let RestoreSessionAsync handle it
@@ -100,6 +103,7 @@ public class MainViewModel : ViewModelBase
     public WpfCommand InsertColumnLeftCommand { get; }
     public WpfCommand InsertColumnRightCommand { get; }
     public WpfCommand ToggleVimModeCommand { get; }
+    public WpfCommand ViewGitHistoryCommand { get; }
 
     public string WindowTitle => "VGrid - TSV Editor with Vim Keybindings";
 
@@ -598,5 +602,74 @@ public class MainViewModel : ViewModelBase
         };
 
         _settingsService.SaveSession(session);
+    }
+
+    private bool CanViewGitHistory()
+    {
+        return SelectedTab != null &&
+               !string.IsNullOrEmpty(SelectedTab.FilePath) &&
+               !SelectedTab.FilePath.StartsWith("Untitled");
+    }
+
+    private async System.Threading.Tasks.Task ViewGitHistoryAsync()
+    {
+        if (SelectedTab == null || string.IsNullOrEmpty(SelectedTab.FilePath))
+            return;
+
+        // Check if git is available
+        if (!await _gitService.IsGitAvailableAsync())
+        {
+            System.Windows.MessageBox.Show(
+                "Git is not available. Please install Git and ensure it's in your PATH.",
+                "Git Not Found",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        // Check if file is in a git repository
+        if (!await _gitService.IsInGitRepositoryAsync(SelectedTab.FilePath))
+        {
+            System.Windows.MessageBox.Show(
+                "This file is not in a Git repository.",
+                "Not in Git Repository",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var repoRoot = await _gitService.GetRepositoryRootAsync(SelectedTab.FilePath);
+            if (string.IsNullOrEmpty(repoRoot))
+            {
+                System.Windows.MessageBox.Show(
+                    "Could not determine Git repository root.",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
+            var viewModel = new GitHistoryViewModel(
+                SelectedTab.FilePath,
+                repoRoot,
+                _gitService);
+
+            var window = new Views.GitHistoryWindow(viewModel)
+            {
+                Owner = System.Windows.Application.Current.MainWindow
+            };
+
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Error opening Git history: {ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 }

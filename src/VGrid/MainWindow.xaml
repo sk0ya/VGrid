@@ -13,6 +13,7 @@
     <Window.Resources>
         <converters:ModeToColorConverter x:Key="ModeToColorConverter"/>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
 
         <!-- Excel-like DataGrid Style -->
         <Style x:Key="ExcelDataGridStyle" TargetType="DataGrid">
@@ -130,43 +131,132 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Folder Explorer (Left Panel) -->
-            <Border Grid.Column="0" BorderBrush="#CCCCCC" BorderThickness="0,0,1,0" Background="#F5F5F5">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="EXPLORER" FontWeight="Bold"
-                               Padding="10,8" Background="#E8E8E8" Foreground="#333"/>
-                    <Border DockPanel.Dock="Top" Padding="5" Background="#F5F5F5">
-                        <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                                 Height="22"
-                                 Padding="3"
-                                 VerticalContentAlignment="Center"
-                                 BorderBrush="#CCCCCC"
-                                 BorderThickness="1">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox">
-                                    <Style.Triggers>
-                                        <Trigger Property="Text" Value="">
-                                            <Setter Property="Background">
-                                                <Setter.Value>
-                                                    <VisualBrush AlignmentX="Left" AlignmentY="Center" Stretch="None">
-                                                        <VisualBrush.Visual>
-                                                            <TextBlock Text="Filter files..." Foreground="#999" Margin="3,0,0,0"/>
-                                                        </VisualBrush.Visual>
-                                                    </VisualBrush>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
-                    </Border>
-                    <TreeView x:Name="FolderTreeView" BorderThickness="0" Background="#F5F5F5"
-                              Margin="0" Padding="5" KeyDown="FolderTreeView_KeyDown"
-                              MouseRightButtonUp="FolderTreeView_MouseRightButtonUp">
-                        <!-- Tree items will be populated in code-behind -->
-                    </TreeView>
-                </DockPanel>
+            <!-- Left Panel with Tabs -->
+            <Border Grid.Column="0" BorderBrush="#CCCCCC" BorderThickness="0,0,1,0">
+                <TabControl>
+                    <!-- EXPLORER Tab -->
+                    <TabItem Header="EXPLORER">
+                        <DockPanel Background="#F5F5F5">
+                            <TextBlock DockPanel.Dock="Top" Text="EXPLORER" FontWeight="Bold"
+                                       Padding="10,8" Background="#E8E8E8" Foreground="#333"/>
+                            <Border DockPanel.Dock="Top" Padding="5" Background="#F5F5F5">
+                                <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                         Height="22"
+                                         Padding="3"
+                                         VerticalContentAlignment="Center"
+                                         BorderBrush="#CCCCCC"
+                                         BorderThickness="1">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Style.Triggers>
+                                                <Trigger Property="Text" Value="">
+                                                    <Setter Property="Background">
+                                                        <Setter.Value>
+                                                            <VisualBrush AlignmentX="Left" AlignmentY="Center" Stretch="None">
+                                                                <VisualBrush.Visual>
+                                                                    <TextBlock Text="Filter files..." Foreground="#999" Margin="3,0,0,0"/>
+                                                                </VisualBrush.Visual>
+                                                            </VisualBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                            </Border>
+                            <TreeView x:Name="FolderTreeView" BorderThickness="0" Background="#F5F5F5"
+                                      Margin="0" Padding="5" KeyDown="FolderTreeView_KeyDown"
+                                      MouseRightButtonUp="FolderTreeView_MouseRightButtonUp">
+                                <!-- Tree items will be populated in code-behind -->
+                            </TreeView>
+                        </DockPanel>
+                    </TabItem>
+
+                    <!-- Git Changes Tab -->
+                    <TabItem Header="Git変更">
+                        <DockPanel Background="#F5F5F5">
+                            <!-- Commit Message and Button (Bottom) -->
+                            <Border DockPanel.Dock="Bottom" Height="100" Padding="5" Background="#F5F5F5">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Bottom" Content="Commit"
+                                            Command="{Binding GitChangesViewModel.CommitCommand}"
+                                            Width="Auto" Margin="5,5,5,5"
+                                            HorizontalAlignment="Left" Padding="10,3"/>
+
+                                    <TextBox Text="{Binding GitChangesViewModel.CommitMessage, UpdateSourceTrigger=PropertyChanged}"
+                                             AcceptsReturn="True" TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto"
+                                             BorderBrush="#CCCCCC" BorderThickness="1"
+                                             Margin="5" Padding="5">
+                                        <TextBox.InputBindings>
+                                            <KeyBinding Key="Enter" Modifiers="Ctrl"
+                                                        Command="{Binding GitChangesViewModel.CommitCommand}"/>
+                                        </TextBox.InputBindings>
+                                        <TextBox.Style>
+                                            <Style TargetType="TextBox">
+                                                <Style.Triggers>
+                                                    <Trigger Property="Text" Value="">
+                                                        <Setter Property="Background">
+                                                            <Setter.Value>
+                                                                <VisualBrush AlignmentX="Left" AlignmentY="Top" Stretch="None">
+                                                                    <VisualBrush.Visual>
+                                                                        <TextBlock Text="Commit message (Ctrl+Enter to commit)..."
+                                                                                  Foreground="#999" Margin="5,2,0,0"/>
+                                                                    </VisualBrush.Visual>
+                                                                </VisualBrush>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBox.Style>
+                                    </TextBox>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- Uncommitted Files List (Fill remaining space) -->
+                            <ListBox ItemsSource="{Binding GitChangesViewModel.UncommittedFiles}"
+                                     Background="White" BorderBrush="#CCCCCC" BorderThickness="1"
+                                     Margin="5">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="2">
+                                            <CheckBox IsChecked="{Binding IsSelected}"
+                                                      VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding StatusText}"
+                                                       FontWeight="Bold" Width="20"
+                                                       Foreground="Orange" Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding RelativePath}"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                                <ListBox.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="編集"
+                                                  Command="{Binding GitChangesViewModel.EditFileCommand}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <MenuItem Header="差分表示"
+                                                  Command="{Binding GitChangesViewModel.ShowDiffCommand}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <Separator/>
+                                        <MenuItem Header="エクスプローラーでフォルダを開く"
+                                                  Command="{Binding GitChangesViewModel.OpenFolderCommand}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <MenuItem Header="エディタで開く"
+                                                  Command="{Binding GitChangesViewModel.OpenInEditorCommand}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <Separator/>
+                                        <MenuItem Header="元に戻す"
+                                                  Command="{Binding GitChangesViewModel.RevertFileCommand}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    </ContextMenu>
+                                </ListBox.ContextMenu>
+                            </ListBox>
+                        </DockPanel>
+                    </TabItem>
+                </TabControl>
             </Border>
 
             <!-- Splitter -->

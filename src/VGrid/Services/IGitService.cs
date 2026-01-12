@@ -46,4 +46,19 @@ public interface IGitService
     /// Gets list of changed files between two commits
     /// </summary>
     Task<List<string>> GetChangedFilesAsync(string repoRoot, string? commit1Hash, string? commit2Hash);
+
+    /// <summary>
+    /// Gets uncommitted files in a repository (modified, added, untracked)
+    /// </summary>
+    Task<List<(string filePath, GitFileStatus status)>> GetUncommittedFilesAsync(string repoPath);
+
+    /// <summary>
+    /// Stages specific files for commit
+    /// </summary>
+    Task<bool> StageFilesAsync(string repoPath, IEnumerable<string> filePaths);
+
+    /// <summary>
+    /// Creates a commit with staged files
+    /// </summary>
+    Task<bool> CommitAsync(string repoPath, string message);
 }

@@ -32,6 +32,10 @@ public class MainViewModel : ViewModelBase
 
         Tabs = new ObservableCollection<TabItemViewModel>();
         StatusBarViewModel = new StatusBarViewModel();
+        GitChangesViewModel = new GitChangesViewModel(_gitService, StatusBarViewModel);
+
+        // Subscribe to GitChangesViewModel events
+        GitChangesViewModel.FileOpenRequested += OnFileOpenRequested;
 
         // Initialize commands
         NewFileCommand = new RelayCommand(NewFile);
@@ -48,12 +52,22 @@ public class MainViewModel : ViewModelBase
         ToggleVimModeCommand = new RelayCommand(ToggleVimMode);
         ViewGitHistoryCommand = new RelayCommand(async () => await ViewGitHistoryAsync(), CanViewGitHistory);
 
+        // Subscribe to SelectedFolderPath changes to update GitChangesViewModel
+        PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(SelectedFolderPath))
+            {
+                GitChangesViewModel.SetRepositoryPath(SelectedFolderPath);
+            }
+        };
+
         // Session restoration will be done after window loads
         // Don't create a new file here - let RestoreSessionAsync handle it
     }
 
     public ObservableCollection<TabItemViewModel> Tabs { get; }
     public StatusBarViewModel StatusBarViewModel { get; }
+    public GitChangesViewModel GitChangesViewModel { get; }
 
     public TabItemViewModel? SelectedTab
     {
@@ -106,6 +120,14 @@ public class MainViewModel : ViewModelBase
     public WpfCommand ViewGitHistoryCommand { get; }
 
     public string WindowTitle => "VGrid - TSV Editor with Vim Keybindings";
+
+    /// <summary>
+    /// Handles file open request from GitChangesViewModel
+    /// </summary>
+    private async void OnFileOpenRequested(object? sender, string filePath)
+    {
+        await OpenFileAsync(filePath);
+    }
 
     private void NewFile()
     {

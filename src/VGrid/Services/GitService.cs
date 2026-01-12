@@ -34,7 +34,8 @@ public class GitService : IGitService
     {
         try
         {
-            var directory = Path.GetDirectoryName(filePath);
+            // Handle both file paths and directory paths
+            var directory = Directory.Exists(filePath) ? filePath : Path.GetDirectoryName(filePath);
             if (string.IsNullOrEmpty(directory))
                 return false;
 
@@ -54,7 +55,8 @@ public class GitService : IGitService
     {
         try
         {
-            var directory = Path.GetDirectoryName(filePath);
+            // Handle both file paths and directory paths
+            var directory = Directory.Exists(filePath) ? filePath : Path.GetDirectoryName(filePath);
             if (string.IsNullOrEmpty(directory))
                 return null;
 
@@ -271,6 +273,160 @@ public class GitService : IGitService
         await process.WaitForExitAsync();
 
         return (process.ExitCode, output, error);
+    }
+
+    /// <summary>
+    /// Gets uncommitted files in a repository (modified, added, untracked)
+    /// </summary>
+    public async Task<List<(string filePath, GitFileStatus status)>> GetUncommittedFilesAsync(string repoPath)
+    {
+        var files = new List<(string filePath, GitFileStatus status)>();
+
+        try
+        {
+            // Ensure repoPath is a directory
+            var directory = Directory.Exists(repoPath) ? repoPath : Path.GetDirectoryName(repoPath);
+            if (string.IsNullOrEmpty(directory))
+                return files;
+
+            // Check if in git repository
+            var isInRepo = await IsInGitRepositoryAsync(directory);
+            if (!isInRepo)
+                return files;
+
+            // Get repository root
+            var repoRoot = await GetRepositoryRootAsync(directory);
+            if (string.IsNullOrEmpty(repoRoot))
+                return files;
+
+            // Run git status --porcelain to get uncommitted files
+            var arguments = "status --porcelain --untracked-files=all";
+            var (exitCode, output, _) = await RunGitCommandAsync(arguments, repoRoot);
+
+            if (exitCode != 0 || string.IsNullOrWhiteSpace(output))
+                return files;
+
+            // Parse output
+            // Format: "XY filename" where X is staged status, Y is unstaged status
+            // M = modified, A = added, D = deleted, ?? = untracked, etc.
+            var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in lines)
+            {
+                if (line.Length < 3)
+                    continue;
+
+                var statusCode = line.Substring(0, 2);
+                var filePath = line.Substring(3).Trim();
+
+                // Convert to absolute path
+                var absolutePath = Path.Combine(repoRoot, filePath.Replace('/', Path.DirectorySeparatorChar));
+
+                // Determine status
+                GitFileStatus status;
+                if (statusCode == "??")
+                {
+                    status = GitFileStatus.Untracked;
+                }
+                else if (statusCode.Contains('M'))
+                {
+                    status = GitFileStatus.Modified;
+                }
+                else if (statusCode.Contains('A'))
+                {
+                    status = GitFileStatus.Added;
+                }
+                else if (statusCode.Contains('D'))
+                {
+                    status = GitFileStatus.Deleted;
+                }
+                else
+                {
+                    status = GitFileStatus.Modified; // Default
+                }
+
+                files.Add((absolutePath, status));
+            }
+        }
+        catch
+        {
+            // Return empty list on error
+        }
+
+        return files;
+    }
+
+    /// <summary>
+    /// Stages specific files for commit
+    /// </summary>
+    public async Task<bool> StageFilesAsync(string repoPath, IEnumerable<string> filePaths)
+    {
+        try
+        {
+            // Ensure repoPath is a directory
+            var directory = Directory.Exists(repoPath) ? repoPath : Path.GetDirectoryName(repoPath);
+            if (string.IsNullOrEmpty(directory))
+                return false;
+
+            // Get repository root
+            var repoRoot = await GetRepositoryRootAsync(directory);
+            if (string.IsNullOrEmpty(repoRoot))
+                return false;
+
+            // Convert absolute paths to relative paths from repo root
+            var relativePaths = filePaths
+                .Select(f => Path.GetRelativePath(repoRoot, f).Replace('\\', '/'))
+                .ToList();
+
+            if (!relativePaths.Any())
+                return false;
+
+            // Run git add for each file
+            foreach (var relativePath in relativePaths)
+            {
+                var arguments = $"add \"{relativePath}\"";
+                var (exitCode, _, _) = await RunGitCommandAsync(arguments, repoRoot);
+                if (exitCode != 0)
+                    return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Creates a commit with staged files
+    /// </summary>
+    public async Task<bool> CommitAsync(string repoPath, string message)
+    {
+        try
+        {
+            // Ensure repoPath is a directory
+            var directory = Directory.Exists(repoPath) ? repoPath : Path.GetDirectoryName(repoPath);
+            if (string.IsNullOrEmpty(directory))
+                return false;
+
+            // Get repository root
+            var repoRoot = await GetRepositoryRootAsync(directory);
+            if (string.IsNullOrEmpty(repoRoot))
+                return false;
+
+            // Escape quotes in commit message
+            var escapedMessage = message.Replace("\"", "\\\"");
+
+            // Run git commit
+            var arguments = $"commit -m \"{escapedMessage}\"";
+            var (exitCode, _, _) = await RunGitCommandAsync(arguments, repoRoot);
+
+            return exitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>

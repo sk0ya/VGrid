@@ -1233,22 +1233,40 @@ public partial class MainWindow : Window
         }
     }
 
-    private void FolderTreeView_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    private async void FolderTreeView_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (e.Key == Key.F2 && FolderTreeView.SelectedItem is TreeViewItem item)
+        if (FolderTreeView.SelectedItem is TreeViewItem item)
         {
             var itemPath = item.Tag as string;
             if (!string.IsNullOrEmpty(itemPath))
             {
-                if (File.Exists(itemPath))
+                if (e.Key == Key.Enter)
                 {
-                    BeginRenameTreeItem(item, false);
-                    e.Handled = true;
+                    if (File.Exists(itemPath))
+                    {
+                        // Open file
+                        await _viewModel!.OpenFileAsync(itemPath);
+                        e.Handled = true;
+                    }
+                    else if (Directory.Exists(itemPath))
+                    {
+                        // Expand/collapse folder
+                        item.IsExpanded = !item.IsExpanded;
+                        e.Handled = true;
+                    }
                 }
-                else if (Directory.Exists(itemPath))
+                else if (e.Key == Key.F2)
                 {
-                    BeginRenameTreeItem(item, true);
-                    e.Handled = true;
+                    if (File.Exists(itemPath))
+                    {
+                        BeginRenameTreeItem(item, false);
+                        e.Handled = true;
+                    }
+                    else if (Directory.Exists(itemPath))
+                    {
+                        BeginRenameTreeItem(item, true);
+                        e.Handled = true;
+                    }
                 }
             }
         }

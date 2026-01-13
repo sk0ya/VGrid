@@ -640,13 +640,11 @@ public partial class MainWindow : Window
 
     private void TsvGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        System.Diagnostics.Debug.WriteLine($"[MouseDown] Starting drag");
-        _isDataGridDragging = true;
+        System.Diagnostics.Debug.WriteLine($"[MouseDown] Starting drag, ClickCount={e.ClickCount}");
 
-        // Record the starting position for drag selection
-        if (sender is DataGrid grid && grid.DataContext is TabItemViewModel tab)
+        // Handle double-click to enter Insert mode
+        if (e.ClickCount == 2 && sender is DataGrid grid && grid.DataContext is TabItemViewModel tab)
         {
-            // 実際にクリックされたセルを取得
             var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
             if (cell != null && cell.Column != null)
             {
@@ -658,14 +656,54 @@ public partial class MainWindow : Window
 
                     if (rowIndex >= 0 && colIndex >= 0)
                     {
+                        System.Diagnostics.Debug.WriteLine($"[DoubleClick] Position: ({rowIndex},{colIndex})");
+
+                        // Update cursor position
+                        tab.VimState.CursorPosition = new Models.GridPosition(rowIndex, colIndex);
+
+                        // Switch to Insert mode if not already in it
+                        if (tab.VimState.CurrentMode != VimEngine.VimMode.Insert)
+                        {
+                            tab.VimState.SwitchMode(VimEngine.VimMode.Insert);
+                            tab.VimState.CellEditCaretPosition = VimEngine.CellEditCaretPosition.End;
+                        }
+
+                        // Begin editing the cell
+                        grid.CurrentCell = new DataGridCellInfo(cell);
+                        grid.BeginEdit();
+
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+        }
+
+        _isDataGridDragging = true;
+
+        // Record the starting position for drag selection
+        if (sender is DataGrid grid2 && grid2.DataContext is TabItemViewModel tab2)
+        {
+            // 実際にクリックされたセルを取得
+            var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
+            if (cell != null && cell.Column != null)
+            {
+                var row = FindVisualParent<DataGridRow>(cell);
+                if (row != null)
+                {
+                    var rowIndex = row.GetIndex();
+                    var colIndex = grid2.Columns.IndexOf(cell.Column);
+
+                    if (rowIndex >= 0 && colIndex >= 0)
+                    {
                         _dragStartPosition = new Models.GridPosition(rowIndex, colIndex);
                         System.Diagnostics.Debug.WriteLine($"[MouseDown] Start position: ({rowIndex},{colIndex})");
 
                         // ドラッグ開始時に以前のVisual mode選択状態をクリア
-                        if (tab.VimState.CurrentMode == VimEngine.VimMode.Visual)
+                        if (tab2.VimState.CurrentMode == VimEngine.VimMode.Visual)
                         {
                             // Visual modeから抜けて、以前の選択をクリア
-                            tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+                            tab2.VimState.SwitchMode(VimEngine.VimMode.Normal);
                         }
                     }
                 }

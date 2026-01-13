@@ -328,10 +328,38 @@ public class MainViewModel : ViewModelBase
             Tabs.Add(tab);
             SelectedTab = tab;
             StatusBarViewModel.ShowMessage($"Opened: {filePath}");
+
+            // Update SelectedFolderPath to the repository root if the file is in a Git repository
+            await UpdateFolderPathForFileAsync(filePath);
         }
         catch (Exception ex)
         {
             System.Windows.MessageBox.Show($"Error opening file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Updates the SelectedFolderPath to the Git repository root of the given file
+    /// </summary>
+    private async System.Threading.Tasks.Task UpdateFolderPathForFileAsync(string filePath)
+    {
+        try
+        {
+            // Check if the file is in a Git repository
+            if (await _gitService.IsInGitRepositoryAsync(filePath))
+            {
+                // Get the repository root
+                var repoRoot = await _gitService.GetRepositoryRootAsync(filePath);
+                if (!string.IsNullOrEmpty(repoRoot))
+                {
+                    // Update SelectedFolderPath to the repository root
+                    SelectedFolderPath = repoRoot;
+                }
+            }
+        }
+        catch
+        {
+            // Silently fail - this is just a convenience feature
         }
     }
 

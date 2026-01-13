@@ -204,7 +204,7 @@ public class GitService : IGitService
     /// </summary>
     public async Task<List<string>> GetChangedFilesAsync(string repoRoot, string? commit1Hash, string? commit2Hash)
     {
-        var files = new List<string>();
+        var files = new HashSet<string>();
 
         try
         {
@@ -212,7 +212,7 @@ public class GitService : IGitService
             if (commit1Hash == null && commit2Hash == null)
             {
                 // No commits specified - return empty list
-                return files;
+                return files.ToList();
             }
             else if (commit1Hash == null)
             {
@@ -234,7 +234,35 @@ public class GitService : IGitService
             if (exitCode == 0 && !string.IsNullOrWhiteSpace(output))
             {
                 var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                files.AddRange(lines.Select(l => l.Trim()));
+                foreach (var line in lines)
+                {
+                    files.Add(line.Trim());
+                }
+            }
+
+            // If comparing with working directory, also include added/untracked files from git status
+            if (commit2Hash == null)
+            {
+                var statusArgs = "status --porcelain --untracked-files=all";
+                var (statusExitCode, statusOutput, _) = await RunGitCommandAsync(statusArgs, repoRoot);
+
+                if (statusExitCode == 0 && !string.IsNullOrWhiteSpace(statusOutput))
+                {
+                    var statusLines = statusOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in statusLines)
+                    {
+                        if (line.Length < 3)
+                            continue;
+
+                        var statusCode = line.Substring(0, 2);
+                        // Include untracked (??) and added (A ) files
+                        if (statusCode == "??" || statusCode.Contains('A'))
+                        {
+                            var filePath = line.Substring(3).Trim();
+                            files.Add(filePath);
+                        }
+                    }
+                }
             }
         }
         catch
@@ -242,7 +270,7 @@ public class GitService : IGitService
             // Return empty list on error
         }
 
-        return files;
+        return files.ToList();
     }
 
     /// <summary>

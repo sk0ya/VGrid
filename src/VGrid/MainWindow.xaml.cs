@@ -361,6 +361,9 @@ public partial class MainWindow : Window
         {
             GenerateColumns(grid, tabItem);
 
+            // Auto-fit columns on file load
+            AutoFitAllColumns(grid, tabItem);
+
             // Subscribe to DataGrid selection changes to update VimState
             // Remove any existing handler first to prevent duplicate subscriptions
             grid.CurrentCellChanged -= TsvGrid_CurrentCellChangedHandler;
@@ -424,13 +427,115 @@ public partial class MainWindow : Window
                     Mode = BindingMode.TwoWay,
                     UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
                 },
-                Width = new DataGridLength(100, DataGridLengthUnitType.Pixel),
+                // Use calculated width if available, otherwise use default
+                Width = tab.ColumnWidths.ContainsKey(i)
+                    ? new DataGridLength(tab.ColumnWidths[i], DataGridLengthUnitType.Pixel)
+                    : new DataGridLength(100, DataGridLengthUnitType.Pixel),
                 MinWidth = 60,
                 CellStyle = cellStyle
             };
 
             grid.Columns.Add(column);
         }
+    }
+
+    /// <summary>
+    /// Auto-fits all columns based on content (called on file load)
+    /// </summary>
+    private void AutoFitAllColumns(DataGrid grid, TabItemViewModel tab)
+    {
+        if (_viewModel == null || grid == null || tab == null)
+            return;
+
+        // Get font settings from DataGrid
+        var typeface = new Typeface(
+            grid.FontFamily ?? new System.Windows.Media.FontFamily("Segoe UI"),
+            grid.FontStyle,
+            grid.FontWeight,
+            grid.FontStretch
+        );
+        double fontSize = grid.FontSize > 0 ? grid.FontSize : 11;
+
+        // Calculate widths for all columns
+        var widths = _viewModel.ColumnWidthService.CalculateAllColumnWidths(
+            tab.Document,
+            typeface,
+            fontSize
+        );
+
+        // Store widths in tab
+        tab.ColumnWidths = widths;
+        tab.ResetManualResizeTracking();
+
+        // Apply widths to grid columns
+        for (int i = 0; i < grid.Columns.Count && i < widths.Count; i++)
+        {
+            if (grid.Columns[i] is DataGridTextColumn column)
+            {
+                column.Width = new DataGridLength(widths[i], DataGridLengthUnitType.Pixel);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Auto-fits a single column based on content (called after cell edit)
+    /// </summary>
+    private void AutoFitColumn(DataGrid grid, TabItemViewModel tab, int columnIndex)
+    {
+        if (_viewModel == null || grid == null || tab == null)
+            return;
+
+        // Skip if user manually resized this column
+        if (tab.ManuallyResizedColumns.Contains(columnIndex))
+            return;
+
+        // Get font settings from DataGrid
+        var typeface = new Typeface(
+            grid.FontFamily ?? new System.Windows.Media.FontFamily("Segoe UI"),
+            grid.FontStyle,
+            grid.FontWeight,
+            grid.FontStretch
+        );
+        double fontSize = grid.FontSize > 0 ? grid.FontSize : 11;
+
+        // Calculate width for this column
+        double width = _viewModel.ColumnWidthService.CalculateColumnWidth(
+            tab.Document,
+            columnIndex,
+            typeface,
+            fontSize
+        );
+
+        // Update stored width
+        tab.ColumnWidths[columnIndex] = width;
+
+        // Apply width to grid column
+        if (columnIndex < grid.Columns.Count && grid.Columns[columnIndex] is DataGridTextColumn column)
+        {
+            column.Width = new DataGridLength(width, DataGridLengthUnitType.Pixel);
+        }
+    }
+
+    /// <summary>
+    /// Handles cell edit ending - triggers auto-fit for edited column
+    /// </summary>
+    private void TsvGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    {
+        if (_viewModel?.SelectedTab == null || e.Cancel)
+            return;
+
+        var grid = sender as DataGrid;
+        if (grid == null)
+            return;
+
+        var tab = _viewModel.SelectedTab;
+        int columnIndex = e.Column.DisplayIndex;
+
+        // Schedule auto-fit after edit completes (use Dispatcher to ensure edit is committed)
+        grid.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            AutoFitColumn(grid, tab, columnIndex);
+        }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private Style CreateVisualModeCellStyle(int columnIndex)

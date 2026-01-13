@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using VGrid.Helpers;
 using VGrid.Models;
 using VGrid.VimEngine;
@@ -11,6 +12,8 @@ public class TabItemViewModel : ViewModelBase
 {
     private string _header;
     private bool _isDirty;
+    private Dictionary<int, double> _columnWidths = new Dictionary<int, double>();
+    private HashSet<int> _manuallyResizedColumns = new HashSet<int>();
 
     public TabItemViewModel(string filePath, TsvDocument document, VimState vimState, TsvGridViewModel gridViewModel)
     {
@@ -67,5 +70,35 @@ public class TabItemViewModel : ViewModelBase
                 Header = value ? $"{fileName}*" : fileName;
             }
         }
+    }
+
+    /// <summary>
+    /// Dictionary of column indices to their calculated widths
+    /// </summary>
+    public Dictionary<int, double> ColumnWidths
+    {
+        get => _columnWidths;
+        set => SetProperty(ref _columnWidths, value);
+    }
+
+    /// <summary>
+    /// Set of column indices that were manually resized by the user
+    /// </summary>
+    public HashSet<int> ManuallyResizedColumns => _manuallyResizedColumns;
+
+    /// <summary>
+    /// Marks a column as manually resized
+    /// </summary>
+    public void MarkColumnAsManuallyResized(int columnIndex)
+    {
+        _manuallyResizedColumns.Add(columnIndex);
+    }
+
+    /// <summary>
+    /// Resets manual resize tracking (call on file load)
+    /// </summary>
+    public void ResetManualResizeTracking()
+    {
+        _manuallyResizedColumns.Clear();
     }
 }

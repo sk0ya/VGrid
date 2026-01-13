@@ -19,6 +19,7 @@ public class MainViewModel : ViewModelBase
     private readonly ITsvFileService _fileService;
     private readonly ISettingsService _settingsService;
     private readonly IGitService _gitService;
+    private readonly IColumnWidthService _columnWidthService;
     private TabItemViewModel? _selectedTab;
     private string? _selectedFolderPath;
     private bool _isVimModeEnabled = true;
@@ -29,6 +30,7 @@ public class MainViewModel : ViewModelBase
         _fileService = new TsvFileService();
         _settingsService = new SettingsService();
         _gitService = new GitService();
+        _columnWidthService = new ColumnWidthService();
 
         Tabs = new ObservableCollection<TabItemViewModel>();
         StatusBarViewModel = new StatusBarViewModel();
@@ -69,6 +71,7 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<TabItemViewModel> Tabs { get; }
     public StatusBarViewModel StatusBarViewModel { get; }
     public GitChangesViewModel GitChangesViewModel { get; }
+    public IColumnWidthService ColumnWidthService => _columnWidthService;
 
     public TabItemViewModel? SelectedTab
     {

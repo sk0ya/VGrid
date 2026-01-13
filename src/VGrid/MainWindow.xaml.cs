@@ -1359,6 +1359,14 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Handle Ctrl+Shift+E for Select in Folder Tree (works regardless of Vim mode)
+        if (e.Key == Key.E && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+        {
+            SelectCurrentFileInFolderTree();
+            e.Handled = true;
+            return;
+        }
+
         // If Vim mode is disabled, let DataGrid handle keys normally
         if (!_viewModel.IsVimModeEnabled)
             return;
@@ -2390,6 +2398,151 @@ public partial class MainWindow : Window
         }
 
         _viewModel?.SaveSession();
+    }
+
+    private void SelectCurrentFileInFolderTree()
+    {
+        if (_viewModel?.SelectedTab == null || string.IsNullOrEmpty(_viewModel.SelectedTab.FilePath))
+            return;
+
+        var filePath = _viewModel.SelectedTab.FilePath;
+
+        // Check if file path starts with "Untitled" (unsaved file)
+        if (filePath.StartsWith("Untitled"))
+        {
+            _viewModel.StatusBarViewModel.ShowMessage("Cannot select unsaved file in folder tree");
+            return;
+        }
+
+        // Check if file exists
+        if (!File.Exists(filePath))
+        {
+            _viewModel.StatusBarViewModel.ShowMessage("File does not exist");
+            return;
+        }
+
+        // Check if SelectedFolderPath is set
+        if (string.IsNullOrEmpty(_viewModel.SelectedFolderPath))
+        {
+            _viewModel.StatusBarViewModel.ShowMessage("No folder is currently open in the explorer");
+            return;
+        }
+
+        // Check if file is within the selected folder
+        var fullFilePath = Path.GetFullPath(filePath);
+        var fullFolderPath = Path.GetFullPath(_viewModel.SelectedFolderPath);
+
+        if (!fullFilePath.StartsWith(fullFolderPath, StringComparison.OrdinalIgnoreCase))
+        {
+            _viewModel.StatusBarViewModel.ShowMessage("File is not in the current folder tree");
+            return;
+        }
+
+        try
+        {
+            // Get the list of parent directories from root to file
+            var pathParts = new List<string>();
+            var currentPath = Path.GetDirectoryName(fullFilePath);
+
+            while (currentPath != null && currentPath.Length >= fullFolderPath.Length)
+            {
+                if (Path.GetFullPath(currentPath) == fullFolderPath)
+                {
+                    break;
+                }
+                pathParts.Insert(0, currentPath);
+                currentPath = Path.GetDirectoryName(currentPath);
+            }
+
+            // Expand parent folders
+            TreeViewItem? currentItem = null;
+            if (FolderTreeView.Items.Count > 0 && FolderTreeView.Items[0] is TreeViewItem rootItem)
+            {
+                currentItem = rootItem;
+                rootItem.IsExpanded = true;
+
+                // Expand each parent folder
+                foreach (var parentPath in pathParts)
+                {
+                    // Force lazy-load by triggering expansion
+                    if (currentItem.Items.Count == 1 && currentItem.Items[0] is string)
+                    {
+                        currentItem.Items.Clear();
+                        var itemPath = currentItem.Tag as string;
+                        if (itemPath != null)
+                        {
+                            PopulateTreeNode(currentItem, itemPath);
+                        }
+                    }
+
+                    // Find child item with matching path
+                    TreeViewItem? childItem = null;
+                    foreach (var item in currentItem.Items)
+                    {
+                        if (item is TreeViewItem treeItem && treeItem.Tag is string itemPath)
+                        {
+                            if (Path.GetFullPath(itemPath) == Path.GetFullPath(parentPath))
+                            {
+                                childItem = treeItem;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (childItem != null)
+                    {
+                        childItem.IsExpanded = true;
+                        currentItem = childItem;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                // Force lazy-load the final parent folder
+                if (currentItem.Items.Count == 1 && currentItem.Items[0] is string)
+                {
+                    currentItem.Items.Clear();
+                    var itemPath = currentItem.Tag as string;
+                    if (itemPath != null)
+                    {
+                        PopulateTreeNode(currentItem, itemPath);
+                    }
+                }
+
+                // Find the file item
+                TreeViewItem? fileItem = null;
+                foreach (var item in currentItem.Items)
+                {
+                    if (item is TreeViewItem treeItem && treeItem.Tag is string itemPath)
+                    {
+                        if (Path.GetFullPath(itemPath) == fullFilePath)
+                        {
+                            fileItem = treeItem;
+                            break;
+                        }
+                    }
+                }
+
+                if (fileItem != null)
+                {
+                    // Select and scroll to the item
+                    fileItem.IsSelected = true;
+                    fileItem.BringIntoView();
+                    FolderTreeView.Focus();
+                    _viewModel.StatusBarViewModel.ShowMessage($"Selected in folder tree: {Path.GetFileName(filePath)}");
+                }
+                else
+                {
+                    _viewModel.StatusBarViewModel.ShowMessage("File not found in folder tree");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _viewModel.StatusBarViewModel.ShowMessage($"Error selecting file: {ex.Message}");
+        }
     }
 
     private void ApplyBulkEdit(TabItemViewModel tab)

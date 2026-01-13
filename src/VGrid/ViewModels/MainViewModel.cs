@@ -51,6 +51,7 @@ public class MainViewModel : ViewModelBase
         InsertColumnRightCommand = new RelayCommand<int>(InsertColumnRight);
         ToggleVimModeCommand = new RelayCommand(ToggleVimMode);
         ViewGitHistoryCommand = new RelayCommand(async () => await ViewGitHistoryAsync(), CanViewGitHistory);
+        OpenFileInExplorerCommand = new RelayCommand(OpenFileInExplorer, CanOpenFileInExplorer);
 
         // Subscribe to SelectedFolderPath changes to update GitChangesViewModel
         PropertyChanged += (s, e) =>
@@ -118,6 +119,7 @@ public class MainViewModel : ViewModelBase
     public WpfCommand InsertColumnRightCommand { get; }
     public WpfCommand ToggleVimModeCommand { get; }
     public WpfCommand ViewGitHistoryCommand { get; }
+    public WpfCommand OpenFileInExplorerCommand { get; }
 
     public string WindowTitle => "VGrid - TSV Editor with Vim Keybindings";
 
@@ -753,5 +755,19 @@ public class MainViewModel : ViewModelBase
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private bool CanOpenFileInExplorer()
+    {
+        return SelectedTab != null &&
+               !string.IsNullOrEmpty(SelectedTab.FilePath) &&
+               !SelectedTab.FilePath.StartsWith("Untitled") &&
+               File.Exists(SelectedTab.FilePath);
+    }
+
+    private void OpenFileInExplorer()
+    {
+        // This is handled directly in MainWindow to access the FolderTreeView
+        // The command is kept for future extensibility
     }
 }

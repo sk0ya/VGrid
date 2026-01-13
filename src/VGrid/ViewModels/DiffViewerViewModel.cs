@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using VGrid.Helpers;
 using VGrid.Models;
 using VGrid.Services;
+using static VGrid.Services.DiffAlgorithm;
 
 namespace VGrid.ViewModels;
 
@@ -175,72 +176,104 @@ public class DiffViewerViewModel : ViewModelBase
         if (rightLines.Length > 0 && string.IsNullOrEmpty(rightLines[^1]))
             rightLines = rightLines[..^1];
 
-        int maxRows = Math.Max(leftLines.Length, rightLines.Length);
-        int maxCols = 0;
+        // Compute line-level diff using proper algorithm
+        var diffLines = DiffAlgorithm.ComputeDiff(leftLines, rightLines);
 
-        var leftRowData = new List<string[]>();
-        var rightRowData = new List<string[]>();
-
-        for (int i = 0; i < maxRows; i++)
+        // Calculate maximum number of columns needed
+        int maxCols = 1;
+        foreach (var line in leftLines)
         {
-            var leftCells = i < leftLines.Length ? leftLines[i].Split('\t') : Array.Empty<string>();
-            var rightCells = i < rightLines.Length ? rightLines[i].Split('\t') : Array.Empty<string>();
-
-            leftRowData.Add(leftCells);
-            rightRowData.Add(rightCells);
-
-            maxCols = Math.Max(maxCols, Math.Max(leftCells.Length, rightCells.Length));
+            var cells = line.Split('\t');
+            maxCols = Math.Max(maxCols, cells.Length);
+        }
+        foreach (var line in rightLines)
+        {
+            var cells = line.Split('\t');
+            maxCols = Math.Max(maxCols, cells.Length);
         }
 
-        // Ensure at least 1 column
-        if (maxCols == 0)
-            maxCols = 1;
-
-        // Build diff rows for horizontal layout (left-right DataGrids)
+        // Build diff rows for display
         LeftRows.Clear();
         RightRows.Clear();
 
-        for (int i = 0; i < maxRows; i++)
+        foreach (var diffLine in diffLines)
         {
-            var leftCells = leftRowData[i];
-            var rightCells = rightRowData[i];
+            DiffRow leftRow, rightRow;
 
-            // Row index is 1-based for display
-            var leftRow = new DiffRow(i + 1, maxCols);
-            var rightRow = new DiffRow(i + 1, maxCols);
-
-            // Fill cells and detect changes
-            for (int j = 0; j < maxCols; j++)
+            switch (diffLine.Type)
             {
-                var leftValue = j < leftCells.Length ? leftCells[j] : string.Empty;
-                var rightValue = j < rightCells.Length ? rightCells[j] : string.Empty;
+                case DiffOperationType.Unchanged:
+                    // Both sides show the same content
+                    leftRow = CreateDiffRow(diffLine.LeftLineNumber, diffLine.LeftContent!, maxCols, DiffStatus.Unchanged);
+                    rightRow = CreateDiffRow(diffLine.RightLineNumber, diffLine.RightContent!, maxCols, DiffStatus.Unchanged);
+                    break;
 
-                leftRow.Cells[j].Value = leftValue;
-                rightRow.Cells[j].Value = rightValue;
+                case DiffOperationType.Deleted:
+                    // Left side shows deleted line, right side is empty
+                    leftRow = CreateDiffRow(diffLine.LeftLineNumber, diffLine.LeftContent!, maxCols, DiffStatus.Deleted);
+                    rightRow = CreateDiffRow(null, string.Empty, maxCols, DiffStatus.Deleted);
+                    break;
 
-                // Determine cell status
-                if (leftValue != rightValue)
-                {
-                    if (string.IsNullOrEmpty(leftValue))
+                case DiffOperationType.Added:
+                    // Right side shows added line, left side is empty
+                    leftRow = CreateDiffRow(null, string.Empty, maxCols, DiffStatus.Added);
+                    rightRow = CreateDiffRow(diffLine.RightLineNumber, diffLine.RightContent!, maxCols, DiffStatus.Added);
+                    break;
+
+                case DiffOperationType.Modified:
+                    // Both sides shown with cell-level diff highlighting
+                    leftRow = new DiffRow(diffLine.LeftLineNumber, diffLine.RightLineNumber, maxCols, DiffStatus.Modified);
+                    rightRow = new DiffRow(diffLine.LeftLineNumber, diffLine.RightLineNumber, maxCols, DiffStatus.Modified);
+
+                    var leftCells = diffLine.LeftContent!.Split('\t');
+                    var rightCells = diffLine.RightContent!.Split('\t');
+
+                    // Compare cells individually
+                    for (int j = 0; j < maxCols; j++)
                     {
-                        leftRow.Cells[j].Status = DiffStatus.Added;
-                        rightRow.Cells[j].Status = DiffStatus.Added;
+                        var leftValue = j < leftCells.Length ? leftCells[j] : string.Empty;
+                        var rightValue = j < rightCells.Length ? rightCells[j] : string.Empty;
+
+                        leftRow.Cells[j].Value = leftValue;
+                        rightRow.Cells[j].Value = rightValue;
+
+                        // Mark cell status
+                        if (leftValue != rightValue)
+                        {
+                            leftRow.Cells[j].Status = DiffStatus.Modified;
+                            rightRow.Cells[j].Status = DiffStatus.Modified;
+                        }
+                        else
+                        {
+                            leftRow.Cells[j].Status = DiffStatus.Unchanged;
+                            rightRow.Cells[j].Status = DiffStatus.Unchanged;
+                        }
                     }
-                    else if (string.IsNullOrEmpty(rightValue))
-                    {
-                        leftRow.Cells[j].Status = DiffStatus.Deleted;
-                        rightRow.Cells[j].Status = DiffStatus.Deleted;
-                    }
-                    else
-                    {
-                        leftRow.Cells[j].Status = DiffStatus.Modified;
-                        rightRow.Cells[j].Status = DiffStatus.Modified;
-                    }
-                }
+                    break;
+
+                default:
+                    continue;
             }
 
             LeftRows.Add(leftRow);
             RightRows.Add(rightRow);
         }
+    }
+
+    /// <summary>
+    /// Creates a DiffRow from a line of TSV content
+    /// </summary>
+    private DiffRow CreateDiffRow(int? lineNumber, string content, int columnCount, DiffStatus status)
+    {
+        var row = new DiffRow(lineNumber, lineNumber, columnCount, status);
+        var cells = content.Split('\t');
+
+        for (int i = 0; i < columnCount; i++)
+        {
+            row.Cells[i].Value = i < cells.Length ? cells[i] : string.Empty;
+            row.Cells[i].Status = status;
+        }
+
+        return row;
     }
 }

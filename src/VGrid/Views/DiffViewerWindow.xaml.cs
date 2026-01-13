@@ -31,13 +31,13 @@ public partial class DiffViewerWindow : Window
         LeftDataGrid.LoadingRow += (s, e) =>
         {
             if (e.Row.Item is Models.DiffRow row)
-                e.Row.Header = row.Index.ToString();
+                e.Row.Header = row.LeftLineNumber?.ToString() ?? string.Empty;
         };
 
         RightDataGrid.LoadingRow += (s, e) =>
         {
             if (e.Row.Item is Models.DiffRow row)
-                e.Row.Header = row.Index.ToString();
+                e.Row.Header = row.RightLineNumber?.ToString() ?? string.Empty;
         };
     }
 

@@ -9,19 +9,39 @@ namespace VGrid.Models;
 /// </summary>
 public class DiffRow : INotifyPropertyChanged
 {
-    private int _index;
+    private int? _leftLineNumber;
+    private int? _rightLineNumber;
     private DiffStatus _rowStatus;
 
     public ObservableCollection<DiffCell> Cells { get; }
 
-    public int Index
+    /// <summary>
+    /// Line number in the left (old) file, or null if this row was added
+    /// </summary>
+    public int? LeftLineNumber
     {
-        get => _index;
+        get => _leftLineNumber;
         set
         {
-            if (_index != value)
+            if (_leftLineNumber != value)
             {
-                _index = value;
+                _leftLineNumber = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Line number in the right (new) file, or null if this row was deleted
+    /// </summary>
+    public int? RightLineNumber
+    {
+        get => _rightLineNumber;
+        set
+        {
+            if (_rightLineNumber != value)
+            {
+                _rightLineNumber = value;
                 OnPropertyChanged();
             }
         }
@@ -50,9 +70,10 @@ public class DiffRow : INotifyPropertyChanged
     /// <summary>
     /// Creates a new DiffRow with empty cells
     /// </summary>
-    public DiffRow(int index, int columnCount)
+    public DiffRow(int? leftLineNumber, int? rightLineNumber, int columnCount, DiffStatus status = DiffStatus.Unchanged)
     {
-        Index = index;
+        LeftLineNumber = leftLineNumber;
+        RightLineNumber = rightLineNumber;
         Cells = new ObservableCollection<DiffCell>();
 
         for (int i = 0; i < columnCount; i++)
@@ -60,15 +81,16 @@ public class DiffRow : INotifyPropertyChanged
             Cells.Add(new DiffCell());
         }
 
-        RowStatus = DiffStatus.Unchanged;
+        RowStatus = status;
     }
 
     /// <summary>
     /// Creates a new DiffRow with values
     /// </summary>
-    public DiffRow(int index, IEnumerable<string> values, DiffStatus status = DiffStatus.Unchanged)
+    public DiffRow(int? leftLineNumber, int? rightLineNumber, IEnumerable<string> values, DiffStatus status = DiffStatus.Unchanged)
     {
-        Index = index;
+        LeftLineNumber = leftLineNumber;
+        RightLineNumber = rightLineNumber;
         Cells = new ObservableCollection<DiffCell>(
             values.Select(v => new DiffCell { Value = v, Status = status })
         );

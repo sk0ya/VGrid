@@ -729,8 +729,10 @@ public partial class MainWindow : Window
                     actualKey = evt.ImeProcessedKey;
                 }
 
-                // Handle Enter key to exit Insert mode
-                if (actualKey == Key.Enter)
+                // Handle Enter key to exit Insert mode (but not if IME is processing)
+                // If evt.Key == Key.ImeProcessed, it means IME is handling the key (e.g., confirming conversion)
+                // In this case, we should let IME handle it and not switch to Normal mode
+                if (actualKey == Key.Enter && evt.Key != Key.ImeProcessed)
                 {
                     // Switch to Normal mode
                     tab.VimState.SwitchMode(VimEngine.VimMode.Normal);

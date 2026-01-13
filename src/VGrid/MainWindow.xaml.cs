@@ -336,27 +336,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        // Regenerate columns for the selected tab
-        if (_viewModel?.SelectedTab != null)
-        {
-            // Find the DataGrid in the current tab
-            var tabControl = sender as System.Windows.Controls.TabControl;
-            if (tabControl != null && tabControl.SelectedIndex >= 0)
-            {
-                // Need to wait for the content to be loaded
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    var selectedTab = _viewModel.SelectedTab;
-                    if (selectedTab != null)
-                    {
-                        // The DataGrid will be regenerated when it loads
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
-            }
-        }
-    }
 
     private void TsvGrid_Loaded(object sender, RoutedEventArgs e)
     {
@@ -368,6 +347,12 @@ public partial class MainWindow : Window
         var tabItem = grid.DataContext as TabItemViewModel;
         if (tabItem == null)
             return;
+
+        // Check if this grid has already been initialized to prevent duplicate event handler registration
+        if (grid.Tag as string == "Initialized")
+            return;
+
+        grid.Tag = "Initialized";
 
         try
         {
@@ -399,9 +384,12 @@ public partial class MainWindow : Window
             };
 
             // Subscribe to DataGrid selection changes to update VimState
-            grid.CurrentCellChanged += (s, evt) => { TsvGrid_CurrentCellChanged(grid, grid.DataContext as TabItemViewModel);};
+            // Remove any existing handler first to prevent duplicate subscriptions
+            grid.CurrentCellChanged -= TsvGrid_CurrentCellChangedHandler;
+            grid.CurrentCellChanged += TsvGrid_CurrentCellChangedHandler;
 
             // Subscribe to cell editing to handle Enter/Escape keys in Insert mode
+            grid.PreparingCellForEdit -= TsvGrid_PreparingCellForEdit;
             grid.PreparingCellForEdit += TsvGrid_PreparingCellForEdit;
 
             // Set row headers
@@ -662,7 +650,15 @@ public partial class MainWindow : Window
         return null;
     }
 
-    private void TsvGrid_CurrentCellChanged(DataGrid grid, TabItemViewModel tab)
+    private void TsvGrid_CurrentCellChangedHandler(object? sender, EventArgs e)
+    {
+        if (sender is DataGrid grid)
+        {
+            TsvGrid_CurrentCellChanged(grid, grid.DataContext as TabItemViewModel);
+        }
+    }
+
+    private void TsvGrid_CurrentCellChanged(DataGrid grid, TabItemViewModel? tab)
     {
         if (grid == null || tab == null || _viewModel?.SelectedTab != tab)
             return;
@@ -685,7 +681,15 @@ public partial class MainWindow : Window
                 if (tab.VimState.CursorPosition.Row != rowIndex ||
                     tab.VimState.CursorPosition.Column != colIndex)
                 {
-                    tab.VimState.CursorPosition = newPosition;
+                    _isUpdatingSelection = true;
+                    try
+                    {
+                        tab.VimState.CursorPosition = newPosition;
+                    }
+                    finally
+                    {
+                        _isUpdatingSelection = false;
+                    }
                 }
             }
         }
@@ -2031,26 +2035,8 @@ public partial class MainWindow : Window
 
     private void TsvGrid_OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        var dataGrid = sender as DataGrid;
-        if (dataGrid != null)
-        {
-            if (dataGrid.DataContext is TabItemViewModel tsvGridViewModel)
-            {
-                tsvGridViewModel.VimState.PropertyChanged += (s, evt) =>
-                {
-                    if (evt.PropertyName == nameof(tsvGridViewModel.VimState.CursorPosition) &&
-                        tsvGridViewModel == _viewModel?.SelectedTab)
-                    {
-                        UpdateDataGridSelection(dataGrid, tsvGridViewModel);
-                    }
-                    else if (evt.PropertyName == nameof(tsvGridViewModel.VimState.CurrentMode) &&
-                             tsvGridViewModel == _viewModel?.SelectedTab)
-                    {
-                        HandleModeChange(dataGrid, tsvGridViewModel);
-                    }
-                };
-            }
-        }
+        // Event handler registration is now done in TsvGrid_Loaded to prevent duplicate subscriptions
+        // This method is kept empty to avoid breaking existing XAML bindings
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)

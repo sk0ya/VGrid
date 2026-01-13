@@ -281,8 +281,7 @@
             <TabControl Grid.Column="2"
                         ItemsSource="{Binding Tabs}"
                         SelectedItem="{Binding SelectedTab}"
-                        Margin="0" BorderThickness="0"
-                        SelectionChanged="TabControl_SelectionChanged">
+                        Margin="0" BorderThickness="0">
                 <TabControl.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">

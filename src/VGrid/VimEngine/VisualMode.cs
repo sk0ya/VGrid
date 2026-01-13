@@ -22,17 +22,20 @@ public class VisualMode : IVimMode
 
     public void OnEnter(VimState state)
     {
-        // Store the starting position of the selection
-        _selectionStart = state.CursorPosition;
-
         // Determine visual type from CurrentSelection
         _visualType = state.CurrentSelection?.Type ?? VisualType.Character;
 
-        // Mark as first key to ensure initial selection is displayed
-        _isFirstKey = true;
+        // Store the starting position of the selection
+        // If CurrentSelection is already set (e.g., from drag operation), use its Start position
+        // Otherwise, use the current cursor position
+        _selectionStart = state.CurrentSelection?.Start ?? state.CursorPosition;
 
-        // Note: Initial cell selection will be set when HandleKey is first called
-        // We cannot access document here as it's not passed to OnEnter
+        // Mark as first key to ensure initial selection is displayed
+        // If CurrentSelection is already set (drag operation), no need to update on first key
+        _isFirstKey = (state.CurrentSelection == null);
+
+        // Note: Initial cell selection will be set by InitializeVisualSelection in UI layer
+        // For drag operations, CurrentSelection is already set and will be used
     }
 
     public void OnExit(VimState state)

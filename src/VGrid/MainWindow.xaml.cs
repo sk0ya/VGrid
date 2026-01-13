@@ -517,6 +517,10 @@ public partial class MainWindow : Window
         if (grid == null || tab == null)
             return;
 
+        // Visual mode時はDataGridの組み込み選択を使わない（Cell.IsSelectedのみを使用）
+        if (tab.VimState.CurrentMode == VimEngine.VimMode.Visual)
+            return;
+
         var pos = tab.VimState.CursorPosition;
 
         if (grid.Items.Count == 0 || grid.Columns.Count == 0)
@@ -640,15 +644,31 @@ public partial class MainWindow : Window
         _isDataGridDragging = true;
 
         // Record the starting position for drag selection
-        if (sender is DataGrid grid && grid.CurrentCell.Item != null && grid.CurrentCell.Column != null)
+        if (sender is DataGrid grid && grid.DataContext is TabItemViewModel tab)
         {
-            var rowIndex = grid.Items.IndexOf(grid.CurrentCell.Item);
-            var colIndex = grid.Columns.IndexOf(grid.CurrentCell.Column);
-
-            if (rowIndex >= 0 && colIndex >= 0)
+            // 実際にクリックされたセルを取得
+            var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
+            if (cell != null && cell.Column != null)
             {
-                _dragStartPosition = new Models.GridPosition(rowIndex, colIndex);
-                System.Diagnostics.Debug.WriteLine($"[MouseDown] Start position: ({rowIndex},{colIndex})");
+                var row = FindVisualParent<DataGridRow>(cell);
+                if (row != null)
+                {
+                    var rowIndex = row.GetIndex();
+                    var colIndex = grid.Columns.IndexOf(cell.Column);
+
+                    if (rowIndex >= 0 && colIndex >= 0)
+                    {
+                        _dragStartPosition = new Models.GridPosition(rowIndex, colIndex);
+                        System.Diagnostics.Debug.WriteLine($"[MouseDown] Start position: ({rowIndex},{colIndex})");
+
+                        // ドラッグ開始時に以前のVisual mode選択状態をクリア
+                        if (tab.VimState.CurrentMode == VimEngine.VimMode.Visual)
+                        {
+                            // Visual modeから抜けて、以前の選択をクリア
+                            tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+                        }
+                    }
+                }
             }
         }
     }
@@ -661,19 +681,21 @@ public partial class MainWindow : Window
         // Update VimState with the drag selection range
         if (sender is DataGrid grid && grid.DataContext is TabItemViewModel tab)
         {
-            if (grid.CurrentCell.Item != null && grid.CurrentCell.Column != null)
+            // 実際にクリックされたセルを取得
+            var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
+            if (cell != null && cell.Column != null)
             {
-                var endRowIndex = grid.Items.IndexOf(grid.CurrentCell.Item);
-                var endColIndex = grid.Columns.IndexOf(grid.CurrentCell.Column);
-
-                if (endRowIndex >= 0 && endColIndex >= 0)
+                var row = FindVisualParent<DataGridRow>(cell);
+                if (row != null)
                 {
-                    var endPosition = new Models.GridPosition(endRowIndex, endColIndex);
-                    System.Diagnostics.Debug.WriteLine($"[MouseUp] End position: ({endRowIndex},{endColIndex})");
+                    var endRowIndex = row.GetIndex();
+                    var endColIndex = grid.Columns.IndexOf(cell.Column);
 
-                    _isUpdatingSelection = true;
-                    try
+                    if (endRowIndex >= 0 && endColIndex >= 0)
                     {
+                        var endPosition = new Models.GridPosition(endRowIndex, endColIndex);
+                        System.Diagnostics.Debug.WriteLine($"[MouseUp] End position: ({endRowIndex},{endColIndex})");
+
                         // Check if this was a drag (multiple cells selected) or a single click
                         if (_dragStartPosition != null &&
                             (_dragStartPosition.Row != endPosition.Row ||
@@ -682,27 +704,49 @@ public partial class MainWindow : Window
                             // This was a drag - enter Visual mode with selection range
                             System.Diagnostics.Debug.WriteLine($"[MouseUp] Drag detected, entering Visual mode");
 
-                            tab.VimState.CurrentSelection = new VimEngine.SelectionRange(
-                                VimEngine.VisualType.Character,
-                                _dragStartPosition,
-                                endPosition);
+                            _isUpdatingSelection = true;
+                            try
+                            {
+                                tab.VimState.CurrentSelection = new VimEngine.SelectionRange(
+                                    VimEngine.VisualType.Character,
+                                    _dragStartPosition,
+                                    endPosition);
 
-                            tab.VimState.CursorPosition = endPosition;
+                                tab.VimState.CursorPosition = endPosition;
+
+                                // DataGridの組み込み選択をクリア（Visual modeではCell.IsSelectedを使う）
+                                grid.SelectedCells.Clear();
+                            }
+                            finally
+                            {
+                                _isUpdatingSelection = false;
+                            }
+
+                            // モード切り替え（HandleModeChangeが呼ばれて選択範囲が設定される）
                             tab.VimState.SwitchMode(VimEngine.VimMode.Visual);
                         }
                         else
                         {
                             // Single click - just move cursor
                             System.Diagnostics.Debug.WriteLine($"[MouseUp] Single click, updating cursor position");
-                            tab.VimState.CursorPosition = endPosition;
+                            _isUpdatingSelection = true;
+                            try
+                            {
+                                tab.VimState.CursorPosition = endPosition;
+                            }
+                            finally
+                            {
+                                _isUpdatingSelection = false;
+                            }
                         }
-                    }
-                    finally
-                    {
-                        _isUpdatingSelection = false;
+
                         _dragStartPosition = null;
                     }
                 }
+            }
+            else
+            {
+                _dragStartPosition = null;
             }
         }
         else
@@ -894,18 +938,27 @@ public partial class MainWindow : Window
 
         try
         {
-            // Clear visual selection when exiting Visual mode
-            if (tab.VimState.CurrentSelection == null)
+            if (tab.VimState.CurrentMode == VimEngine.VimMode.Visual)
             {
+                // Visual modeに入る時：DataGridの組み込み選択をクリア
+                _isUpdatingSelection = true;
+                grid.SelectedCells.Clear();
+                _isUpdatingSelection = false;
+
+                // セルのIsSelectedを初期化
+                InitializeVisualSelection(tab);
+            }
+            else if (tab.VimState.CurrentSelection == null)
+            {
+                // Visual modeから抜ける時：セルのIsSelectedをクリア
                 ClearAllCellSelections(tab.Document);
                 // Clear header selections as well
                 tab.VimState.ClearRowSelections();
                 tab.VimState.ClearColumnSelections();
-            }
-            else if (tab.VimState.CurrentMode == VimEngine.VimMode.Visual)
-            {
-                // When entering Visual mode, initialize visual selection immediately
-                InitializeVisualSelection(tab);
+
+                // DataGridの選択を現在のカーソル位置の1つのセルに設定
+                // （Normal modeに戻った時に適切な選択状態にする）
+                UpdateDataGridSelection(grid, tab);
             }
 
             if (tab.VimState.CurrentMode == VimEngine.VimMode.Command)
@@ -979,24 +1032,32 @@ public partial class MainWindow : Window
         switch (selection.Type)
         {
             case VimEngine.VisualType.Character:
-                // Select current cell only
-                if (selection.Start.Row < document.RowCount)
+                // Select the rectangular range of cells
+                int startRow = Math.Min(selection.Start.Row, selection.End.Row);
+                int endRow = Math.Max(selection.Start.Row, selection.End.Row);
+                int startCol = Math.Min(selection.Start.Column, selection.End.Column);
+                int endCol = Math.Max(selection.Start.Column, selection.End.Column);
+
+                for (int row = startRow; row <= endRow && row < document.RowCount; row++)
                 {
-                    var row = document.Rows[selection.Start.Row];
-                    if (selection.Start.Column < row.Cells.Count)
+                    var rowObj = document.Rows[row];
+                    for (int col = startCol; col <= endCol && col < rowObj.Cells.Count; col++)
                     {
-                        row.Cells[selection.Start.Column].IsSelected = true;
+                        rowObj.Cells[col].IsSelected = true;
                     }
                 }
 
                 break;
 
             case VimEngine.VisualType.Line:
-                // Select entire current row
-                if (selection.Start.Row < document.RowCount)
+                // Select entire rows in the range
+                int lineStartRow = Math.Min(selection.Start.Row, selection.End.Row);
+                int lineEndRow = Math.Max(selection.Start.Row, selection.End.Row);
+
+                for (int row = lineStartRow; row <= lineEndRow && row < document.RowCount; row++)
                 {
-                    var row = document.Rows[selection.Start.Row];
-                    foreach (var cell in row.Cells)
+                    var rowObj = document.Rows[row];
+                    foreach (var cell in rowObj.Cells)
                     {
                         cell.IsSelected = true;
                     }
@@ -1005,15 +1066,15 @@ public partial class MainWindow : Window
                 break;
 
             case VimEngine.VisualType.Block:
-                // Select entire current column
-                if (selection.Start.Column < document.ColumnCount)
+                // Select entire columns in the range
+                int blockStartCol = Math.Min(selection.Start.Column, selection.End.Column);
+                int blockEndCol = Math.Max(selection.Start.Column, selection.End.Column);
+
+                foreach (var row in document.Rows)
                 {
-                    foreach (var row in document.Rows)
+                    for (int col = blockStartCol; col <= blockEndCol && col < row.Cells.Count; col++)
                     {
-                        if (selection.Start.Column < row.Cells.Count)
-                        {
-                            row.Cells[selection.Start.Column].IsSelected = true;
-                        }
+                        row.Cells[col].IsSelected = true;
                     }
                 }
 
@@ -2166,6 +2227,14 @@ public partial class MainWindow : Window
                          newTab == _viewModel?.SelectedTab)
                 {
                     HandleModeChange(dataGrid, newTab);
+                }
+                else if (evt.PropertyName == nameof(newTab.VimState.CurrentSelection) &&
+                         newTab == _viewModel?.SelectedTab &&
+                         newTab.VimState.CurrentMode == VimEngine.VimMode.Visual)
+                {
+                    // Visual mode時にCurrentSelectionが変更された場合、選択範囲を再初期化
+                    // （これはhjklでの移動時に発生する）
+                    InitializeVisualSelection(newTab);
                 }
             };
 

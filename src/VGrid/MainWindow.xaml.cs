@@ -1,13 +1,16 @@
 using System.ComponentModel;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using VGrid.Models;
 using VGrid.ViewModels;
+using VGrid.VimEngine;
 
 namespace VGrid;
 
@@ -20,6 +23,16 @@ public partial class MainWindow : Window
     private bool _isUpdatingSelection = false;
     private System.Windows.Point _dragStartPoint;
     private TreeViewItem? _draggedItem;
+    private HwndSource? _hwndSource;
+
+    // Win32 API for clipboard monitoring
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool AddClipboardFormatListener(IntPtr hwnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
+
+    private const int WM_CLIPBOARDUPDATE = 0x031D;
 
     public MainWindow()
     {
@@ -2044,10 +2057,70 @@ public partial class MainWindow : Window
     {
         Focus();
 
+        // Set up clipboard monitoring
+        var windowHelper = new WindowInteropHelper(this);
+        _hwndSource = HwndSource.FromHwnd(windowHelper.Handle);
+        if (_hwndSource != null)
+        {
+            _hwndSource.AddHook(WndProc);
+            AddClipboardFormatListener(windowHelper.Handle);
+        }
+
         // Restore session asynchronously on background thread
         if (_viewModel != null)
         {
             await _viewModel.RestoreSessionAsync();
+        }
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        // Handle clipboard update notification
+        if (msg == WM_CLIPBOARDUPDATE)
+        {
+            OnClipboardChanged();
+        }
+        return IntPtr.Zero;
+    }
+
+    private void OnClipboardChanged()
+    {
+        // Debug: Check what's in the clipboard
+        string? clipboardContent = null;
+        try
+        {
+            if (System.Windows.Clipboard.ContainsText())
+            {
+                clipboardContent = System.Windows.Clipboard.GetText();
+            }
+        }
+        catch { }
+
+        string contentPreview = clipboardContent != null && clipboardContent.Length > 100
+            ? clipboardContent.Substring(0, 100) + "..."
+            : clipboardContent ?? "";
+
+        System.Diagnostics.Debug.WriteLine($"[ClipboardMonitor] Clipboard changed. Content length: {clipboardContent?.Length ?? 0}");
+        System.Diagnostics.Debug.WriteLine($"[ClipboardMonitor]   Content preview: [{contentPreview}]");
+
+        // Check if clipboard was changed by an external application
+        bool hasChanged = ClipboardHelper.HasClipboardChangedExternally();
+        System.Diagnostics.Debug.WriteLine($"[ClipboardMonitor] HasClipboardChangedExternally: {hasChanged}");
+
+        if (hasChanged)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ClipboardMonitor] Clearing LastYank in all tabs");
+            // Clear LastYank in ALL tabs' VimState (not just the selected tab)
+            if (_viewModel?.Tabs != null)
+            {
+                foreach (var tab in _viewModel.Tabs)
+                {
+                    if (tab.VimState != null)
+                    {
+                        tab.VimState.LastYank = null;
+                    }
+                }
+            }
         }
     }
 
@@ -2104,6 +2177,15 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
+        // Clean up clipboard monitoring
+        if (_hwndSource != null)
+        {
+            var windowHelper = new WindowInteropHelper(this);
+            RemoveClipboardFormatListener(windowHelper.Handle);
+            _hwndSource.RemoveHook(WndProc);
+            _hwndSource = null;
+        }
+
         _viewModel?.SaveSession();
     }
 

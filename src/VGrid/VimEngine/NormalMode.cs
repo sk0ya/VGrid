@@ -331,10 +331,11 @@ public class NormalMode : IVimMode
 
     private bool PasteAfterCursor(VimState state, TsvDocument document)
     {
-        if (state.LastYank == null)
-            return true; // Key is handled, but nothing to paste
+        // Try to use LastYank, or fallback to clipboard
+        var yank = state.LastYank ?? ClipboardHelper.ReadFromClipboard();
 
-        var yank = state.LastYank;
+        if (yank == null)
+            return true; // Key is handled, but nothing to paste
         var startPos = state.CursorPosition;
 
         // Handle line-wise paste (insert new rows below cursor)
@@ -449,6 +450,12 @@ public class NormalMode : IVimMode
             Columns = columnCount
         };
 
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed (so other tabs can clear their LastYank)
+        state.OnYankPerformed();
+
         // Clear pending keys
         state.PendingKeys.Clear();
         return true;
@@ -487,6 +494,12 @@ public class NormalMode : IVimMode
             Rows = 1,
             Columns = columnCount
         };
+
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
 
         // Then delete the row completely
         var command = new Commands.DeleteRowCommand(document, state.CursorPosition.Row);
@@ -580,6 +593,12 @@ public class NormalMode : IVimMode
             Columns = 1
         };
 
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
+
         state.PendingKeys.Clear();
         return true;
     }
@@ -612,6 +631,12 @@ public class NormalMode : IVimMode
             Rows = 1,
             Columns = 1
         };
+
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
 
         // Then clear the cell value
         var command = new Commands.EditCellCommand(document, state.CursorPosition, string.Empty);
@@ -656,6 +681,12 @@ public class NormalMode : IVimMode
             Columns = 1
         };
 
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
+
         return true;
     }
 
@@ -684,6 +715,12 @@ public class NormalMode : IVimMode
             Rows = 1,
             Columns = 1
         };
+
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
 
         // Then clear the cell value
         var command = new Commands.EditCellCommand(document, state.CursorPosition, string.Empty);

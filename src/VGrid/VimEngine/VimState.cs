@@ -573,6 +573,11 @@ public class VimState : INotifyPropertyChanged
     public event EventHandler? VimSearchActivated;
 
     /// <summary>
+    /// Event raised when a yank operation is performed (to clear other tabs' LastYank)
+    /// </summary>
+    public event EventHandler? YankPerformed;
+
+    /// <summary>
     /// Raises the SaveRequested event
     /// </summary>
     public void OnSaveRequested()
@@ -595,6 +600,14 @@ public class VimState : INotifyPropertyChanged
     public void OnVimSearchActivated()
     {
         VimSearchActivated?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Raises the YankPerformed event
+    /// </summary>
+    public void OnYankPerformed()
+    {
+        YankPerformed?.Invoke(this, EventArgs.Empty);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

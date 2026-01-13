@@ -334,6 +334,12 @@ public class VisualMode : IVimMode
             Columns = cols
         };
 
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
+
         // Then delete the selection
         var command = new DeleteSelectionCommand(document, selection);
 
@@ -399,6 +405,12 @@ public class VisualMode : IVimMode
             Rows = rowCount,
             Columns = maxCols
         };
+
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
 
         // Delete rows from bottom to top to maintain correct indices
         for (int r = rowCount - 1; r >= 0; r--)
@@ -482,6 +494,12 @@ public class VisualMode : IVimMode
             Columns = cols
         };
 
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
+
         // Return to normal mode after yank
         state.SwitchMode(VimMode.Normal);
         return true;
@@ -535,6 +553,12 @@ public class VisualMode : IVimMode
             Columns = maxCols
         };
 
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
+
         // Return to normal mode after yank
         state.SwitchMode(VimMode.Normal);
         return true;
@@ -574,6 +598,12 @@ public class VisualMode : IVimMode
             Rows = rowCount,
             Columns = colCount
         };
+
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
 
         // Return to normal mode after yank
         state.SwitchMode(VimMode.Normal);
@@ -640,6 +670,12 @@ public class VisualMode : IVimMode
             Rows = rowCount,
             Columns = colCount
         };
+
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
 
         // Delete columns from right to left to maintain correct indices
         for (int c = colCount - 1; c >= 0; c--)

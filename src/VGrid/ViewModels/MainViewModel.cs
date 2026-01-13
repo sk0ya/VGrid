@@ -211,6 +211,22 @@ public class MainViewModel : ViewModelBase
             }
         };
 
+        vimState.YankPerformed += (s, e) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] YankPerformed in tab: {tab.Header}");
+            // Clear LastYank in all OTHER tabs (not the current one)
+            int clearedCount = 0;
+            foreach (var otherTab in Tabs)
+            {
+                if (otherTab != tab && otherTab.VimState != null)
+                {
+                    otherTab.VimState.LastYank = null;
+                    clearedCount++;
+                }
+            }
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] Cleared LastYank in {clearedCount} other tabs");
+        };
+
         Tabs.Add(tab);
         SelectedTab = tab;
     }
@@ -323,6 +339,22 @@ public class MainViewModel : ViewModelBase
                         CloseTab(tab);
                     }
                 }
+            };
+
+            vimState.YankPerformed += (s, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] YankPerformed in tab: {tab.Header}");
+                // Clear LastYank in all OTHER tabs (not the current one)
+                int clearedCount = 0;
+                foreach (var otherTab in Tabs)
+                {
+                    if (otherTab != tab && otherTab.VimState != null)
+                    {
+                        otherTab.VimState.LastYank = null;
+                        clearedCount++;
+                    }
+                }
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] Cleared LastYank in {clearedCount} other tabs");
             };
 
             Tabs.Add(tab);

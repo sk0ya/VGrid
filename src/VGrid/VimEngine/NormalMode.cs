@@ -95,7 +95,9 @@ public class NormalMode : IVimMode
             Key.A when state.PendingKeys.Keys.Count == 1 && (state.PendingKeys.Keys[0] == Key.Y || state.PendingKeys.Keys[0] == Key.D) => HandleTextObject(state, Key.A),
 
             // Mode switching
+            Key.I when modifiers.HasFlag(ModifierKeys.Shift) => MoveLeftAndInsert(state, document),
             Key.I => SwitchToInsertMode(state),
+            Key.A when modifiers.HasFlag(ModifierKeys.Shift) => MoveRightAndInsert(state, document),
             Key.A => SwitchToInsertModeAfter(state, document),
             Key.O when modifiers.HasFlag(ModifierKeys.Shift) => InsertLineAbove(state, document),
             Key.O => InsertLineBelow(state, document),
@@ -781,6 +783,30 @@ public class NormalMode : IVimMode
         // Trigger save operation via VimState event
         state.OnSaveRequested();
         state.PendingKeys.Clear();
+        return true;
+    }
+
+    private bool MoveLeftAndInsert(VimState state, TsvDocument document)
+    {
+        // Move to the left cell and enter Insert mode (Shift+I)
+        var newPos = state.CursorPosition.MoveLeft(1).Clamp(document);
+        state.CursorPosition = newPos;
+
+        // Set caret position to start of cell
+        state.CellEditCaretPosition = CellEditCaretPosition.End;
+        state.SwitchMode(VimMode.Insert);
+        return true;
+    }
+
+    private bool MoveRightAndInsert(VimState state, TsvDocument document)
+    {
+        // Move to the right cell and enter Insert mode (Shift+A)
+        var newPos = state.CursorPosition.MoveRight(1).Clamp(document);
+        state.CursorPosition = newPos;
+
+        // Set caret position to end of cell
+        state.CellEditCaretPosition = CellEditCaretPosition.End;
+        state.SwitchMode(VimMode.Insert);
         return true;
     }
 }

@@ -580,6 +580,11 @@ public partial class MainWindow : Window
                 {
                     try
                     {
+                        // Double-check Insert mode status before focusing
+                        // (mode might have changed after CursorPosition update)
+                        if (tab.VimState.CurrentMode == VimEngine.VimMode.Insert)
+                            return;
+
                         // Get the row container
                         var row = grid.ItemContainerGenerator.ContainerFromIndex(pos.Row) as DataGridRow;
                         if (row != null)

@@ -111,6 +111,10 @@ public partial class MainWindow : Window
             {
                 var dirName = Path.GetFileName(dir);
 
+                // Skip hidden folders starting with '.'
+                if (dirName.StartsWith("."))
+                    continue;
+
                 // If filter is active, check if directory name matches or if it contains matching files
                 if (hasFilter)
                 {
@@ -226,6 +230,10 @@ public partial class MainWindow : Window
             foreach (var dir in directories)
             {
                 var dirName = Path.GetFileName(dir);
+
+                // Skip hidden folders starting with '.'
+                if (dirName.StartsWith("."))
+                    continue;
 
                 // Check if directory name matches
                 if (dirName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0)

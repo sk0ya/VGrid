@@ -53,19 +53,35 @@
             <EventSetter Event="MouseRightButtonUp" Handler="RowHeader_MouseRightButtonUp"/>
         </Style>
 
+        <!-- Excel-like Row Style -->
+        <Style x:Key="ExcelRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Excel-like Cell Style -->
         <Style x:Key="ExcelCellStyle" TargetType="DataGridCell">
             <Setter Property="BorderBrush" Value="#E0E0E0"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DataGridCell">
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter VerticalAlignment="Center"/>
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter VerticalAlignment="Center" SnapsToDevicePixels="True"/>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
@@ -75,7 +91,8 @@
                     <Setter Property="Background" Value="#D4E7F7"/>
                     <Setter Property="Foreground" Value="Black"/>
                     <Setter Property="BorderBrush" Value="#4A90E2"/>
-                    <Setter Property="BorderThickness" Value="2"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    <Setter Property="Padding" Value="4,2"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -305,6 +322,7 @@
                                           Style="{StaticResource ExcelDataGridStyle}"
                                           ColumnHeaderStyle="{StaticResource ExcelColumnHeaderStyle}"
                                           RowHeaderStyle="{StaticResource ExcelRowHeaderStyle}"
+                                          RowStyle="{StaticResource ExcelRowStyle}"
                                           CellStyle="{StaticResource ExcelCellStyle}"
                                           Loaded="TsvGrid_Loaded"
                                           Margin="0">

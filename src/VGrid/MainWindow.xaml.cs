@@ -465,7 +465,7 @@ public partial class MainWindow : Window
         selectionTrigger.Setters.Add(new Setter(DataGridCell.ForegroundProperty, System.Windows.Media.Brushes.Black));
         selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
             new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 144, 226))));
-        selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
 
         // Search match Cell.IsSearchMatch trigger (yellow highlight for current search match)
         // Added FIRST so that blue selection can override it
@@ -476,7 +476,7 @@ public partial class MainWindow : Window
             new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 153)))); // Yellow
         searchTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
             new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 215, 0))));
-        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
         style.Triggers.Add(searchTrigger);
 
         // Visual mode Cell.IsSelected trigger (blue highlight for visual selection)
@@ -488,7 +488,7 @@ public partial class MainWindow : Window
             new SolidColorBrush(System.Windows.Media.Color.FromRgb(212, 231, 247)))); // Blue
         visualTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty,
             new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 144, 226))));
-        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
+        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
         style.Triggers.Add(visualTrigger);
 
         // Selection with focus trigger (highest priority - added last)

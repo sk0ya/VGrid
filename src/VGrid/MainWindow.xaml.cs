@@ -21,6 +21,8 @@ public partial class MainWindow : Window
 {
     private MainViewModel? _viewModel;
     private bool _isUpdatingSelection = false;
+    private bool _isDataGridDragging = false;
+    private Models.GridPosition? _dragStartPosition = null;
     private System.Windows.Point _dragStartPoint;
     private TreeViewItem? _draggedItem;
     private HwndSource? _hwndSource;
@@ -349,6 +351,7 @@ public partial class MainWindow : Window
             return;
 
         // Check if this grid has already been initialized to prevent duplicate event handler registration
+        // Only initialize DataGrid-level handlers once
         if (grid.Tag as string == "Initialized")
             return;
 
@@ -358,31 +361,6 @@ public partial class MainWindow : Window
         {
             GenerateColumns(grid, tabItem);
 
-            // Subscribe to VimState cursor position changes
-            tabItem.VimState.PropertyChanged += (s, evt) =>
-            {
-                if (evt.PropertyName == nameof(tabItem.VimState.CursorPosition) &&
-                    tabItem == _viewModel?.SelectedTab)
-                {
-                    UpdateDataGridSelection(grid, tabItem);
-                }
-                else if (evt.PropertyName == nameof(tabItem.VimState.CurrentMode) &&
-                         tabItem == _viewModel?.SelectedTab)
-                {
-                    HandleModeChange(grid, tabItem);
-                }
-            };
-
-            // Subscribe to Document ColumnCount changes to regenerate columns
-            tabItem.Document.PropertyChanged += (s, evt) =>
-            {
-                if (evt.PropertyName == nameof(TsvDocument.ColumnCount) &&
-                    tabItem == _viewModel?.SelectedTab)
-                {
-                    GenerateColumns(grid, tabItem);
-                }
-            };
-
             // Subscribe to DataGrid selection changes to update VimState
             // Remove any existing handler first to prevent duplicate subscriptions
             grid.CurrentCellChanged -= TsvGrid_CurrentCellChangedHandler;
@@ -391,6 +369,12 @@ public partial class MainWindow : Window
             // Subscribe to cell editing to handle Enter/Escape keys in Insert mode
             grid.PreparingCellForEdit -= TsvGrid_PreparingCellForEdit;
             grid.PreparingCellForEdit += TsvGrid_PreparingCellForEdit;
+
+            // Subscribe to mouse events to detect dragging
+            grid.PreviewMouseLeftButtonDown -= TsvGrid_PreviewMouseLeftButtonDown;
+            grid.PreviewMouseLeftButtonDown += TsvGrid_PreviewMouseLeftButtonDown;
+            grid.PreviewMouseLeftButtonUp -= TsvGrid_PreviewMouseLeftButtonUp;
+            grid.PreviewMouseLeftButtonUp += TsvGrid_PreviewMouseLeftButtonUp;
 
             // Set row headers
             grid.LoadingRow += (s, evt) => { evt.Row.Header = (evt.Row.GetIndex() + 1).ToString(); };
@@ -650,6 +634,83 @@ public partial class MainWindow : Window
         return null;
     }
 
+    private void TsvGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine($"[MouseDown] Starting drag");
+        _isDataGridDragging = true;
+
+        // Record the starting position for drag selection
+        if (sender is DataGrid grid && grid.CurrentCell.Item != null && grid.CurrentCell.Column != null)
+        {
+            var rowIndex = grid.Items.IndexOf(grid.CurrentCell.Item);
+            var colIndex = grid.Columns.IndexOf(grid.CurrentCell.Column);
+
+            if (rowIndex >= 0 && colIndex >= 0)
+            {
+                _dragStartPosition = new Models.GridPosition(rowIndex, colIndex);
+                System.Diagnostics.Debug.WriteLine($"[MouseDown] Start position: ({rowIndex},{colIndex})");
+            }
+        }
+    }
+
+    private void TsvGrid_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine($"[MouseUp] Ending drag");
+        _isDataGridDragging = false;
+
+        // Update VimState with the drag selection range
+        if (sender is DataGrid grid && grid.DataContext is TabItemViewModel tab)
+        {
+            if (grid.CurrentCell.Item != null && grid.CurrentCell.Column != null)
+            {
+                var endRowIndex = grid.Items.IndexOf(grid.CurrentCell.Item);
+                var endColIndex = grid.Columns.IndexOf(grid.CurrentCell.Column);
+
+                if (endRowIndex >= 0 && endColIndex >= 0)
+                {
+                    var endPosition = new Models.GridPosition(endRowIndex, endColIndex);
+                    System.Diagnostics.Debug.WriteLine($"[MouseUp] End position: ({endRowIndex},{endColIndex})");
+
+                    _isUpdatingSelection = true;
+                    try
+                    {
+                        // Check if this was a drag (multiple cells selected) or a single click
+                        if (_dragStartPosition != null &&
+                            (_dragStartPosition.Row != endPosition.Row ||
+                             _dragStartPosition.Column != endPosition.Column))
+                        {
+                            // This was a drag - enter Visual mode with selection range
+                            System.Diagnostics.Debug.WriteLine($"[MouseUp] Drag detected, entering Visual mode");
+
+                            tab.VimState.CurrentSelection = new VimEngine.SelectionRange(
+                                VimEngine.VisualType.Character,
+                                _dragStartPosition,
+                                endPosition);
+
+                            tab.VimState.CursorPosition = endPosition;
+                            tab.VimState.SwitchMode(VimEngine.VimMode.Visual);
+                        }
+                        else
+                        {
+                            // Single click - just move cursor
+                            System.Diagnostics.Debug.WriteLine($"[MouseUp] Single click, updating cursor position");
+                            tab.VimState.CursorPosition = endPosition;
+                        }
+                    }
+                    finally
+                    {
+                        _isUpdatingSelection = false;
+                        _dragStartPosition = null;
+                    }
+                }
+            }
+        }
+        else
+        {
+            _dragStartPosition = null;
+        }
+    }
+
     private void TsvGrid_CurrentCellChangedHandler(object? sender, EventArgs e)
     {
         if (sender is DataGrid grid)
@@ -660,18 +721,35 @@ public partial class MainWindow : Window
 
     private void TsvGrid_CurrentCellChanged(DataGrid grid, TabItemViewModel? tab)
     {
+        System.Diagnostics.Debug.WriteLine($"[CurrentCellChanged] Tab:{tab?.Header}, Grid:{grid?.GetHashCode()}, IsUpdating:{_isUpdatingSelection}, IsDragging:{_isDataGridDragging}");
+
         if (grid == null || tab == null || _viewModel?.SelectedTab != tab)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CurrentCellChanged] Early return: grid={grid!=null}, tab={tab!=null}, isSelected={_viewModel?.SelectedTab == tab}");
             return;
+        }
 
         // Skip if we're updating selection from VimState (avoid circular updates)
         if (_isUpdatingSelection)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CurrentCellChanged] Skip: _isUpdatingSelection=true");
             return;
+        }
+
+        // Skip if user is dragging (will update on mouse up instead)
+        if (_isDataGridDragging)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CurrentCellChanged] Skip: dragging in progress");
+            return;
+        }
 
         // Update VimState cursor position when user clicks on a cell
         if (grid.CurrentCell.Item != null && grid.CurrentCell.Column != null)
         {
             var rowIndex = grid.Items.IndexOf(grid.CurrentCell.Item);
             var colIndex = grid.Columns.IndexOf(grid.CurrentCell.Column);
+
+            System.Diagnostics.Debug.WriteLine($"[CurrentCellChanged] Cell: ({rowIndex},{colIndex})");
 
             if (rowIndex >= 0 && colIndex >= 0)
             {
@@ -681,6 +759,7 @@ public partial class MainWindow : Window
                 if (tab.VimState.CursorPosition.Row != rowIndex ||
                     tab.VimState.CursorPosition.Column != colIndex)
                 {
+                    System.Diagnostics.Debug.WriteLine($"[CurrentCellChanged] Updating VimState.CursorPosition to ({rowIndex},{colIndex})");
                     _isUpdatingSelection = true;
                     try
                     {
@@ -690,6 +769,10 @@ public partial class MainWindow : Window
                     {
                         _isUpdatingSelection = false;
                     }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CurrentCellChanged] Position unchanged, skipping");
                 }
             }
         }
@@ -2033,10 +2116,75 @@ public partial class MainWindow : Window
         return null;
     }
 
+    // Store event handlers for each DataGrid to allow proper cleanup
+    private readonly Dictionary<DataGrid, (TabItemViewModel tab, PropertyChangedEventHandler vimStateHandler, PropertyChangedEventHandler documentHandler)> _dataGridHandlers
+        = new Dictionary<DataGrid, (TabItemViewModel, PropertyChangedEventHandler, PropertyChangedEventHandler)>();
+
     private void TsvGrid_OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        // Event handler registration is now done in TsvGrid_Loaded to prevent duplicate subscriptions
-        // This method is kept empty to avoid breaking existing XAML bindings
+        var dataGrid = sender as DataGrid;
+        if (dataGrid == null)
+            return;
+
+        var newTab = e.NewValue as TabItemViewModel;
+        var gridHashCode = dataGrid.GetHashCode();
+
+        System.Diagnostics.Debug.WriteLine($"[DataContextChanged] Grid:{gridHashCode}, OldTab:{(e.OldValue as TabItemViewModel)?.Header}, NewTab:{newTab?.Header}");
+
+        // Check if handlers are already registered for this DataGrid and TabItemViewModel combination
+        if (_dataGridHandlers.TryGetValue(dataGrid, out var existingInfo))
+        {
+            // If the new tab is the same as the existing one, skip (no change needed)
+            if (existingInfo.tab == newTab)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataContextChanged] Grid:{gridHashCode}, Same tab, skipping");
+                return; // Already registered, skip
+            }
+
+            // Different tab, remove old handlers first
+            System.Diagnostics.Debug.WriteLine($"[DataContextChanged] Grid:{gridHashCode}, Removing old handlers for {existingInfo.tab.Header}");
+            existingInfo.tab.VimState.PropertyChanged -= existingInfo.vimStateHandler;
+            existingInfo.tab.Document.PropertyChanged -= existingInfo.documentHandler;
+            _dataGridHandlers.Remove(dataGrid);
+        }
+
+        // Add new event handlers only if new value is a TabItemViewModel
+        if (newTab != null)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataContextChanged] Grid:{gridHashCode}, Adding new handlers for {newTab.Header}");
+
+            // Create event handlers
+            PropertyChangedEventHandler vimStateHandler = (s, evt) =>
+            {
+                if (evt.PropertyName == nameof(newTab.VimState.CursorPosition) &&
+                    newTab == _viewModel?.SelectedTab)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[VimState.CursorPosition] Tab:{newTab.Header}, Pos:({newTab.VimState.CursorPosition.Row},{newTab.VimState.CursorPosition.Column})");
+                    UpdateDataGridSelection(dataGrid, newTab);
+                }
+                else if (evt.PropertyName == nameof(newTab.VimState.CurrentMode) &&
+                         newTab == _viewModel?.SelectedTab)
+                {
+                    HandleModeChange(dataGrid, newTab);
+                }
+            };
+
+            PropertyChangedEventHandler documentHandler = (s, evt) =>
+            {
+                if (evt.PropertyName == nameof(TsvDocument.ColumnCount) &&
+                    newTab == _viewModel?.SelectedTab)
+                {
+                    GenerateColumns(dataGrid, newTab);
+                }
+            };
+
+            // Subscribe to events
+            newTab.VimState.PropertyChanged += vimStateHandler;
+            newTab.Document.PropertyChanged += documentHandler;
+
+            // Store handlers and tab reference for cleanup
+            _dataGridHandlers[dataGrid] = (newTab, vimStateHandler, documentHandler);
+        }
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)

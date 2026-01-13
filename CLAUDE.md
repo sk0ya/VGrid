@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VGrid is a WPF-based TSV (Tab-Separated Values) editor with Vim keybindings. The application uses .NET 8 and implements a modal editing system (Normal, Insert, Visual modes) similar to Vim, specifically designed for editing tabular data.
+VGrid is a WPF-based TSV (Tab-Separated Values) editor with Vim keybindings. The application uses .NET 8 and implements a modal editing system (Normal, Insert, Visual, Command modes) similar to Vim, specifically designed for editing tabular data.
 
 ## Build and Test Commands
 
@@ -41,8 +41,11 @@ The application follows WPF MVVM (Model-View-ViewModel) architecture:
 The Vim modal editing system is implemented using the State Pattern in `VimEngine/`:
 - **VimState**: Central state manager that coordinates mode switching and key handling
 - **IVimMode**: Interface defining mode behavior (`HandleKey`, `OnEnter`, `OnExit`)
-- **Mode Implementations**: `NormalMode`, `InsertMode`, `VisualMode` each implement `IVimMode`
-- **KeySequence**: Handles multi-key commands like `gg` with timeout-based expiration
+- **Mode Implementations**: `NormalMode`, `InsertMode`, `VisualMode`, `CommandMode` each implement `IVimMode`
+- **KeySequence**: Handles multi-key commands like `gg`, `yy`, `dd` with timeout-based expiration
+- **YankedContent**: Stores yanked (copied) content with type information (Character/Line/Block)
+- **SelectionRange**: Represents visual mode selection range
+- **ExCommandParser**: Parses ex-commands (`:w`, `:q`, `:wq`, etc.)
 
 Key flow:
 1. User presses key → MainWindow/ViewModel receives input
@@ -56,8 +59,11 @@ Edit operations use Command Pattern for undo/redo support:
 - **ICommand**: Interface with `Execute()` and `Undo()` methods
 - **CommandHistory**: Maintains undo/redo stacks (max 100 commands)
 - **EditCellCommand**: Concrete command for cell editing
+- **DeleteRowCommand**: Command for deleting entire rows
+- **DeleteColumnCommand**: Command for deleting entire columns
+- **DeleteSelectionCommand**: Command for deleting selected cell ranges
 
-When editing cells, wrap operations in commands and execute via `CommandHistory.Execute()`.
+When editing cells, wrap operations in commands and execute via `CommandHistory.Execute()`. The `u` key in Normal mode triggers undo.
 
 ### Tab Management
 The application supports multiple open TSV files via tabs:
@@ -77,7 +83,10 @@ The application supports multiple open TSV files via tabs:
 - Normal mode navigation: `src/VGrid/VimEngine/NormalMode.cs`
 - Insert mode editing: `src/VGrid/VimEngine/InsertMode.cs`
 - Visual mode selection: `src/VGrid/VimEngine/VisualMode.cs`
-- Multi-key sequences (e.g., `gg`): `src/VGrid/VimEngine/KeySequence.cs`
+- Command mode (search and ex-commands): `src/VGrid/VimEngine/CommandMode.cs`
+- Multi-key sequences (e.g., `gg`, `yy`, `dd`): `src/VGrid/VimEngine/KeySequence.cs`
+- Yanked content storage: `src/VGrid/VimEngine/YankedContent.cs`
+- Ex-command parsing: `src/VGrid/VimEngine/ExCommandParser.cs`
 
 ### Data Model
 - Document structure: `src/VGrid/Models/TsvDocument.cs`
@@ -93,9 +102,48 @@ The application supports multiple open TSV files via tabs:
 
 The project follows a phased development plan:
 - **Phase 1-9** (✅ Complete): Basic MVVM structure, Vim modes (Normal/Insert/Visual), basic navigation (`hjkl`, `0`, `$`, `gg`), mode switching (`i`, `a`, `o`, `v`, `Esc`), status bar UI
-- **Phase 10-14** (Planned): Delete operations (`dd`, `x`), yank/paste (`yy`, `p`), word movement (`w`, `b`, `e`), search (`/`, `?`)
-- **Phase 15-18** (Planned): Command mode (`:w`, `:q`, `:wq`), substitution (`:s///`), sort/filter operations
+- **Phase 10-14** (✅ Complete):
+  - Delete operations: `dd` (delete line), `x` (delete cell), `diw`/`daw` (delete word/cell)
+  - Yank/paste: `yy` (yank line), `yiw`/`yaw` (yank word/cell), `p` (paste), `Ctrl+C`/`Ctrl+V` (copy/paste)
+  - Word movement: `w` (next non-empty cell), `b` (previous non-empty cell)
+  - Search: `/pattern` (regex search), `n` (next match), `N` (previous match)
+  - Command mode: `:w` (save), `:q` (quit), `:wq`/`:x` (save and quit), `:q!` (force quit)
+  - Visual mode enhancements: Line-wise (`V`), Block-wise (`Ctrl+V`), yank/delete selections
+  - Additional navigation: `H` (line start), `L` (last non-empty column)
+  - Undo support: `u` (undo last change)
+  - Leader key: `Space w` (save file)
+- **Phase 15-18** (Planned): Sort/filter operations, macro recording/playback, configuration customization, advanced ex-commands
 - **Phase 19-20** (Planned): Polish and comprehensive testing
+
+## Implemented Vim Features
+
+### Normal Mode Commands
+- **Movement**: `h`, `j`, `k`, `l`, `0`, `H`, `$`, `L`, `gg`, `w`, `b`
+- **Yank**: `yy`, `yiw`, `yaw`, `Ctrl+C`
+- **Paste**: `p`, `Ctrl+V`
+- **Delete**: `dd`, `x`, `diw`, `daw`
+- **Undo**: `u`
+- **Search**: `/`, `n`, `N`
+- **Ex-command**: `:`
+- **Mode switch**: `i`, `I`, `a`, `A`, `o`, `O`, `v`, `V`, `Ctrl+V`
+- **Leader**: `Space w` (save)
+- **Count prefix**: Any number before command (e.g., `3j`, `5dd`)
+
+### Visual Mode Commands
+- **Movement**: `h`, `j`, `k`, `l`, `H`, `L`, `w`, `b`, `0`
+- **Yank**: `y`, `Ctrl+C`
+- **Delete**: `d`
+- **Bulk edit**: `i`, `a`
+- **Visual types**: Character-wise (`v`), Line-wise (`V`), Block-wise (`Ctrl+V`)
+
+### Command Mode
+- **Ex-commands**: `:w`, `:q`, `:q!`, `:wq`, `:x`
+- **Search**: `/pattern` (supports regex)
+
+### Insert Mode
+- **Edit**: Type text to edit cell content
+- **Navigation**: Arrow keys
+- **Exit**: `Esc`
 
 ## Important Notes
 
@@ -103,8 +151,11 @@ The project follows a phased development plan:
 When implementing new Vim commands:
 1. Mutate `VimState.CursorPosition` to move cursor
 2. Call `VimState.SwitchMode()` to change modes (not direct property assignment)
-3. Use `KeySequence.Add()` and check `KeySequence.Keys` for multi-key commands
+3. Use `VimState.PendingKeys.Add()` and check `VimState.PendingKeys.Keys` for multi-key commands (e.g., `gg`, `yy`, `dd`)
 4. Support count prefixes via `VimState.CountPrefix`
+5. Store yanked content in `VimState.LastYank` (type `YankedContent`)
+6. For search functionality, use `VimState.SetSearchResults()` and `VimState.NavigateToNextMatch()`
+7. Trigger file operations via events: `VimState.OnSaveRequested()`, `VimState.OnQuitRequested()`
 
 ### Data Binding
 - `TsvDocument.Rows` is an `ObservableCollection<Row>` - modifications automatically update UI

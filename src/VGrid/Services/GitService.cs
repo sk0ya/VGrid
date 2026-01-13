@@ -217,48 +217,51 @@ public class GitService : IGitService
             else if (commit1Hash == null)
             {
                 // Compare working directory with commit2Hash
-                arguments = $"diff --name-only {commit2Hash}";
+                arguments = $"diff --name-only -z {commit2Hash}";
             }
             else if (commit2Hash == null)
             {
                 // Compare commit1Hash with working directory
-                arguments = $"diff --name-only {commit1Hash}";
+                arguments = $"diff --name-only -z {commit1Hash}";
             }
             else
             {
                 // Compare two commits
-                arguments = $"diff --name-only {commit1Hash} {commit2Hash}";
+                arguments = $"diff --name-only -z {commit1Hash} {commit2Hash}";
             }
 
             var (exitCode, output, _) = await RunGitCommandAsync(arguments, repoRoot);
             if (exitCode == 0 && !string.IsNullOrWhiteSpace(output))
             {
-                var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                // With -z option, files are separated by NUL character
+                var lines = output.Split('\0', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var line in lines)
                 {
-                    files.Add(line.Trim());
+                    files.Add(line);
                 }
             }
 
             // If comparing with working directory, also include added/untracked files from git status
             if (commit2Hash == null)
             {
-                var statusArgs = "status --porcelain --untracked-files=all";
+                var statusArgs = "status --porcelain -z --untracked-files=all";
                 var (statusExitCode, statusOutput, _) = await RunGitCommandAsync(statusArgs, repoRoot);
 
                 if (statusExitCode == 0 && !string.IsNullOrWhiteSpace(statusOutput))
                 {
-                    var statusLines = statusOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var line in statusLines)
+                    // With -z option, entries are separated by NUL character
+                    // Format: "XY filename\0" where X is staged status, Y is unstaged status
+                    var entries = statusOutput.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var entry in entries)
                     {
-                        if (line.Length < 3)
+                        if (entry.Length < 3)
                             continue;
 
-                        var statusCode = line.Substring(0, 2);
+                        var statusCode = entry.Substring(0, 2);
                         // Include untracked (??) and added (A ) files
                         if (statusCode == "??" || statusCode.Contains('A'))
                         {
-                            var filePath = line.Substring(3).Trim();
+                            var filePath = entry.Substring(3);
                             files.Add(filePath);
                         }
                     }
@@ -328,23 +331,24 @@ public class GitService : IGitService
                 return files;
 
             // Run git status --porcelain to get uncommitted files
-            var arguments = "status --porcelain --untracked-files=all";
+            var arguments = "status --porcelain -z --untracked-files=all";
             var (exitCode, output, _) = await RunGitCommandAsync(arguments, repoRoot);
 
             if (exitCode != 0 || string.IsNullOrWhiteSpace(output))
                 return files;
 
             // Parse output
-            // Format: "XY filename" where X is staged status, Y is unstaged status
+            // With -z option, entries are separated by NUL character
+            // Format: "XY filename\0" where X is staged status, Y is unstaged status
             // M = modified, A = added, D = deleted, ?? = untracked, etc.
-            var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var line in lines)
+            var entries = output.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var entry in entries)
             {
-                if (line.Length < 3)
+                if (entry.Length < 3)
                     continue;
 
-                var statusCode = line.Substring(0, 2);
-                var filePath = line.Substring(3).Trim();
+                var statusCode = entry.Substring(0, 2);
+                var filePath = entry.Substring(3);
 
                 // Convert to absolute path
                 var absolutePath = Path.Combine(repoRoot, filePath.Replace('/', Path.DirectorySeparatorChar));

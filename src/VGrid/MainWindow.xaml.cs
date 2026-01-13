@@ -563,7 +563,11 @@ public partial class MainWindow : Window
             // Check if FindReplace panel is open - if so, don't move focus to the cell
             bool isFindReplaceOpen = tab.FindReplaceViewModel?.IsVisible ?? false;
 
-            if (!isFindReplaceOpen)
+            // Don't steal focus from TextBox if in Insert mode or about to enter Insert mode for bulk edit
+            bool isInsertMode = tab.VimState.CurrentMode == VimEngine.VimMode.Insert;
+            bool isPendingBulkEdit = tab.VimState.PendingBulkEditRange != null;
+
+            if (!isFindReplaceOpen && !isInsertMode && !isPendingBulkEdit)
             {
                 // Focus the DataGrid and try to focus the specific cell
                 grid.Focus();

@@ -122,7 +122,8 @@ public class TsvGridViewModel : ViewModelBase
     /// </summary>
     public void Sort(int columnIndex, bool ascending = true)
     {
-        _document.SortByColumn(columnIndex, ascending);
+        var command = new SortCommand(_document, columnIndex, ascending);
+        _commandHistory.Execute(command);
         OnPropertyChanged(nameof(Rows));
     }
 

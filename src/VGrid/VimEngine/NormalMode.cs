@@ -48,6 +48,12 @@ public class NormalMode : IVimMode
             return SwitchToVisualBlockMode(state);
         }
 
+        // Handle Ctrl+R for redo
+        if (key == Key.R && modifiers.HasFlag(ModifierKeys.Control))
+        {
+            return Redo(state);
+        }
+
         // Handle navigation keys
         bool handled = key switch
         {
@@ -281,18 +287,42 @@ public class NormalMode : IVimMode
 
     private bool InsertLineBelow(VimState state, TsvDocument document)
     {
-        // Insert a new row below the current row
-        document.InsertRow(state.CursorPosition.Row + 1);
-        state.CursorPosition = new GridPosition(state.CursorPosition.Row + 1, 0);
+        // Insert a new row below the current row using command for undo support
+        int insertRow = state.CursorPosition.Row + 1;
+        var command = new Commands.InsertRowCommand(document, insertRow);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        state.CursorPosition = new GridPosition(insertRow, 0);
         state.SwitchMode(VimMode.Insert);
         return true;
     }
 
     private bool InsertLineAbove(VimState state, TsvDocument document)
     {
-        // Insert a new row above the current row
-        document.InsertRow(state.CursorPosition.Row);
-        state.CursorPosition = new GridPosition(state.CursorPosition.Row, 0);
+        // Insert a new row above the current row using command for undo support
+        int insertRow = state.CursorPosition.Row;
+        var command = new Commands.InsertRowCommand(document, insertRow);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        state.CursorPosition = new GridPosition(insertRow, 0);
         state.SwitchMode(VimMode.Insert);
         return true;
     }
@@ -337,75 +367,32 @@ public class NormalMode : IVimMode
 
         if (yank == null)
             return true; // Key is handled, but nothing to paste
+
         var startPos = state.CursorPosition;
 
-        // Handle line-wise paste (insert new rows below cursor)
+        // Create and execute paste command
+        var command = new Commands.PasteCommand(document, startPos, yank);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        // Move cursor based on paste type
         if (yank.SourceType == VisualType.Line)
         {
-            // Insert new rows below the current row
-            for (int r = 0; r < yank.Rows; r++)
-            {
-                int insertRow = startPos.Row + 1 + r;
-                document.InsertRow(insertRow);
-
-                // Fill the new row with yanked values
-                var row = document.Rows[insertRow];
-                for (int c = 0; c < yank.Columns && c < row.Cells.Count; c++)
-                {
-                    row.Cells[c].Value = yank.Values[r, c];
-                }
-            }
-
             // Move cursor to the first inserted row
             state.CursorPosition = new GridPosition(startPos.Row + 1, startPos.Column);
-            return true;
         }
-
-        // Handle block-wise paste (insert new columns to the right of cursor)
-        if (yank.SourceType == VisualType.Block)
+        else if (yank.SourceType == VisualType.Block)
         {
-            // Insert new columns to the right of the current column
-            for (int c = 0; c < yank.Columns; c++)
-            {
-                int insertCol = startPos.Column + 1 + c;
-                document.InsertColumn(insertCol);
-
-                // Fill the new column with yanked values
-                for (int r = 0; r < yank.Rows && r < document.RowCount; r++)
-                {
-                    var row = document.Rows[r];
-                    if (insertCol < row.Cells.Count)
-                    {
-                        row.Cells[insertCol].Value = yank.Values[r, c];
-                    }
-                }
-            }
-
             // Move cursor to the first inserted column
             state.CursorPosition = new GridPosition(startPos.Row, startPos.Column + 1);
-            return true;
-        }
-
-        // Handle character-wise paste (overwrite values)
-        int neededRows = startPos.Row + yank.Rows;
-        int neededCols = startPos.Column + yank.Columns;
-
-        document.EnsureSize(neededRows, Math.Max(neededCols, document.ColumnCount));
-
-        // Paste values
-        for (int r = 0; r < yank.Rows; r++)
-        {
-            for (int c = 0; c < yank.Columns; c++)
-            {
-                int targetRow = startPos.Row + r;
-                int targetCol = startPos.Column + c;
-
-                if (targetRow < document.RowCount && targetCol < document.Rows[targetRow].Cells.Count)
-                {
-                    // Paste the value
-                    document.Rows[targetRow].Cells[targetCol].Value = yank.Values[r, c];
-                }
-            }
         }
 
         return true;
@@ -534,6 +521,15 @@ public class NormalMode : IVimMode
             state.CommandHistory.Undo();
         }
         return true; // Key is always handled, even if there's nothing to undo
+    }
+
+    private bool Redo(VimState state)
+    {
+        if (state.CommandHistory != null && state.CommandHistory.CanRedo)
+        {
+            state.CommandHistory.Redo();
+        }
+        return true; // Key is always handled, even if there's nothing to redo
     }
 
     private bool StartSearch(VimState state)

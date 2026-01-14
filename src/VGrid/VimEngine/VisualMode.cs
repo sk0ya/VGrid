@@ -74,6 +74,12 @@ public class VisualMode : IVimMode
             return YankSelection(state, document);
         }
 
+        // Ctrl+V pastes over the selection
+        if (key == Key.V && modifiers.HasFlag(ModifierKeys.Control))
+        {
+            return PasteOverSelection(state, document);
+        }
+
         // Handle 'i' to edit selected cells with cursor at start
         if (key == Key.I && modifiers == ModifierKeys.None)
         {
@@ -112,6 +118,8 @@ public class VisualMode : IVimMode
             Key.Delete => DeleteSelection(state, document),
             // Yank selection
             Key.Y => YankSelection(state, document),
+            // Paste over selection
+            Key.P => PasteOverSelection(state, document),
             _ => false
         };
     }
@@ -805,6 +813,39 @@ public class VisualMode : IVimMode
         }
 
         // No non-empty cell found, stay at current position
+        return true;
+    }
+
+    private bool PasteOverSelection(VimState state, TsvDocument document)
+    {
+        if (_selectionStart == null || state.CurrentSelection == null)
+            return false;
+
+        // Try to use LastYank, or fallback to clipboard
+        var yank = state.LastYank ?? ClipboardHelper.ReadFromClipboard();
+
+        if (yank == null)
+            return true; // Key is handled, but nothing to paste
+
+        var selection = state.CurrentSelection;
+
+        // Paste over the entire selection using the new command
+        var pasteCommand = new Commands.PasteOverSelectionCommand(document, selection, yank);
+
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(pasteCommand);
+        }
+        else
+        {
+            pasteCommand.Execute();
+        }
+
+        // Move cursor to the start of the selection
+        state.CursorPosition = new GridPosition(selection.StartRow, selection.StartColumn);
+
+        // Return to normal mode after paste
+        state.SwitchMode(VimMode.Normal);
         return true;
     }
 }

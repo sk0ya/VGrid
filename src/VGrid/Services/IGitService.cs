@@ -28,6 +28,11 @@ public interface IGitService
     Task<List<GitCommit>> GetFileHistoryAsync(string filePath);
 
     /// <summary>
+    /// Gets commit history for a folder or repository
+    /// </summary>
+    Task<List<GitCommit>> GetFolderHistoryAsync(string folderPath);
+
+    /// <summary>
     /// Gets file content at a specific commit
     /// </summary>
     Task<string> GetFileAtCommitAsync(string filePath, string commitHash);

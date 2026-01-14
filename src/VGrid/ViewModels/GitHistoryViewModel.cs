@@ -11,12 +11,12 @@ namespace VGrid.ViewModels;
 public class GitHistoryViewModel : ViewModelBase
 {
     private readonly IGitService _gitService;
-    private readonly string _filePath;
+    private readonly string _folderPath;
     private readonly string _repoRoot;
 
-    public GitHistoryViewModel(string filePath, string repoRoot, IGitService gitService)
+    public GitHistoryViewModel(string folderPath, string repoRoot, IGitService gitService)
     {
-        _filePath = filePath;
+        _folderPath = folderPath;
         _repoRoot = repoRoot;
         _gitService = gitService;
 
@@ -45,11 +45,21 @@ public class GitHistoryViewModel : ViewModelBase
 
     private async Task LoadCommitsAsync()
     {
-        var commits = await _gitService.GetFileHistoryAsync(_filePath);
+        var commits = await _gitService.GetFolderHistoryAsync(_folderPath);
         Commits.Clear();
         foreach (var commit in commits)
         {
             Commits.Add(commit);
+        }
+
+        if (Commits.Count == 0)
+        {
+            System.Diagnostics.Debug.WriteLine($"GitHistoryViewModel: No commits found for {_folderPath}");
+            System.Windows.MessageBox.Show(
+                $"No Git history found for this folder.\n\nFolder: {_folderPath}\n\nThis may occur if:\n- No files in this folder have been committed yet\n- The folder path is incorrect\n- Git is not properly configured",
+                "No History",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
         }
     }
 

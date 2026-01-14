@@ -693,14 +693,12 @@ public class MainViewModel : ViewModelBase
 
     private bool CanViewGitHistory()
     {
-        return SelectedTab != null &&
-               !string.IsNullOrEmpty(SelectedTab.FilePath) &&
-               !SelectedTab.FilePath.StartsWith("Untitled");
+        return !string.IsNullOrEmpty(SelectedFolderPath);
     }
 
     private async System.Threading.Tasks.Task ViewGitHistoryAsync()
     {
-        if (SelectedTab == null || string.IsNullOrEmpty(SelectedTab.FilePath))
+        if (string.IsNullOrEmpty(SelectedFolderPath))
             return;
 
         // Check if git is available
@@ -714,11 +712,11 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        // Check if file is in a git repository
-        if (!await _gitService.IsInGitRepositoryAsync(SelectedTab.FilePath))
+        // Check if folder is in a git repository
+        if (!await _gitService.IsInGitRepositoryAsync(SelectedFolderPath))
         {
             System.Windows.MessageBox.Show(
-                "This file is not in a Git repository.",
+                "This folder is not in a Git repository.",
                 "Not in Git Repository",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -727,7 +725,7 @@ public class MainViewModel : ViewModelBase
 
         try
         {
-            var repoRoot = await _gitService.GetRepositoryRootAsync(SelectedTab.FilePath);
+            var repoRoot = await _gitService.GetRepositoryRootAsync(SelectedFolderPath);
             if (string.IsNullOrEmpty(repoRoot))
             {
                 System.Windows.MessageBox.Show(
@@ -739,7 +737,7 @@ public class MainViewModel : ViewModelBase
             }
 
             var viewModel = new GitHistoryViewModel(
-                SelectedTab.FilePath,
+                SelectedFolderPath,
                 repoRoot,
                 _gitService);
 

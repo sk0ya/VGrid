@@ -87,7 +87,10 @@ public class GitService : IGitService
         {
             var repoRoot = await GetRepositoryRootAsync(filePath);
             if (string.IsNullOrEmpty(repoRoot))
+            {
+                System.Diagnostics.Debug.WriteLine($"GitService: Could not get repository root for {filePath}");
                 return commits;
+            }
 
             // Get relative path from repo root
             var relativePath = Path.GetRelativePath(repoRoot, filePath).Replace('\\', '/');
@@ -96,9 +99,19 @@ public class GitService : IGitService
             var format = "%H|%an|%ae|%ad|%s";
             var arguments = $"log --follow --format=\"{format}\" --date=iso -- \"{relativePath}\"";
 
-            var (exitCode, output, _) = await RunGitCommandAsync(arguments, repoRoot);
-            if (exitCode != 0 || string.IsNullOrWhiteSpace(output))
+            var (exitCode, output, error) = await RunGitCommandAsync(arguments, repoRoot);
+            if (exitCode != 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"GitService: git log command failed with exit code {exitCode}");
+                System.Diagnostics.Debug.WriteLine($"GitService: Error: {error}");
                 return commits;
+            }
+
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                System.Diagnostics.Debug.WriteLine($"GitService: No git history found for {relativePath}");
+                return commits;
+            }
 
             var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
@@ -117,10 +130,96 @@ public class GitService : IGitService
                     commits.Add(commit);
                 }
             }
+
+            System.Diagnostics.Debug.WriteLine($"GitService: Found {commits.Count} commits for {relativePath}");
         }
-        catch
+        catch (Exception ex)
         {
-            // Return empty list on error
+            System.Diagnostics.Debug.WriteLine($"GitService: Exception in GetFileHistoryAsync: {ex.Message}");
+        }
+
+        return commits;
+    }
+
+    /// <summary>
+    /// Gets commit history for a folder or repository
+    /// </summary>
+    public async Task<List<GitCommit>> GetFolderHistoryAsync(string folderPath)
+    {
+        var commits = new List<GitCommit>();
+
+        try
+        {
+            // Handle both file paths and directory paths
+            var directory = Directory.Exists(folderPath) ? folderPath : Path.GetDirectoryName(folderPath);
+            if (string.IsNullOrEmpty(directory))
+            {
+                System.Diagnostics.Debug.WriteLine($"GitService: Invalid folder path: {folderPath}");
+                return commits;
+            }
+
+            var repoRoot = await GetRepositoryRootAsync(directory);
+            if (string.IsNullOrEmpty(repoRoot))
+            {
+                System.Diagnostics.Debug.WriteLine($"GitService: Could not get repository root for {folderPath}");
+                return commits;
+            }
+
+            // Get relative path from repo root
+            var relativePath = Path.GetRelativePath(repoRoot, directory).Replace('\\', '/');
+
+            // Format: Hash|AuthorName|AuthorEmail|Date|Subject
+            var format = "%H|%an|%ae|%ad|%s";
+
+            // If relative path is ".", get all commits in repository
+            // Otherwise, get commits that affected the specific folder
+            string arguments;
+            if (relativePath == ".")
+            {
+                arguments = $"log --format=\"{format}\" --date=iso";
+            }
+            else
+            {
+                arguments = $"log --format=\"{format}\" --date=iso -- \"{relativePath}\"";
+            }
+
+            var (exitCode, output, error) = await RunGitCommandAsync(arguments, repoRoot);
+            if (exitCode != 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"GitService: git log command failed with exit code {exitCode}");
+                System.Diagnostics.Debug.WriteLine($"GitService: Error: {error}");
+                return commits;
+            }
+
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                System.Diagnostics.Debug.WriteLine($"GitService: No git history found for {relativePath}");
+                return commits;
+            }
+
+            var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in lines)
+            {
+                var parts = line.Split('|');
+                if (parts.Length >= 5)
+                {
+                    var commit = new GitCommit
+                    {
+                        Hash = parts[0],
+                        AuthorName = parts[1],
+                        AuthorEmail = parts[2],
+                        CommitDate = TryParseGitDate(parts[3]),
+                        Message = string.Join("|", parts.Skip(4)) // Message might contain '|'
+                    };
+                    commits.Add(commit);
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine($"GitService: Found {commits.Count} commits for folder {relativePath}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"GitService: Exception in GetFolderHistoryAsync: {ex.Message}");
         }
 
         return commits;

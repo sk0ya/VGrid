@@ -107,9 +107,10 @@ public class VisualMode : IVimMode
         // Handle operations on selection
         return key switch
         {
-            // Delete selection (not implemented yet - will be added in later phases)
+            // Delete selection
             Key.D => DeleteSelection(state, document),
-            // Yank selection (not implemented yet - will be added in later phases)
+            Key.Delete => DeleteSelection(state, document),
+            // Yank selection
             Key.Y => YankSelection(state, document),
             _ => false
         };

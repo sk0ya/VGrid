@@ -114,6 +114,7 @@ public class NormalMode : IVimMode
             Key.D when state.PendingKeys.Keys.LastOrDefault() == Key.D => DeleteLine(state, document),
             Key.D when state.PendingKeys.Keys.Count == 0 => HandlePendingD(state),
             Key.X => DeleteCurrentCell(state, document),
+            Key.Delete => DeleteCurrentCell(state, document),
 
             // Undo operation
             Key.U => Undo(state),

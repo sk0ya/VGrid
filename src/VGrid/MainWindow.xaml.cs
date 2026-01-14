@@ -771,6 +771,9 @@ public partial class MainWindow : Window
                 {
                     try
                     {
+                        // Set the flag to prevent CurrentCellChanged from triggering a loop
+                        _isUpdatingSelection = true;
+
                         // Double-check Insert mode status before focusing
                         // (mode might have changed after CursorPosition update)
                         if (tab.VimState.CurrentMode == VimEngine.VimMode.Insert)
@@ -791,6 +794,10 @@ public partial class MainWindow : Window
                     catch
                     {
                         // Ignore errors - cell focusing is best-effort
+                    }
+                    finally
+                    {
+                        _isUpdatingSelection = false;
                     }
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }

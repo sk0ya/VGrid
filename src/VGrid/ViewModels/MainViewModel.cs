@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.WindowsAPICodePack.Dialogs;
 using VGrid.Commands;
 using VGrid.Helpers;
 using VGrid.Models;
@@ -402,15 +403,15 @@ public class MainViewModel : ViewModelBase
 
     private void OpenFolder()
     {
-        var dialog = new System.Windows.Forms.FolderBrowserDialog
+        var dialog = new CommonOpenFileDialog
         {
-            Description = "Select folder to explore",
-            ShowNewFolderButton = false
+            Title = "Select folder to explore",
+            IsFolderPicker = true
         };
 
-        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
         {
-            SelectedFolderPath = dialog.SelectedPath;
+            SelectedFolderPath = dialog.FileName;
         }
     }
 

@@ -1113,10 +1113,21 @@ public partial class MainWindow : Window
                     actualKey = evt.ImeProcessedKey;
                 }
 
+                // Handle Ctrl+Shift++ to insert current date (Excel-like shortcut on Japanese keyboard)
+                if (actualKey == Key.OemPlus &&
+                    Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+                {
+                    // Insert current date in yyyy/MM/dd format
+                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                    int caretIndex = textBox.CaretIndex;
+                    textBox.Text = textBox.Text.Insert(caretIndex, currentDate);
+                    textBox.CaretIndex = caretIndex + currentDate.Length;
+                    evt.Handled = true;
+                }
                 // Handle Enter key to exit Insert mode (but not if IME is processing)
                 // If evt.Key == Key.ImeProcessed, it means IME is handling the key (e.g., confirming conversion)
                 // In this case, we should let IME handle it and not switch to Normal mode
-                if (actualKey == Key.Enter && evt.Key != Key.ImeProcessed)
+                else if (actualKey == Key.Enter && evt.Key != Key.ImeProcessed)
                 {
                     // Switch to Normal mode
                     tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
@@ -1607,12 +1618,51 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Handle Ctrl+Shift++ to insert current date (Excel-like shortcut on Japanese keyboard, works in Normal and Visual modes)
+        if (e.Key == Key.OemPlus && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+        {
+            var tab = _viewModel.SelectedTab;
+            if (tab != null)
+            {
+                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+
+                if (tab.VimState.CurrentMode == VimEngine.VimMode.Normal)
+                {
+                    // In Normal mode, insert date into current cell
+                    var command = new Commands.EditCellCommand(
+                        tab.GridViewModel.Document,
+                        tab.VimState.CursorPosition,
+                        currentDate);
+                    tab.VimState.CommandHistory?.Execute(command);
+                    e.Handled = true;
+                    return;
+                }
+                else if (tab.VimState.CurrentMode == VimEngine.VimMode.Visual)
+                {
+                    // In Visual mode, insert date into all selected cells
+                    if (tab.VimState.CurrentSelection != null)
+                    {
+                        var command = new Commands.EditSelectionCommand(
+                            tab.GridViewModel.Document,
+                            tab.VimState.CurrentSelection,
+                            currentDate);
+                        tab.VimState.CommandHistory?.Execute(command);
+
+                        // Exit Visual mode after editing
+                        tab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+        }
+
         // If Vim mode is disabled, let DataGrid handle keys normally
         if (!_viewModel.IsVimModeEnabled)
             return;
 
-        var tab = _viewModel.SelectedTab;
-        var currentMode = tab.VimState.CurrentMode;
+        var currentTab = _viewModel.SelectedTab;
+        var currentMode = currentTab.VimState.CurrentMode;
 
         // Get the actual key - handle IME processed keys
         Key actualKey = e.Key;
@@ -1631,8 +1681,8 @@ public partial class MainWindow : Window
         // Accept both with/without Shift to support both keyboard layouts
         if (currentMode == VimEngine.VimMode.Normal && actualKey == Key.Oem1)
         {
-            tab.VimState.CurrentCommandType = VimEngine.CommandType.ExCommand;
-            tab.VimState.SwitchMode(VimEngine.VimMode.Command);
+            currentTab.VimState.CurrentCommandType = VimEngine.CommandType.ExCommand;
+            currentTab.VimState.SwitchMode(VimEngine.VimMode.Command);
             e.Handled = true;
             return;
         }
@@ -1643,17 +1693,17 @@ public partial class MainWindow : Window
             actualKey == Key.OemQuestion &&
             !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
         {
-            tab.VimState.CurrentCommandType = VimEngine.CommandType.Search;
-            tab.VimState.SwitchMode(VimEngine.VimMode.Command);
+            currentTab.VimState.CurrentCommandType = VimEngine.CommandType.Search;
+            currentTab.VimState.SwitchMode(VimEngine.VimMode.Command);
             e.Handled = true;
             return;
         }
 
         // Handle key through Vim state of the selected tab
-        var handled = tab.VimState.HandleKey(
+        var handled = currentTab.VimState.HandleKey(
             actualKey,
             Keyboard.Modifiers,
-            tab.GridViewModel.Document);
+            currentTab.GridViewModel.Document);
 
         if (handled)
         {

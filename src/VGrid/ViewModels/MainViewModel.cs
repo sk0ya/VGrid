@@ -471,7 +471,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void CloseTab(TabItemViewModel? tab)
+    public void CloseTab(TabItemViewModel? tab)
     {
         if (tab == null)
             return;

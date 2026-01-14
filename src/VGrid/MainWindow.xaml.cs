@@ -76,7 +76,7 @@ public partial class MainWindow : Window
 
             var rootItem = new TreeViewItem
             {
-                Header = CreateHighlightedHeader(rootName, filterText),
+                Header = CreateHeaderWithIcon(rootName, filterText, true),
                 Tag = _viewModel.SelectedFolderPath,
                 IsExpanded = true,
                 AllowDrop = true
@@ -97,6 +97,12 @@ public partial class MainWindow : Window
             var newFolderMenuItem = new MenuItem { Header = "新しいフォルダ(_N)" };
             newFolderMenuItem.Click += NewFolderMenuItem_Click;
             rootContextMenu.Items.Add(newFolderMenuItem);
+
+            rootContextMenu.Items.Add(new Separator());
+
+            var openRootInExplorerMenuItem = new MenuItem { Header = "エクスプローラーで開く(_E)" };
+            openRootInExplorerMenuItem.Click += OpenFolderInExplorerMenuItem_Click;
+            rootContextMenu.Items.Add(openRootInExplorerMenuItem);
 
             rootItem.ContextMenu = rootContextMenu;
 
@@ -145,7 +151,7 @@ public partial class MainWindow : Window
 
                 var dirItem = new TreeViewItem
                 {
-                    Header = CreateHighlightedHeader(dirName, filterText),
+                    Header = CreateHeaderWithIcon(dirName, filterText, true),
                     Tag = dir,
                     AllowDrop = true
                 };
@@ -163,12 +169,6 @@ public partial class MainWindow : Window
                 // Add context menu for directories
                 var contextMenu = new ContextMenu();
 
-                var renameFolderMenuItem = new MenuItem { Header = "フォルダ名の変更(_R)" };
-                renameFolderMenuItem.Click += RenameFolderMenuItem_Click;
-                contextMenu.Items.Add(renameFolderMenuItem);
-
-                contextMenu.Items.Add(new Separator());
-
                 var newFileMenuItem = new MenuItem { Header = "新しいファイル(_F)" };
                 newFileMenuItem.Click += NewFileMenuItem_Click;
                 contextMenu.Items.Add(newFileMenuItem);
@@ -176,6 +176,22 @@ public partial class MainWindow : Window
                 var newFolderMenuItem = new MenuItem { Header = "新しいフォルダ(_N)" };
                 newFolderMenuItem.Click += NewFolderMenuItem_Click;
                 contextMenu.Items.Add(newFolderMenuItem);
+
+                contextMenu.Items.Add(new Separator());
+
+                var renameFolderMenuItem = new MenuItem { Header = "フォルダ名の変更(_R)" };
+                renameFolderMenuItem.Click += RenameFolderMenuItem_Click;
+                contextMenu.Items.Add(renameFolderMenuItem);
+
+                var deleteFolderMenuItem = new MenuItem { Header = "削除(_D)" };
+                deleteFolderMenuItem.Click += DeleteFolderMenuItem_Click;
+                contextMenu.Items.Add(deleteFolderMenuItem);
+
+                contextMenu.Items.Add(new Separator());
+
+                var openFolderInExplorerMenuItem = new MenuItem { Header = "エクスプローラーで開く(_E)" };
+                openFolderInExplorerMenuItem.Click += OpenFolderInExplorerMenuItem_Click;
+                contextMenu.Items.Add(openFolderInExplorerMenuItem);
 
                 dirItem.ContextMenu = contextMenu;
 
@@ -197,7 +213,7 @@ public partial class MainWindow : Window
 
                 var fileItem = new TreeViewItem
                 {
-                    Header = CreateHighlightedHeader(fileName, filterText),
+                    Header = CreateHeaderWithIcon(fileName, filterText, false),
                     Tag = file
                 };
 
@@ -213,6 +229,23 @@ public partial class MainWindow : Window
                 };
                 renameMenuItem.Click += RenameMenuItem_Click;
                 contextMenu.Items.Add(renameMenuItem);
+
+                var deleteMenuItem = new MenuItem
+                {
+                    Header = "削除(_D)"
+                };
+                deleteMenuItem.Click += DeleteFileMenuItem_Click;
+                contextMenu.Items.Add(deleteMenuItem);
+
+                contextMenu.Items.Add(new Separator());
+
+                var openInExplorerMenuItem = new MenuItem
+                {
+                    Header = "エクスプローラーで開く(_E)"
+                };
+                openInExplorerMenuItem.Click += OpenFileInExplorerMenuItem_Click;
+                contextMenu.Items.Add(openInExplorerMenuItem);
+
                 fileItem.ContextMenu = contextMenu;
 
                 node.Items.Add(fileItem);
@@ -310,6 +343,70 @@ public partial class MainWindow : Window
         }
 
         return textBlock;
+    }
+
+    private object CreateHeaderWithIcon(string text, string filterText, bool isFolder)
+    {
+        var stackPanel = new StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal
+        };
+
+        // Add icon
+        var icon = new System.Windows.Controls.TextBlock
+        {
+            FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+            FontSize = 14,
+            Margin = new Thickness(0, 0, 6, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        if (isFolder)
+        {
+            icon.Text = "📁"; // Folder icon
+            icon.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 193, 7)); // Amber
+        }
+        else
+        {
+            // Determine file icon based on extension
+            var ext = Path.GetExtension(text).ToLower();
+            if (ext == ".tsv" || ext == ".tab")
+            {
+                icon.Text = "📊"; // Chart icon for TSV files
+                icon.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(76, 175, 80)); // Green
+            }
+            else if (ext == ".txt")
+            {
+                icon.Text = "📄"; // Document icon for text files
+                icon.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(96, 125, 139)); // Blue Grey
+            }
+            else
+            {
+                icon.Text = "📄"; // Default document icon
+                icon.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(158, 158, 158)); // Grey
+            }
+        }
+
+        stackPanel.Children.Add(icon);
+
+        // Add text (with highlighting if filter is active)
+        var textContent = CreateHighlightedHeader(text, filterText);
+        if (textContent is string str)
+        {
+            var textBlock = new System.Windows.Controls.TextBlock
+            {
+                Text = str,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            stackPanel.Children.Add(textBlock);
+        }
+        else if (textContent is System.Windows.Controls.TextBlock tb)
+        {
+            tb.VerticalAlignment = VerticalAlignment.Center;
+            stackPanel.Children.Add(tb);
+        }
+
+        return stackPanel;
     }
 
     private void TreeViewItem_Expanded(object sender, RoutedEventArgs e)
@@ -1663,6 +1760,171 @@ public partial class MainWindow : Window
         }
     }
 
+    private void DeleteFileMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Get the TreeViewItem from the MenuItem's parent ContextMenu
+        if (sender is MenuItem menuItem &&
+            menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is TreeViewItem item)
+        {
+            var filePath = item.Tag as string;
+            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            {
+                var fileName = Path.GetFileName(filePath);
+                var result = System.Windows.MessageBox.Show(
+                    $"ファイル '{fileName}' を削除してもよろしいですか？",
+                    "ファイルの削除",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        // Close the file if it's open in a tab
+                        var openTab = _viewModel?.Tabs.FirstOrDefault(t => t.FilePath == filePath);
+                        if (openTab != null)
+                        {
+                            _viewModel?.CloseTab(openTab);
+                        }
+
+                        // Delete the file
+                        File.Delete(filePath);
+
+                        // Remove from tree view
+                        if (item.Parent is ItemsControl parent)
+                        {
+                            parent.Items.Remove(item);
+                        }
+
+                        _viewModel?.StatusBarViewModel.ShowMessage($"ファイル '{fileName}' を削除しました。");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show(
+                            $"ファイルの削除に失敗しました: {ex.Message}",
+                            "エラー",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
+    }
+
+    private void DeleteFolderMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Get the TreeViewItem from the MenuItem's parent ContextMenu
+        if (sender is MenuItem menuItem &&
+            menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is TreeViewItem item)
+        {
+            var folderPath = item.Tag as string;
+            if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+            {
+                var folderName = new DirectoryInfo(folderPath).Name;
+                var result = System.Windows.MessageBox.Show(
+                    $"フォルダ '{folderName}' とその中身を削除してもよろしいですか？\n\nこの操作は元に戻せません。",
+                    "フォルダの削除",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        // Close any files from this folder that are open in tabs
+                        if (_viewModel?.Tabs != null)
+                        {
+                            var tabsToClose = _viewModel.Tabs
+                                .Where(t => !string.IsNullOrEmpty(t.FilePath) &&
+                                       t.FilePath.StartsWith(folderPath + Path.DirectorySeparatorChar))
+                                .ToList();
+
+                            foreach (var tab in tabsToClose)
+                            {
+                                _viewModel.CloseTab(tab);
+                            }
+                        }
+
+                        // Delete the folder and all its contents
+                        Directory.Delete(folderPath, true);
+
+                        // Remove from tree view
+                        if (item.Parent is ItemsControl parent)
+                        {
+                            parent.Items.Remove(item);
+                        }
+
+                        _viewModel?.StatusBarViewModel.ShowMessage($"フォルダ '{folderName}' を削除しました。");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show(
+                            $"フォルダの削除に失敗しました: {ex.Message}",
+                            "エラー",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
+    }
+
+    private void OpenFileInExplorerMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Get the TreeViewItem from the MenuItem's parent ContextMenu
+        if (sender is MenuItem menuItem &&
+            menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is TreeViewItem item)
+        {
+            var filePath = item.Tag as string;
+            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            {
+                try
+                {
+                    // Open Windows Explorer and select the file
+                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show(
+                        $"エクスプローラーでの表示に失敗しました: {ex.Message}",
+                        "エラー",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+        }
+    }
+
+    private void OpenFolderInExplorerMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Get the TreeViewItem from the MenuItem's parent ContextMenu
+        if (sender is MenuItem menuItem &&
+            menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is TreeViewItem item)
+        {
+            var folderPath = item.Tag as string;
+            if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+            {
+                try
+                {
+                    // Open Windows Explorer to the folder
+                    System.Diagnostics.Process.Start("explorer.exe", $"\"{folderPath}\"");
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show(
+                        $"エクスプローラーでの表示に失敗しました: {ex.Message}",
+                        "エラー",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+        }
+    }
+
     private void BeginRenameTreeItem(TreeViewItem item, bool isFolder)
     {
         var itemPath = item.Tag as string;
@@ -1708,7 +1970,7 @@ public partial class MainWindow : Window
                 {
                     // Restore original header with highlighting
                     var filterText = _viewModel?.FilterText ?? string.Empty;
-                    item.Header = CreateHighlightedHeader(itemName, filterText);
+                    item.Header = CreateHeaderWithIcon(itemName, filterText, isFolder);
                 }
 
                 // Return focus to TreeView
@@ -1782,7 +2044,7 @@ public partial class MainWindow : Window
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 var filterText = _viewModel?.FilterText ?? string.Empty;
-                item.Header = CreateHighlightedHeader(Path.GetFileName(oldFilePath), filterText);
+                item.Header = CreateHeaderWithIcon(Path.GetFileName(oldFilePath), filterText, false);
                 return;
             }
 
@@ -1791,7 +2053,7 @@ public partial class MainWindow : Window
 
             // Update TreeViewItem with highlighting
             var currentFilterText = _viewModel?.FilterText ?? string.Empty;
-            item.Header = CreateHighlightedHeader(newFileName, currentFilterText);
+            item.Header = CreateHeaderWithIcon(newFileName, currentFilterText, false);
             item.Tag = newFilePath;
 
             // Update any open tabs that reference this file
@@ -1810,7 +2072,7 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             var filterText = _viewModel?.FilterText ?? string.Empty;
-            item.Header = CreateHighlightedHeader(Path.GetFileName(oldFilePath), filterText);
+            item.Header = CreateHeaderWithIcon(Path.GetFileName(oldFilePath), filterText, false);
 
             // Return focus to TreeView
             FolderTreeView.Focus();
@@ -1836,7 +2098,7 @@ public partial class MainWindow : Window
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 var filterText = _viewModel?.FilterText ?? string.Empty;
-                item.Header = CreateHighlightedHeader(new DirectoryInfo(oldFolderPath).Name, filterText);
+                item.Header = CreateHeaderWithIcon(new DirectoryInfo(oldFolderPath).Name, filterText, true);
                 return;
             }
 
@@ -1845,7 +2107,7 @@ public partial class MainWindow : Window
 
             // Update TreeViewItem with highlighting
             var currentFilterText = _viewModel?.FilterText ?? string.Empty;
-            item.Header = CreateHighlightedHeader(newFolderName, currentFilterText);
+            item.Header = CreateHeaderWithIcon(newFolderName, currentFilterText, true);
             item.Tag = newFolderPath;
 
             // Update any open tabs that reference files in this folder
@@ -1864,7 +2126,7 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             var filterText = _viewModel?.FilterText ?? string.Empty;
-            item.Header = CreateHighlightedHeader(new DirectoryInfo(oldFolderPath).Name, filterText);
+            item.Header = CreateHeaderWithIcon(new DirectoryInfo(oldFolderPath).Name, filterText, true);
 
             // Return focus to TreeView
             FolderTreeView.Focus();

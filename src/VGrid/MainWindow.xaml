@@ -153,36 +153,74 @@
                 <TabControl TabStripPlacement="Bottom">
                     <!-- EXPLORER Tab -->
                     <TabItem Header="EXPLORER">
-                        <DockPanel Background="#F5F5F5">
-                            <Border DockPanel.Dock="Top" Padding="5" Background="#F5F5F5">
-                                <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                                         Height="22"
-                                         Padding="3"
-                                         VerticalContentAlignment="Center"
-                                         BorderBrush="#CCCCCC"
-                                         BorderThickness="1">
-                                    <TextBox.Style>
-                                        <Style TargetType="TextBox">
-                                            <Style.Triggers>
-                                                <Trigger Property="Text" Value="">
-                                                    <Setter Property="Background">
-                                                        <Setter.Value>
-                                                            <VisualBrush AlignmentX="Left" AlignmentY="Center" Stretch="None">
-                                                                <VisualBrush.Visual>
-                                                                    <TextBlock Text="Filter files..." Foreground="#999" Margin="3,0,0,0"/>
-                                                                </VisualBrush.Visual>
-                                                            </VisualBrush>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBox.Style>
-                                </TextBox>
+                        <DockPanel Background="#FAFAFA">
+                            <!-- Header Section -->
+                            <Border DockPanel.Dock="Top" Background="#FFFFFF"
+                                    BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Filter Box -->
+                                    <Border  Background="#F8F8F8"
+                                            BorderBrush="#D0D0D0" BorderThickness="1"
+                                            CornerRadius="3" Padding="0">
+                                        <Grid>
+                                            <TextBlock Text="🔍 ファイルをフィルター..."
+                                                       Foreground="#AAAAAA"
+                                                       Margin="8,4,8,4"
+                                                       IsHitTestVisible="False"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding FilterText}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding FilterText}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Height="28"
+                                                     Padding="8,4,8,4"
+                                                     Background="Transparent"
+                                                     BorderThickness="0"
+                                                     VerticalContentAlignment="Center"
+                                                     FontSize="12"/>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
                             </Border>
-                            <TreeView x:Name="FolderTreeView" BorderThickness="0" Background="#F5F5F5"
-                                      Margin="0" Padding="5" KeyDown="FolderTreeView_KeyDown"
-                                      MouseRightButtonUp="FolderTreeView_MouseRightButtonUp">
+
+                            <!-- TreeView -->
+                            <TreeView x:Name="FolderTreeView"
+                                      BorderThickness="0"
+                                      Background="#FAFAFA"
+                                      Margin="0"
+                                      Padding="6"
+                                      KeyDown="FolderTreeView_KeyDown"
+                                      MouseRightButtonUp="FolderTreeView_MouseRightButtonUp"
+                                      FontSize="12">
+                                <TreeView.Resources>
+                                    <Style TargetType="TreeViewItem">
+                                        <Setter Property="Padding" Value="2"/>
+                                        <Setter Property="Margin" Value="0,1,0,1"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#F0F0F0"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#E3F2FD"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TreeView.Resources>
                                 <!-- Tree items will be populated in code-behind -->
                             </TreeView>
                         </DockPanel>

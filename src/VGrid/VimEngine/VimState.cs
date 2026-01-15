@@ -66,6 +66,8 @@ public class VimState : INotifyPropertyChanged
     private string _originalCellValueForBulkEdit = string.Empty;
     private LastChange? _lastChange;
     private ChangeType _pendingInsertType = ChangeType.None;
+    private GridPosition? _insertModeStartPosition;
+    private string _insertModeOriginalValue = string.Empty;
 
     // Mode handlers
     private readonly Dictionary<VimMode, IVimMode> _modeHandlers = new();
@@ -456,6 +458,38 @@ public class VimState : INotifyPropertyChanged
             if (_pendingInsertType != value)
             {
                 _pendingInsertType = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The cursor position when entering insert mode (for dot command tracking)
+    /// </summary>
+    public GridPosition? InsertModeStartPosition
+    {
+        get => _insertModeStartPosition;
+        set
+        {
+            if (_insertModeStartPosition != value)
+            {
+                _insertModeStartPosition = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The original cell value when entering insert mode (for dot command tracking)
+    /// </summary>
+    public string InsertModeOriginalValue
+    {
+        get => _insertModeOriginalValue;
+        set
+        {
+            if (_insertModeOriginalValue != value)
+            {
+                _insertModeOriginalValue = value;
                 OnPropertyChanged();
             }
         }

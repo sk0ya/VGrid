@@ -332,6 +332,7 @@ public class NormalMode : IVimMode
         // Set caret position to start of cell when entering insert mode with 'i'
         state.CellEditCaretPosition = CellEditCaretPosition.Start;
         state.PendingInsertType = ChangeType.Insert;
+        state.InsertModeStartPosition = state.CursorPosition;
         state.SwitchMode(VimMode.Insert);
         return true;
     }
@@ -341,6 +342,7 @@ public class NormalMode : IVimMode
         // Set caret position to end of cell when entering insert mode with 'a'
         state.CellEditCaretPosition = CellEditCaretPosition.End;
         state.PendingInsertType = ChangeType.InsertAfter;
+        state.InsertModeStartPosition = state.CursorPosition;
         state.SwitchMode(VimMode.Insert);
         return true;
     }
@@ -363,6 +365,7 @@ public class NormalMode : IVimMode
 
         state.CursorPosition = new GridPosition(insertRow, 0);
         state.PendingInsertType = ChangeType.InsertLineBelow;
+        state.InsertModeStartPosition = state.CursorPosition;
         state.SwitchMode(VimMode.Insert);
         return true;
     }
@@ -385,6 +388,7 @@ public class NormalMode : IVimMode
 
         state.CursorPosition = new GridPosition(insertRow, 0);
         state.PendingInsertType = ChangeType.InsertLineAbove;
+        state.InsertModeStartPosition = state.CursorPosition;
         state.SwitchMode(VimMode.Insert);
         return true;
     }
@@ -1068,6 +1072,14 @@ public class NormalMode : IVimMode
             case ChangeType.PasteBefore:
                 return RepeatPaste(state, document, change, effectiveCount);
 
+            case ChangeType.Insert:
+            case ChangeType.InsertAfter:
+                return RepeatInsert(state, document, change, effectiveCount);
+
+            case ChangeType.InsertLineBelow:
+            case ChangeType.InsertLineAbove:
+                return RepeatInsertLine(state, document, change, effectiveCount);
+
             default:
                 return true;
         }
@@ -1153,6 +1165,98 @@ public class NormalMode : IVimMode
 
         // Restore previous yank
         state.LastYank = previousYank;
+
+        return true;
+    }
+
+    private bool RepeatInsert(VimState state, TsvDocument document, LastChange change, int count)
+    {
+        if (string.IsNullOrEmpty(change.InsertedText))
+            return true;
+
+        // For insert operations (i, a), apply the text 'count' times at current position
+        for (int i = 0; i < count; i++)
+        {
+            var currentPos = state.CursorPosition;
+
+            if (currentPos.Row >= document.RowCount)
+                break;
+
+            // Simply set the cell value to the inserted text
+            var command = new Commands.EditCellCommand(document, currentPos, change.InsertedText);
+
+            if (state.CommandHistory != null)
+            {
+                state.CommandHistory.Execute(command);
+            }
+            else
+            {
+                command.Execute();
+            }
+
+            // Move right after each insert (for multiple repeats)
+            if (i < count - 1)
+            {
+                state.CursorPosition = currentPos.MoveRight(1).Clamp(document);
+            }
+        }
+
+        return true;
+    }
+
+    private bool RepeatInsertLine(VimState state, TsvDocument document, LastChange change, int count)
+    {
+        if (string.IsNullOrEmpty(change.InsertedText))
+            return true;
+
+        var currentPos = state.CursorPosition;
+
+        // For insert line operations (o, O), apply the text 'count' times
+        for (int i = 0; i < count; i++)
+        {
+            int insertRow;
+
+            if (change.Type == ChangeType.InsertLineBelow)
+            {
+                // Insert a new row below the current row
+                insertRow = currentPos.Row + 1 + i;
+            }
+            else // ChangeType.InsertLineAbove
+            {
+                // Insert a new row above the current row
+                insertRow = currentPos.Row + i;
+            }
+
+            var insertRowCommand = new Commands.InsertRowCommand(document, insertRow);
+
+            if (state.CommandHistory != null)
+            {
+                state.CommandHistory.Execute(insertRowCommand);
+            }
+            else
+            {
+                insertRowCommand.Execute();
+            }
+
+            // Set the first cell value to the inserted text
+            var editCommand = new Commands.EditCellCommand(document,
+                new GridPosition(insertRow, 0), change.InsertedText);
+
+            if (state.CommandHistory != null)
+            {
+                state.CommandHistory.Execute(editCommand);
+            }
+            else
+            {
+                editCommand.Execute();
+            }
+
+            // Update cursor position to the last inserted row
+            if (i == count - 1)
+            {
+                state.CursorPosition = new GridPosition(insertRow, 0);
+            }
+        }
 
         return true;
     }

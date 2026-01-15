@@ -197,6 +197,32 @@ public class DataGridManager
         var tab = _viewModel.SelectedTab;
         int columnIndex = e.Column.DisplayIndex;
 
+        // Record insert mode change for dot command (if applicable)
+        if (tab.VimState.PendingInsertType != ChangeType.None &&
+            tab.VimState.InsertModeStartPosition != null &&
+            e.EditingElement is TextBox textBox)
+        {
+            string newValue = textBox.Text;
+            string originalValue = tab.VimState.InsertModeOriginalValue;
+
+            // Only record if something actually changed
+            if (newValue != originalValue)
+            {
+                tab.VimState.LastChange = new LastChange
+                {
+                    Type = tab.VimState.PendingInsertType,
+                    Count = 1,  // Insert operations don't use count prefix
+                    InsertedText = newValue,
+                    CaretPosition = tab.VimState.CellEditCaretPosition
+                };
+            }
+
+            // Clear the tracking state
+            tab.VimState.PendingInsertType = ChangeType.None;
+            tab.VimState.InsertModeStartPosition = null;
+            tab.VimState.InsertModeOriginalValue = string.Empty;
+        }
+
         grid.Dispatcher.BeginInvoke(new Action(() =>
         {
             AutoFitColumn(grid, tab, columnIndex);
@@ -565,6 +591,18 @@ public class DataGridManager
 
         if (currentMode == VimMode.Insert)
         {
+            // Save the original cell value when entering insert mode (for dot command tracking)
+            if (tab.VimState.InsertModeStartPosition != null)
+            {
+                int rowIndex = e.Row != null ? tab.GridViewModel.Document.Rows.IndexOf((Row)e.Row.Item) : -1;
+                int columnIndex = e.Column?.DisplayIndex ?? -1;
+
+                if (rowIndex >= 0 && columnIndex >= 0)
+                {
+                    var cell = tab.GridViewModel.Document.GetCell(rowIndex, columnIndex);
+                    tab.VimState.InsertModeOriginalValue = cell?.Value ?? string.Empty;
+                }
+            }
             return;
         }
 

@@ -104,6 +104,11 @@ public class VisualMode : IVimMode
             Key.D0 => MoveSelection(state, document, new GridPosition(0, 0)),
             Key.W => MoveToNextNonEmptyCellWithSelection(state, document),
             Key.B => MoveToPreviousNonEmptyCellWithSelection(state, document),
+            // G command: move to last line (Shift+G)
+            Key.G when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastLineWithSelection(state, document),
+            // gg command: move to first line
+            Key.G when state.PendingKeys.Keys.LastOrDefault() == Key.G => MoveToFirstLineWithSelection(state, document),
+            Key.G when state.PendingKeys.Keys.Count == 0 => HandlePendingG(state),
             _ => false
         };
 
@@ -852,6 +857,57 @@ public class VisualMode : IVimMode
 
         // Return to normal mode after paste
         state.SwitchMode(VimMode.Normal);
+        return true;
+    }
+
+    private bool HandlePendingG(VimState state)
+    {
+        // Add 'g' to pending keys, wait for second 'g'
+        state.PendingKeys.Add(Key.G);
+        return true;
+    }
+
+    private bool MoveToFirstLineWithSelection(VimState state, TsvDocument document)
+    {
+        // Move cursor to first row (row 0), keeping current column
+        var newPosition = new GridPosition(0, state.CursorPosition.Column);
+        state.CursorPosition = newPosition.Clamp(document);
+
+        // Update selection to include the range from selection start to new position
+        UpdateSelection(state, document);
+
+        // Clear pending keys
+        state.PendingKeys.Clear();
+        return true;
+    }
+
+    private bool MoveToLastLineWithSelection(VimState state, TsvDocument document)
+    {
+        // Move cursor to last row that has content (non-empty cells), keeping current column
+        if (document.RowCount == 0)
+            return true;
+
+        // Search backwards from the last row to find a row with content
+        int lastNonEmptyRow = -1;
+        for (int row = document.RowCount - 1; row >= 0; row--)
+        {
+            var rowObj = document.Rows[row];
+            bool hasContent = rowObj.Cells.Any(cell => !string.IsNullOrEmpty(cell.Value));
+            if (hasContent)
+            {
+                lastNonEmptyRow = row;
+                break;
+            }
+        }
+
+        // If found a row with content, move there; otherwise move to first row
+        int targetRow = lastNonEmptyRow >= 0 ? lastNonEmptyRow : 0;
+        var newPosition = new GridPosition(targetRow, state.CursorPosition.Column);
+        state.CursorPosition = newPosition.Clamp(document);
+
+        // Update selection to include the range from selection start to new position
+        UpdateSelection(state, document);
+
         return true;
     }
 }

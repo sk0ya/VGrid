@@ -81,6 +81,7 @@ public class NormalMode : IVimMode
             Key.Oem1 => StartExCommand(state), // ':' key
 
             // File movement
+            Key.G when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastLine(state, document),
             Key.G when state.PendingKeys.Keys.LastOrDefault() == Key.G => MoveToFirstLine(state),
             Key.G when state.PendingKeys.Keys.Count == 0 => HandlePendingG(state),
 
@@ -259,6 +260,32 @@ public class NormalMode : IVimMode
     {
         state.CursorPosition = state.CursorPosition.MoveToFirstRow();
         state.PendingKeys.Clear();
+        return true;
+    }
+
+    private bool MoveToLastLine(VimState state, TsvDocument document)
+    {
+        // Move to the last row that has content (non-empty cells)
+        if (document.RowCount == 0)
+            return true;
+
+        // Search backwards from the last row to find a row with content
+        int lastNonEmptyRow = -1;
+        for (int row = document.RowCount - 1; row >= 0; row--)
+        {
+            var rowObj = document.Rows[row];
+            bool hasContent = rowObj.Cells.Any(cell => !string.IsNullOrEmpty(cell.Value));
+            if (hasContent)
+            {
+                lastNonEmptyRow = row;
+                break;
+            }
+        }
+
+        // If found a row with content, move there; otherwise move to first row
+        int targetRow = lastNonEmptyRow >= 0 ? lastNonEmptyRow : 0;
+        state.CursorPosition = new GridPosition(targetRow, state.CursorPosition.Column).Clamp(document);
+
         return true;
     }
 

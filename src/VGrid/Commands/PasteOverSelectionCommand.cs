@@ -37,10 +37,34 @@ public class PasteOverSelectionCommand : ICommand
         // For character-wise selection, paste over each cell in the selection
         if (_selection.Type == VisualType.Character)
         {
-            // Iterate through all cells in the selection
-            for (int r = 0; r < _selection.RowCount; r++)
+            // Calculate the actual paste range:
+            // - If selection is larger than content, repeat the content to fill selection
+            // - If content is larger than selection, expand paste area to fit content dimensions
+            // For example: 1x3 content into 3x1 selection should create a 3x3 paste area
+            int pasteRowCount = Math.Max(_selection.RowCount, _content.Rows);
+            int pasteColCount = Math.Max(_selection.ColumnCount, _content.Columns);
+
+            // If selection is narrower than content, expand to content width
+            // If selection is taller than content, use selection height
+            if (_selection.RowCount > 1 && _selection.ColumnCount == 1 && _content.Columns > 1)
             {
-                for (int c = 0; c < _selection.ColumnCount; c++)
+                // Special case: vertical selection (Nx1) with horizontal content (1xM)
+                // Paste content to each row: create NxM area
+                pasteRowCount = _selection.RowCount;
+                pasteColCount = _content.Columns;
+            }
+            else if (_selection.RowCount == 1 && _selection.ColumnCount > 1 && _content.Rows > 1)
+            {
+                // Special case: horizontal selection (1xN) with vertical content (Mx1)
+                // Paste content to each column: create MxN area
+                pasteRowCount = _content.Rows;
+                pasteColCount = _selection.ColumnCount;
+            }
+
+            // Iterate through the calculated paste area
+            for (int r = 0; r < pasteRowCount; r++)
+            {
+                for (int c = 0; c < pasteColCount; c++)
                 {
                     int targetRow = _selection.StartRow + r;
                     int targetCol = _selection.StartColumn + c;

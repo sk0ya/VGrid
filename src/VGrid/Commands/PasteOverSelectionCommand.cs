@@ -13,8 +13,14 @@ public class PasteOverSelectionCommand : ICommand
     private readonly VimEngine.SelectionRange _selection;
     private readonly YankedContent _content;
     private readonly List<(GridPosition Position, string OldValue)> _oldCellValues = new();
+    private readonly HashSet<int> _affectedColumns = new();
 
     public string Description => $"Paste over selection at ({_selection.StartRow}, {_selection.StartColumn})";
+
+    /// <summary>
+    /// Gets the column indices that were affected by the paste operation
+    /// </summary>
+    public IEnumerable<int> AffectedColumns => _affectedColumns;
 
     public PasteOverSelectionCommand(TsvDocument document, VimEngine.SelectionRange selection, YankedContent content)
     {
@@ -26,6 +32,7 @@ public class PasteOverSelectionCommand : ICommand
     public void Execute()
     {
         _oldCellValues.Clear();
+        _affectedColumns.Clear();
 
         // For character-wise selection, paste over each cell in the selection
         if (_selection.Type == VisualType.Character)
@@ -49,6 +56,7 @@ public class PasteOverSelectionCommand : ICommand
                         int yankRow = r % _content.Rows;
                         int yankCol = c % _content.Columns;
                         cell.Value = _content.Values[yankRow, yankCol];
+                        _affectedColumns.Add(targetCol);
                     }
                 }
             }
@@ -74,6 +82,7 @@ public class PasteOverSelectionCommand : ICommand
                     int yankRow = r % _content.Rows;
                     int yankCol = c % _content.Columns;
                     cell.Value = _content.Values[yankRow, yankCol];
+                    _affectedColumns.Add(c);
                 }
             }
         }
@@ -83,6 +92,7 @@ public class PasteOverSelectionCommand : ICommand
             for (int c = 0; c < _selection.ColumnCount; c++)
             {
                 int targetCol = _selection.StartColumn + c;
+                _affectedColumns.Add(targetCol);
 
                 for (int r = 0; r < _document.RowCount; r++)
                 {

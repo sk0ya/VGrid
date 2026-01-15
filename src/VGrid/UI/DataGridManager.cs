@@ -26,8 +26,8 @@ public class DataGridManager
     private GridPosition? _dragStartPosition = null;
 
     // Store event handlers for each DataGrid to allow proper cleanup
-    private readonly Dictionary<DataGrid, (TabItemViewModel tab, PropertyChangedEventHandler vimStateHandler, PropertyChangedEventHandler documentHandler)> _dataGridHandlers
-        = new Dictionary<DataGrid, (TabItemViewModel, PropertyChangedEventHandler, PropertyChangedEventHandler)>();
+    private readonly Dictionary<DataGrid, (TabItemViewModel tab, PropertyChangedEventHandler vimStateHandler, PropertyChangedEventHandler documentHandler, EventHandler<IEnumerable<int>> columnWidthHandler)> _dataGridHandlers
+        = new Dictionary<DataGrid, (TabItemViewModel, PropertyChangedEventHandler, PropertyChangedEventHandler, EventHandler<IEnumerable<int>>)>();
 
     public DataGridManager(MainViewModel viewModel)
     {
@@ -167,6 +167,21 @@ public class DataGridManager
         if (columnIndex < grid.Columns.Count && grid.Columns[columnIndex] is DataGridTextColumn column)
         {
             column.Width = new DataGridLength(width, DataGridLengthUnitType.Pixel);
+        }
+    }
+
+    /// <summary>
+    /// Auto-fits the specified columns for the given DataGrid and tab
+    /// Called after paste operations to adjust column widths
+    /// </summary>
+    public void AutoFitColumns(DataGrid grid, TabItemViewModel tab, IEnumerable<int> columnIndices)
+    {
+        if (grid == null || tab == null || columnIndices == null)
+            return;
+
+        foreach (var columnIndex in columnIndices)
+        {
+            AutoFitColumn(grid, tab, columnIndex);
         }
     }
 
@@ -794,6 +809,7 @@ public class DataGridManager
 
             existingInfo.tab.VimState.PropertyChanged -= existingInfo.vimStateHandler;
             existingInfo.tab.Document.PropertyChanged -= existingInfo.documentHandler;
+            existingInfo.tab.VimState.ColumnWidthUpdateRequested -= existingInfo.columnWidthHandler;
             _dataGridHandlers.Remove(dataGrid);
         }
 
@@ -823,10 +839,19 @@ public class DataGridManager
                 }
             };
 
+            EventHandler<IEnumerable<int>> columnWidthHandler = (s, columnIndices) =>
+            {
+                if (newTab == _viewModel?.SelectedTab)
+                {
+                    AutoFitColumns(dataGrid, newTab, columnIndices);
+                }
+            };
+
             newTab.VimState.PropertyChanged += vimStateHandler;
             newTab.Document.PropertyChanged += documentHandler;
+            newTab.VimState.ColumnWidthUpdateRequested += columnWidthHandler;
 
-            _dataGridHandlers[dataGrid] = (newTab, vimStateHandler, documentHandler);
+            _dataGridHandlers[dataGrid] = (newTab, vimStateHandler, documentHandler, columnWidthHandler);
         }
     }
 

@@ -841,6 +841,12 @@ public class VisualMode : IVimMode
             pasteCommand.Execute();
         }
 
+        // Trigger column width update for affected columns
+        if (pasteCommand.AffectedColumns.Any())
+        {
+            state.OnColumnWidthUpdateRequested(pasteCommand.AffectedColumns);
+        }
+
         // Move cursor to the start of the selection
         state.CursorPosition = new GridPosition(selection.StartRow, selection.StartColumn);
 

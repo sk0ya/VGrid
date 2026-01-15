@@ -383,6 +383,12 @@ public class NormalMode : IVimMode
             command.Execute();
         }
 
+        // Trigger column width update for affected columns
+        if (command.AffectedColumns.Any())
+        {
+            state.OnColumnWidthUpdateRequested(command.AffectedColumns);
+        }
+
         // Move cursor based on paste type
         if (yank.SourceType == VisualType.Line)
         {

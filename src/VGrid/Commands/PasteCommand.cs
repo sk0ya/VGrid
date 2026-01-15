@@ -20,8 +20,14 @@ public class PasteCommand : ICommand
     private readonly List<int> _insertedColumnIndices = new();
     private readonly int _originalRowCount;
     private readonly int _originalColumnCount;
+    private readonly HashSet<int> _affectedColumns = new();
 
     public string Description => $"Paste {_pasteType} at ({_startPosition.Row}, {_startPosition.Column})";
+
+    /// <summary>
+    /// Gets the column indices that were affected by the paste operation
+    /// </summary>
+    public IEnumerable<int> AffectedColumns => _affectedColumns;
 
     public PasteCommand(TsvDocument document, GridPosition startPosition, YankedContent content)
     {
@@ -38,6 +44,7 @@ public class PasteCommand : ICommand
         _oldCellValues.Clear();
         _insertedRowIndices.Clear();
         _insertedColumnIndices.Clear();
+        _affectedColumns.Clear();
 
         switch (_pasteType)
         {
@@ -67,6 +74,7 @@ public class PasteCommand : ICommand
             for (int c = 0; c < _content.Columns && c < row.Cells.Count; c++)
             {
                 row.Cells[c].Value = _content.Values[r, c];
+                _affectedColumns.Add(c);
             }
         }
     }
@@ -79,6 +87,7 @@ public class PasteCommand : ICommand
             int insertCol = _startPosition.Column + 1 + c;
             _document.InsertColumn(insertCol);
             _insertedColumnIndices.Add(insertCol);
+            _affectedColumns.Add(insertCol);
 
             // Fill the new column with yanked values
             for (int r = 0; r < _content.Rows && r < _document.RowCount; r++)
@@ -116,6 +125,7 @@ public class PasteCommand : ICommand
 
                     // Paste the new value
                     cell.Value = _content.Values[r, c];
+                    _affectedColumns.Add(targetCol);
                 }
             }
         }

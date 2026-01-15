@@ -578,6 +578,11 @@ public class VimState : INotifyPropertyChanged
     public event EventHandler? YankPerformed;
 
     /// <summary>
+    /// Event raised when column widths should be updated after a paste operation
+    /// </summary>
+    public event EventHandler<IEnumerable<int>>? ColumnWidthUpdateRequested;
+
+    /// <summary>
     /// Raises the SaveRequested event
     /// </summary>
     public void OnSaveRequested()
@@ -608,6 +613,15 @@ public class VimState : INotifyPropertyChanged
     public void OnYankPerformed()
     {
         YankPerformed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Raises the ColumnWidthUpdateRequested event
+    /// </summary>
+    /// <param name="columnIndices">The column indices that need width updates</param>
+    public void OnColumnWidthUpdateRequested(IEnumerable<int> columnIndices)
+    {
+        ColumnWidthUpdateRequested?.Invoke(this, columnIndices);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

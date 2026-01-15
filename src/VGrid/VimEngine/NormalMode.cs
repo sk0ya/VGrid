@@ -95,8 +95,11 @@ public class NormalMode : IVimMode
 
             // Line movement
             Key.D0 when state.CountPrefix == null => MoveToFirstRowFirstColumn(state),
-            Key.OemPeriod when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLineEnd(state, document), // >
             Key.D4 when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLineEnd(state, document), // $ (Shift+4)
+
+            // Tab navigation
+            Key.OemComma when modifiers.HasFlag(ModifierKeys.Shift) => SwitchToPreviousTab(state), // <
+            Key.OemPeriod when modifiers.HasFlag(ModifierKeys.Shift) => SwitchToNextTab(state), // >
 
             // Search
             Key.OemQuestion when !modifiers.HasFlag(ModifierKeys.Shift) => StartSearch(state), // '/' key
@@ -952,6 +955,20 @@ public class NormalMode : IVimMode
         // Set caret position to end of cell
         state.CellEditCaretPosition = CellEditCaretPosition.End;
         state.SwitchMode(VimMode.Insert);
+        return true;
+    }
+
+    private bool SwitchToPreviousTab(VimState state)
+    {
+        // Trigger previous tab operation via VimState event
+        state.OnPreviousTabRequested();
+        return true;
+    }
+
+    private bool SwitchToNextTab(VimState state)
+    {
+        // Trigger next tab operation via VimState event
+        state.OnNextTabRequested();
         return true;
     }
 }

@@ -583,6 +583,16 @@ public class VimState : INotifyPropertyChanged
     public event EventHandler<IEnumerable<int>>? ColumnWidthUpdateRequested;
 
     /// <summary>
+    /// Event raised when switching to the previous tab is requested
+    /// </summary>
+    public event EventHandler? PreviousTabRequested;
+
+    /// <summary>
+    /// Event raised when switching to the next tab is requested
+    /// </summary>
+    public event EventHandler? NextTabRequested;
+
+    /// <summary>
     /// Raises the SaveRequested event
     /// </summary>
     public void OnSaveRequested()
@@ -622,6 +632,22 @@ public class VimState : INotifyPropertyChanged
     public void OnColumnWidthUpdateRequested(IEnumerable<int> columnIndices)
     {
         ColumnWidthUpdateRequested?.Invoke(this, columnIndices);
+    }
+
+    /// <summary>
+    /// Raises the PreviousTabRequested event
+    /// </summary>
+    public void OnPreviousTabRequested()
+    {
+        PreviousTabRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Raises the NextTabRequested event
+    /// </summary>
+    public void OnNextTabRequested()
+    {
+        NextTabRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

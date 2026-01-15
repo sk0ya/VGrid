@@ -233,6 +233,22 @@ public class MainViewModel : ViewModelBase
             System.Diagnostics.Debug.WriteLine($"[MainViewModel] Cleared LastYank in {clearedCount} other tabs");
         };
 
+        vimState.PreviousTabRequested += (s, e) =>
+        {
+            if (tab == SelectedTab)
+            {
+                SwitchToPreviousTab();
+            }
+        };
+
+        vimState.NextTabRequested += (s, e) =>
+        {
+            if (tab == SelectedTab)
+            {
+                SwitchToNextTab();
+            }
+        };
+
         Tabs.Add(tab);
         SelectedTab = tab;
     }
@@ -361,6 +377,22 @@ public class MainViewModel : ViewModelBase
                     }
                 }
                 System.Diagnostics.Debug.WriteLine($"[MainViewModel] Cleared LastYank in {clearedCount} other tabs");
+            };
+
+            vimState.PreviousTabRequested += (s, e) =>
+            {
+                if (tab == SelectedTab)
+                {
+                    SwitchToPreviousTab();
+                }
+            };
+
+            vimState.NextTabRequested += (s, e) =>
+            {
+                if (tab == SelectedTab)
+                {
+                    SwitchToNextTab();
+                }
             };
 
             Tabs.Add(tab);
@@ -771,5 +803,45 @@ public class MainViewModel : ViewModelBase
     {
         // This is handled directly in MainWindow to access the FolderTreeView
         // The command is kept for future extensibility
+    }
+
+    /// <summary>
+    /// Switches to the previous tab
+    /// </summary>
+    private void SwitchToPreviousTab()
+    {
+        if (Tabs.Count <= 1)
+            return;
+
+        int currentIndex = SelectedTab != null ? Tabs.IndexOf(SelectedTab) : -1;
+        if (currentIndex <= 0)
+        {
+            // Wrap around to the last tab
+            SelectedTab = Tabs[Tabs.Count - 1];
+        }
+        else
+        {
+            SelectedTab = Tabs[currentIndex - 1];
+        }
+    }
+
+    /// <summary>
+    /// Switches to the next tab
+    /// </summary>
+    private void SwitchToNextTab()
+    {
+        if (Tabs.Count <= 1)
+            return;
+
+        int currentIndex = SelectedTab != null ? Tabs.IndexOf(SelectedTab) : -1;
+        if (currentIndex < 0 || currentIndex >= Tabs.Count - 1)
+        {
+            // Wrap around to the first tab
+            SelectedTab = Tabs[0];
+        }
+        else
+        {
+            SelectedTab = Tabs[currentIndex + 1];
+        }
     }
 }

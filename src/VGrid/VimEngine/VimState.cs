@@ -64,6 +64,8 @@ public class VimState : INotifyPropertyChanged
     private string _errorMessage = string.Empty;
     private SelectionRange? _pendingBulkEditRange;
     private string _originalCellValueForBulkEdit = string.Empty;
+    private LastChange? _lastChange;
+    private ChangeType _pendingInsertType = ChangeType.None;
 
     // Mode handlers
     private readonly Dictionary<VimMode, IVimMode> _modeHandlers = new();
@@ -422,6 +424,38 @@ public class VimState : INotifyPropertyChanged
             if (_originalCellValueForBulkEdit != value)
             {
                 _originalCellValueForBulkEdit = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The last change operation for dot command replay
+    /// </summary>
+    public LastChange? LastChange
+    {
+        get => _lastChange;
+        set
+        {
+            if (_lastChange != value)
+            {
+                _lastChange = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tracks how we entered insert mode (for dot command)
+    /// </summary>
+    public ChangeType PendingInsertType
+    {
+        get => _pendingInsertType;
+        set
+        {
+            if (_pendingInsertType != value)
+            {
+                _pendingInsertType = value;
                 OnPropertyChanged();
             }
         }

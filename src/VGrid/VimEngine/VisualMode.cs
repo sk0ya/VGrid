@@ -371,6 +371,14 @@ public class VisualMode : IVimMode
             command.Execute();
         }
 
+        // Record the change for dot command
+        state.LastChange = new LastChange
+        {
+            Type = ChangeType.VisualDelete,
+            Count = 1,
+            BulkEditRange = new SelectionRange(selection.Type, selection.Start, selection.End)
+        };
+
         // Return to normal mode after delete
         state.SwitchMode(VimMode.Normal);
         return true;
@@ -452,6 +460,14 @@ public class VisualMode : IVimMode
         {
             state.CursorPosition = new GridPosition(document.RowCount - 1, state.CursorPosition.Column);
         }
+
+        // Record the change for dot command
+        state.LastChange = new LastChange
+        {
+            Type = ChangeType.VisualDelete,
+            Count = 1,
+            BulkEditRange = new SelectionRange(selection.Type, selection.Start, selection.End)
+        };
 
         // Return to normal mode after delete
         state.SwitchMode(VimMode.Normal);
@@ -717,6 +733,14 @@ public class VisualMode : IVimMode
         {
             state.CursorPosition = new GridPosition(state.CursorPosition.Row, document.ColumnCount - 1);
         }
+
+        // Record the change for dot command
+        state.LastChange = new LastChange
+        {
+            Type = ChangeType.VisualDelete,
+            Count = 1,
+            BulkEditRange = new SelectionRange(selection.Type, selection.Start, selection.End)
+        };
 
         // Return to normal mode after delete
         state.SwitchMode(VimMode.Normal);

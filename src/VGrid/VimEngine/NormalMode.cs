@@ -101,6 +101,9 @@ public class NormalMode : IVimMode
             Key.OemComma when modifiers.HasFlag(ModifierKeys.Shift) => SwitchToPreviousTab(state), // <
             Key.OemPeriod when modifiers.HasFlag(ModifierKeys.Shift) => SwitchToNextTab(state), // >
 
+            // Dot command (repeat last change)
+            Key.OemPeriod when !modifiers.HasFlag(ModifierKeys.Shift) => RepeatLastChange(state, document, count),
+
             // Search
             Key.OemQuestion when !modifiers.HasFlag(ModifierKeys.Shift) => StartSearch(state), // '/' key
             Key.N when modifiers.HasFlag(ModifierKeys.Shift) => NavigateToNextMatch(state, false), // 'N'
@@ -328,6 +331,7 @@ public class NormalMode : IVimMode
     {
         // Set caret position to start of cell when entering insert mode with 'i'
         state.CellEditCaretPosition = CellEditCaretPosition.Start;
+        state.PendingInsertType = ChangeType.Insert;
         state.SwitchMode(VimMode.Insert);
         return true;
     }
@@ -336,6 +340,7 @@ public class NormalMode : IVimMode
     {
         // Set caret position to end of cell when entering insert mode with 'a'
         state.CellEditCaretPosition = CellEditCaretPosition.End;
+        state.PendingInsertType = ChangeType.InsertAfter;
         state.SwitchMode(VimMode.Insert);
         return true;
     }
@@ -357,6 +362,7 @@ public class NormalMode : IVimMode
         }
 
         state.CursorPosition = new GridPosition(insertRow, 0);
+        state.PendingInsertType = ChangeType.InsertLineBelow;
         state.SwitchMode(VimMode.Insert);
         return true;
     }
@@ -378,6 +384,7 @@ public class NormalMode : IVimMode
         }
 
         state.CursorPosition = new GridPosition(insertRow, 0);
+        state.PendingInsertType = ChangeType.InsertLineAbove;
         state.SwitchMode(VimMode.Insert);
         return true;
     }
@@ -425,6 +432,15 @@ public class NormalMode : IVimMode
 
         var startPos = state.CursorPosition;
 
+        // Snapshot the yank content for dot command replay
+        var yankSnapshot = new YankedContent
+        {
+            Values = (string[,])yank.Values.Clone(),
+            SourceType = yank.SourceType,
+            Rows = yank.Rows,
+            Columns = yank.Columns
+        };
+
         // Create and execute paste command (paste after: pasteBefore = false)
         var command = new Commands.PasteCommand(document, startPos, yank, pasteBefore: false);
 
@@ -456,6 +472,15 @@ public class NormalMode : IVimMode
             state.CursorPosition = new GridPosition(startPos.Row, startPos.Column + 1);
         }
 
+        // Record the change for dot command
+        state.LastChange = new LastChange
+        {
+            Type = ChangeType.PasteAfter,
+            Count = state.CountPrefix ?? 1,
+            PastedContent = yankSnapshot,
+            PasteBefore = false
+        };
+
         return true;
     }
 
@@ -468,6 +493,15 @@ public class NormalMode : IVimMode
             return true; // Key is handled, but nothing to paste
 
         var startPos = state.CursorPosition;
+
+        // Snapshot the yank content for dot command replay
+        var yankSnapshot = new YankedContent
+        {
+            Values = (string[,])yank.Values.Clone(),
+            SourceType = yank.SourceType,
+            Rows = yank.Rows,
+            Columns = yank.Columns
+        };
 
         // For character paste, move cursor left before pasting
         if (yank.SourceType == VisualType.Character)
@@ -508,6 +542,15 @@ public class NormalMode : IVimMode
             // Move cursor to the first inserted column (same as current position since we inserted to the left)
             state.CursorPosition = new GridPosition(startPos.Row, startPos.Column);
         }
+
+        // Record the change for dot command
+        state.LastChange = new LastChange
+        {
+            Type = ChangeType.PasteBefore,
+            Count = state.CountPrefix ?? 1,
+            PastedContent = yankSnapshot,
+            PasteBefore = true
+        };
 
         return true;
     }
@@ -622,6 +665,13 @@ public class NormalMode : IVimMode
         {
             state.CursorPosition = new GridPosition(document.RowCount - 1, state.CursorPosition.Column);
         }
+
+        // Record the change for dot command
+        state.LastChange = new LastChange
+        {
+            Type = ChangeType.DeleteRow,
+            Count = state.CountPrefix ?? 1
+        };
 
         // Clear pending keys
         state.PendingKeys.Clear();
@@ -762,6 +812,13 @@ public class NormalMode : IVimMode
             command.Execute();
         }
 
+        // Record the change for dot command
+        state.LastChange = new LastChange
+        {
+            Type = ChangeType.DeleteWord,
+            Count = state.CountPrefix ?? 1
+        };
+
         state.PendingKeys.Clear();
         return true;
     }
@@ -845,6 +902,13 @@ public class NormalMode : IVimMode
         {
             command.Execute();
         }
+
+        // Record the change for dot command
+        state.LastChange = new LastChange
+        {
+            Type = ChangeType.DeleteCell,
+            Count = state.CountPrefix ?? 1
+        };
 
         return true;
     }
@@ -969,6 +1033,127 @@ public class NormalMode : IVimMode
     {
         // Trigger next tab operation via VimState event
         state.OnNextTabRequested();
+        return true;
+    }
+
+    /// <summary>
+    /// Repeats the last change operation (dot command)
+    /// </summary>
+    private bool RepeatLastChange(VimState state, TsvDocument document, int repeatCount)
+    {
+        if (state.LastChange == null || state.LastChange.Type == ChangeType.None)
+        {
+            return true;  // No change to repeat
+        }
+
+        var change = state.LastChange;
+
+        // Multiply the original count by the repeat count
+        // Original: 3dd (delete 3 lines)
+        // Replay: 2. (repeat twice: delete 2×3=6 lines)
+        int effectiveCount = change.Count * repeatCount;
+
+        switch (change.Type)
+        {
+            case ChangeType.DeleteCell:
+                return RepeatDeleteCell(state, document, effectiveCount);
+
+            case ChangeType.DeleteRow:
+                return RepeatDeleteRow(state, document, effectiveCount);
+
+            case ChangeType.DeleteWord:
+                return RepeatDeleteWord(state, document, effectiveCount);
+
+            case ChangeType.PasteAfter:
+            case ChangeType.PasteBefore:
+                return RepeatPaste(state, document, change, effectiveCount);
+
+            default:
+                return true;
+        }
+    }
+
+    private bool RepeatDeleteCell(VimState state, TsvDocument document, int count)
+    {
+        // Repeat delete cell 'count' times
+        for (int i = 0; i < count; i++)
+        {
+            if (state.CursorPosition.Row >= document.RowCount)
+                break;
+
+            DeleteCurrentCell(state, document);
+        }
+
+        return true;
+    }
+
+    private bool RepeatDeleteRow(VimState state, TsvDocument document, int count)
+    {
+        // Delete 'count' rows starting from current position
+        for (int i = 0; i < count; i++)
+        {
+            if (state.CursorPosition.Row >= document.RowCount)
+                break;
+
+            // Store the count prefix temporarily
+            var oldCountPrefix = state.CountPrefix;
+            state.CountPrefix = 1;  // Delete one row at a time
+
+            DeleteLine(state, document);
+
+            // Restore original count prefix
+            state.CountPrefix = oldCountPrefix;
+        }
+
+        return true;
+    }
+
+    private bool RepeatDeleteWord(VimState state, TsvDocument document, int count)
+    {
+        // Repeat delete word 'count' times
+        for (int i = 0; i < count; i++)
+        {
+            if (state.CursorPosition.Row >= document.RowCount)
+                break;
+
+            DeleteWord(state, document);
+        }
+
+        return true;
+    }
+
+    private bool RepeatPaste(VimState state, TsvDocument document, LastChange change, int count)
+    {
+        if (change.PastedContent == null)
+            return true;
+
+        // Temporarily set LastYank to the saved content
+        var previousYank = state.LastYank;
+        state.LastYank = change.PastedContent;
+
+        // Store the count prefix temporarily
+        var oldCountPrefix = state.CountPrefix;
+        state.CountPrefix = 1;  // Paste one at a time
+
+        // Perform paste 'count' times
+        for (int i = 0; i < count; i++)
+        {
+            if (change.PasteBefore)
+            {
+                PasteBeforeCursor(state, document);
+            }
+            else
+            {
+                PasteAfterCursor(state, document);
+            }
+        }
+
+        // Restore original count prefix
+        state.CountPrefix = oldCountPrefix;
+
+        // Restore previous yank
+        state.LastYank = previousYank;
+
         return true;
     }
 }

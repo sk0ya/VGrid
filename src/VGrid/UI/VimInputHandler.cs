@@ -85,8 +85,8 @@ public class VimInputHandler
             return;
         }
 
-        // Handle Ctrl+Shift++ to insert current date (Excel-like shortcut on Japanese keyboard, works in Normal and Visual modes)
-        if (e.Key == Key.OemPlus && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+        // Handle Ctrl++ to insert current date (Excel-like shortcut on Japanese keyboard, works in Normal and Visual modes)
+        if (e.Key == Key.OemPlus && Keyboard.Modifiers == ModifierKeys.Control)
         {
             var tab = _viewModel.SelectedTab;
             if (tab != null)

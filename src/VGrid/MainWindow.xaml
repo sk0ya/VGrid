@@ -14,6 +14,8 @@
         <converters:ModeToColorConverter x:Key="ModeToColorConverter"/>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        <converters:RowIndexToBrushConverter x:Key="RowIndexToBrushConverter"/>
+        <converters:ColumnIndexToBrushConverter x:Key="ColumnIndexToBrushConverter"/>
 
         <!-- Excel-like DataGrid Style -->
         <Style x:Key="ExcelDataGridStyle" TargetType="DataGrid">
@@ -29,7 +31,14 @@
 
         <!-- Excel-like Column Header Style -->
         <Style x:Key="ExcelColumnHeaderStyle" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#F0F0F0"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <MultiBinding Converter="{StaticResource ColumnIndexToBrushConverter}">
+                        <Binding Path="Column.DisplayIndex" RelativeSource="{RelativeSource Self}"/>
+                        <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.VimState.CursorPosition.Column"/>
+                    </MultiBinding>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderBrush" Value="#BEBEBE"/>
@@ -42,7 +51,14 @@
 
         <!-- Excel-like Row Header Style -->
         <Style x:Key="ExcelRowHeaderStyle" TargetType="DataGridRowHeader">
-            <Setter Property="Background" Value="#F0F0F0"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <MultiBinding Converter="{StaticResource RowIndexToBrushConverter}">
+                        <Binding RelativeSource="{RelativeSource AncestorType=DataGridRow}" Path="AlternationIndex"/>
+                        <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.VimState.CursorPosition.Row"/>
+                    </MultiBinding>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderBrush" Value="#BEBEBE"/>
@@ -340,6 +356,7 @@
                             <Border BorderBrush="Gray" BorderThickness="0" Margin="0">
                                 <DataGrid x:Name="TsvGrid"
                                           ItemsSource="{Binding GridViewModel.Rows}"
+                                          AlternationCount="999999"
                                           AutoGenerateColumns="False"
                                           CanUserAddRows="False"
                                           CanUserDeleteRows="False"

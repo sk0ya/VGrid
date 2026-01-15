@@ -116,6 +116,7 @@ public class NormalMode : IVimMode
 
             // File movement
             Key.G when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastLine(state, document),
+            Key.G when state.CountPrefix.HasValue => MoveToSpecificLine(state, document, state.CountPrefix.Value),
             Key.G when state.PendingKeys.Keys.LastOrDefault() == Key.G => MoveToFirstLine(state),
             Key.G when state.PendingKeys.Keys.Count == 0 => HandlePendingG(state),
 
@@ -315,6 +316,23 @@ public class NormalMode : IVimMode
 
         // If found a row with content, move there; otherwise move to first row
         int targetRow = lastNonEmptyRow >= 0 ? lastNonEmptyRow : 0;
+        state.CursorPosition = new GridPosition(targetRow, state.CursorPosition.Column).Clamp(document);
+
+        return true;
+    }
+
+    private bool MoveToSpecificLine(VimState state, TsvDocument document, int lineNumber)
+    {
+        // Move to a specific line number (1-based)
+        // Vim uses 1-based line numbers, so convert to 0-based index
+        int targetRow = lineNumber - 1;
+
+        // Clamp to valid range (0 to RowCount-1)
+        if (targetRow < 0)
+            targetRow = 0;
+        else if (targetRow >= document.RowCount)
+            targetRow = document.RowCount - 1;
+
         state.CursorPosition = new GridPosition(targetRow, state.CursorPosition.Column).Clamp(document);
 
         return true;

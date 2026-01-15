@@ -351,6 +351,7 @@ public class NormalMode : IVimMode
     {
         // Insert a new row below the current row using command for undo support
         int insertRow = state.CursorPosition.Row + 1;
+        int currentColumn = state.CursorPosition.Column;
         var command = new Commands.InsertRowCommand(document, insertRow);
 
         // Execute through command history if available
@@ -363,7 +364,7 @@ public class NormalMode : IVimMode
             command.Execute();
         }
 
-        state.CursorPosition = new GridPosition(insertRow, 0);
+        state.CursorPosition = new GridPosition(insertRow, currentColumn);
         state.PendingInsertType = ChangeType.InsertLineBelow;
         state.InsertModeStartPosition = state.CursorPosition;
         state.SwitchMode(VimMode.Insert);
@@ -374,6 +375,7 @@ public class NormalMode : IVimMode
     {
         // Insert a new row above the current row using command for undo support
         int insertRow = state.CursorPosition.Row;
+        int currentColumn = state.CursorPosition.Column;
         var command = new Commands.InsertRowCommand(document, insertRow);
 
         // Execute through command history if available
@@ -386,7 +388,7 @@ public class NormalMode : IVimMode
             command.Execute();
         }
 
-        state.CursorPosition = new GridPosition(insertRow, 0);
+        state.CursorPosition = new GridPosition(insertRow, currentColumn);
         state.PendingInsertType = ChangeType.InsertLineAbove;
         state.InsertModeStartPosition = state.CursorPosition;
         state.SwitchMode(VimMode.Insert);
@@ -1238,9 +1240,9 @@ public class NormalMode : IVimMode
                 insertRowCommand.Execute();
             }
 
-            // Set the first cell value to the inserted text
+            // Set the cell value at current column to the inserted text
             var editCommand = new Commands.EditCellCommand(document,
-                new GridPosition(insertRow, 0), change.InsertedText);
+                new GridPosition(insertRow, currentPos.Column), change.InsertedText);
 
             if (state.CommandHistory != null)
             {
@@ -1254,7 +1256,7 @@ public class NormalMode : IVimMode
             // Update cursor position to the last inserted row
             if (i == count - 1)
             {
-                state.CursorPosition = new GridPosition(insertRow, 0);
+                state.CursorPosition = new GridPosition(insertRow, currentPos.Column);
             }
         }
 

@@ -30,9 +30,9 @@ public class NormalModeInsertLineTests
         // Assert - should insert row above (at index 1)
         Assert.Equal(3, document.RowCount);
 
-        // Assert - cursor should be on the new row (row 1, col 0)
+        // Assert - cursor should be on the new row (row 1, col 1) - maintains column
         Assert.Equal(1, state.CursorPosition.Row);
-        Assert.Equal(0, state.CursorPosition.Column);
+        Assert.Equal(1, state.CursorPosition.Column);
 
         // Assert - should be in Insert mode
         Assert.Equal(VimMode.Insert, state.CurrentMode);
@@ -65,9 +65,9 @@ public class NormalModeInsertLineTests
         // Assert - should insert row below (at index 1)
         Assert.Equal(3, document.RowCount);
 
-        // Assert - cursor should be on the new row (row 1, col 0)
+        // Assert - cursor should be on the new row (row 1, col 1) - maintains column
         Assert.Equal(1, state.CursorPosition.Row);
-        Assert.Equal(0, state.CursorPosition.Column);
+        Assert.Equal(1, state.CursorPosition.Column);
 
         // Assert - should be in Insert mode
         Assert.Equal(VimMode.Insert, state.CurrentMode);
@@ -128,9 +128,9 @@ public class NormalModeInsertLineTests
         // Assert - should insert row after last row (at index 2)
         Assert.Equal(3, document.RowCount);
 
-        // Assert - cursor should be on the new row (row 2, col 0)
+        // Assert - cursor should be on the new row (row 2, col 2) - maintains column
         Assert.Equal(2, state.CursorPosition.Row);
-        Assert.Equal(0, state.CursorPosition.Column);
+        Assert.Equal(2, state.CursorPosition.Column);
 
         // Assert - should be in Insert mode
         Assert.Equal(VimMode.Insert, state.CurrentMode);

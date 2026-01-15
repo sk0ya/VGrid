@@ -389,17 +389,18 @@ public class GitChangesViewModel : ViewModelBase, IDisposable
                 return;
             }
 
+            // Get relative path for the selected file
+            var relativePath = Path.GetRelativePath(repoRoot, file.FilePath).Replace('\\', '/');
+
             // Create DiffViewerViewModel with HEAD vs Working Directory
+            // Pass the selected file as the initial selection
             var diffViewModel = new DiffViewerViewModel(
                 repoRoot,
                 "HEAD",  // Compare with HEAD commit
                 null,    // vs Working Directory
-                _gitService
+                _gitService,
+                relativePath  // Initial selected file
             );
-
-            // Get relative path and set as selected file
-            var relativePath = Path.GetRelativePath(repoRoot, file.FilePath).Replace('\\', '/');
-            diffViewModel.SelectedFile = relativePath;
 
             // Show diff viewer window
             var diffWindow = new Views.DiffViewerWindow(diffViewModel)

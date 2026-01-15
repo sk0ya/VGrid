@@ -18,6 +18,7 @@ public class DiffViewerViewModel : ViewModelBase
     private readonly string _repoRoot;
     private readonly string? _commit1Hash;
     private readonly string? _commit2Hash;
+    private readonly string? _initialSelectedFile;
 
     private string? _selectedFile;
 
@@ -25,12 +26,14 @@ public class DiffViewerViewModel : ViewModelBase
         string repoRoot,
         string? commit1Hash,
         string? commit2Hash,
-        IGitService gitService)
+        IGitService gitService,
+        string? initialSelectedFile = null)
     {
         _repoRoot = repoRoot;
         _commit1Hash = commit1Hash;
         _commit2Hash = commit2Hash;
         _gitService = gitService;
+        _initialSelectedFile = initialSelectedFile;
 
         ChangedFiles = new ObservableCollection<string>();
         LeftRows = new ObservableCollection<DiffRow>();
@@ -124,15 +127,38 @@ public class DiffViewerViewModel : ViewModelBase
             ChangedFiles.Add(file);
         }
 
-        // Auto-select first TSV file if exists
-        var firstTsv = files.FirstOrDefault(f =>
-            f.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase) ||
-            f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
-            f.EndsWith(".tab", StringComparison.OrdinalIgnoreCase));
+        // Determine which file to select
+        string? fileToSelect = null;
 
-        if (firstTsv != null)
+        // First priority: use initial selected file if specified and exists in changed files
+        if (!string.IsNullOrEmpty(_initialSelectedFile))
         {
-            SelectedFile = firstTsv;
+            // Try exact match first
+            fileToSelect = ChangedFiles.FirstOrDefault(f =>
+                f.Equals(_initialSelectedFile, StringComparison.OrdinalIgnoreCase));
+
+            // If not found, try normalizing path separators
+            if (fileToSelect == null)
+            {
+                var normalizedInitial = _initialSelectedFile.Replace('\\', '/');
+                fileToSelect = ChangedFiles.FirstOrDefault(f =>
+                    f.Replace('\\', '/').Equals(normalizedInitial, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        // If no initial file specified or not found, auto-select first TSV file
+        if (fileToSelect == null)
+        {
+            fileToSelect = ChangedFiles.FirstOrDefault(f =>
+                f.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase) ||
+                f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
+                f.EndsWith(".tab", StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Set the selected file
+        if (fileToSelect != null)
+        {
+            SelectedFile = fileToSelect;
         }
     }
 

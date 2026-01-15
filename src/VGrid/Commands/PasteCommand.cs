@@ -13,6 +13,7 @@ public class PasteCommand : ICommand
     private readonly GridPosition _startPosition;
     private readonly YankedContent _content;
     private readonly VisualType _pasteType;
+    private readonly bool _pasteBefore;
 
     // For undo: store old values and inserted row/column indices
     private readonly List<(GridPosition Position, string OldValue)> _oldCellValues = new();
@@ -22,19 +23,20 @@ public class PasteCommand : ICommand
     private readonly int _originalColumnCount;
     private readonly HashSet<int> _affectedColumns = new();
 
-    public string Description => $"Paste {_pasteType} at ({_startPosition.Row}, {_startPosition.Column})";
+    public string Description => $"Paste {_pasteType} {(_pasteBefore ? "before" : "after")} ({_startPosition.Row}, {_startPosition.Column})";
 
     /// <summary>
     /// Gets the column indices that were affected by the paste operation
     /// </summary>
     public IEnumerable<int> AffectedColumns => _affectedColumns;
 
-    public PasteCommand(TsvDocument document, GridPosition startPosition, YankedContent content)
+    public PasteCommand(TsvDocument document, GridPosition startPosition, YankedContent content, bool pasteBefore = false)
     {
         _document = document;
         _startPosition = startPosition;
         _content = content;
         _pasteType = content.SourceType;
+        _pasteBefore = pasteBefore;
         _originalRowCount = document.RowCount;
         _originalColumnCount = document.ColumnCount;
     }
@@ -62,10 +64,11 @@ public class PasteCommand : ICommand
 
     private void ExecuteLinePaste()
     {
-        // Insert new rows below the current row
+        // Insert new rows below (p) or above (P) the current row
+        int insertOffset = _pasteBefore ? 0 : 1;
         for (int r = 0; r < _content.Rows; r++)
         {
-            int insertRow = _startPosition.Row + 1 + r;
+            int insertRow = _startPosition.Row + insertOffset + r;
             _document.InsertRow(insertRow);
             _insertedRowIndices.Add(insertRow);
 
@@ -81,10 +84,11 @@ public class PasteCommand : ICommand
 
     private void ExecuteBlockPaste()
     {
-        // Insert new columns to the right of the current column
+        // Insert new columns to the right (p) or left (P) of the current column
+        int insertOffset = _pasteBefore ? 0 : 1;
         for (int c = 0; c < _content.Columns; c++)
         {
-            int insertCol = _startPosition.Column + 1 + c;
+            int insertCol = _startPosition.Column + insertOffset + c;
             _document.InsertColumn(insertCol);
             _insertedColumnIndices.Add(insertCol);
             _affectedColumns.Add(insertCol);
@@ -103,9 +107,13 @@ public class PasteCommand : ICommand
 
     private void ExecuteCharacterPaste()
     {
+        // For character paste, P pastes at current position, p pastes at current position
+        // (Unlike line/block paste where position differs)
+        int columnOffset = _pasteBefore ? 0 : 0; // Both paste at current position for character mode
+
         // Ensure document has enough rows and columns
         int neededRows = _startPosition.Row + _content.Rows;
-        int neededCols = _startPosition.Column + _content.Columns;
+        int neededCols = _startPosition.Column + columnOffset + _content.Columns;
         _document.EnsureSize(neededRows, Math.Max(neededCols, _document.ColumnCount));
 
         // Save old values and paste new values
@@ -114,7 +122,7 @@ public class PasteCommand : ICommand
             for (int c = 0; c < _content.Columns; c++)
             {
                 int targetRow = _startPosition.Row + r;
-                int targetCol = _startPosition.Column + c;
+                int targetCol = _startPosition.Column + columnOffset + c;
 
                 if (targetRow < _document.RowCount && targetCol < _document.Rows[targetRow].Cells.Count)
                 {

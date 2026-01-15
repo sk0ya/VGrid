@@ -104,7 +104,7 @@ The project follows a phased development plan:
 - **Phase 1-9** (✅ Complete): Basic MVVM structure, Vim modes (Normal/Insert/Visual), basic navigation (`hjkl`, `0`, `$`, `gg`), mode switching (`i`, `a`, `o`, `v`, `Esc`), status bar UI
 - **Phase 10-14** (✅ Complete):
   - Delete operations: `dd` (delete line), `x` (delete cell), `diw`/`daw` (delete word/cell)
-  - Yank/paste: `yy` (yank line), `yiw`/`yaw` (yank word/cell), `p` (paste), `Ctrl+C`/`Ctrl+V` (copy/paste)
+  - Yank/paste: `yy` (yank line), `yiw`/`yaw` (yank word/cell), `p` (paste after), `P` (paste before), `Ctrl+C`/`Ctrl+V` (copy/paste)
   - Word movement: `w` (next non-empty cell), `b` (previous non-empty cell)
   - Search: `/pattern` (regex search), `n` (next match), `N` (previous match)
   - Command mode: `:w` (save), `:q` (quit), `:wq`/`:x` (save and quit), `:q!` (force quit)
@@ -120,7 +120,7 @@ The project follows a phased development plan:
 ### Normal Mode Commands
 - **Movement**: `h`, `j`, `k`, `l`, `0`, `H`, `$`, `L`, `gg`, `w`, `b`
 - **Yank**: `yy`, `yiw`, `yaw`, `Ctrl+C`
-- **Paste**: `p`, `Ctrl+V`
+- **Paste**: `p` (paste after), `P` (paste before), `Ctrl+V`
 - **Delete**: `dd`, `x`, `diw`, `daw`
 - **Undo**: `u`
 - **Search**: `/`, `n`, `N`

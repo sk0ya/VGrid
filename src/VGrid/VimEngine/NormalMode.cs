@@ -30,6 +30,34 @@ public class NormalMode : IVimMode
         // Get the count (default to 1 if no prefix)
         int count = state.CountPrefix ?? 1;
 
+        // Handle paste operations (P/p) - must be before switch expression
+        if (key == Key.P)
+        {
+            // Check Shift key state directly for more reliable detection
+            bool isShiftPressed = modifiers.HasFlag(ModifierKeys.Shift);
+
+            // Also check physical Shift key state (only works in UI thread)
+            try
+            {
+                isShiftPressed = isShiftPressed ||
+                                 System.Windows.Input.Keyboard.IsKeyDown(Key.LeftShift) ||
+                                 System.Windows.Input.Keyboard.IsKeyDown(Key.RightShift);
+            }
+            catch
+            {
+                // In non-UI thread (e.g., unit tests), rely on modifiers parameter only
+            }
+
+            if (isShiftPressed)
+            {
+                return PasteBeforeCursor(state, document);
+            }
+            else
+            {
+                return PasteAfterCursor(state, document);
+            }
+        }
+
         // Handle Ctrl+C to copy current cell
         if (key == Key.C && modifiers.HasFlag(ModifierKeys.Control))
         {
@@ -113,9 +141,6 @@ public class NormalMode : IVimMode
 
             // Escape (should stay in normal mode, but clear state)
             Key.Escape => ClearState(state),
-
-            // Paste operation
-            Key.P => PasteAfterCursor(state, document),
 
             // Delete operations
             Key.D when state.PendingKeys.Keys.LastOrDefault() == Key.D => DeleteLine(state, document),
@@ -397,8 +422,8 @@ public class NormalMode : IVimMode
 
         var startPos = state.CursorPosition;
 
-        // Create and execute paste command
-        var command = new Commands.PasteCommand(document, startPos, yank);
+        // Create and execute paste command (paste after: pasteBefore = false)
+        var command = new Commands.PasteCommand(document, startPos, yank, pasteBefore: false);
 
         // Execute through command history if available
         if (state.CommandHistory != null)
@@ -426,6 +451,59 @@ public class NormalMode : IVimMode
         {
             // Move cursor to the first inserted column
             state.CursorPosition = new GridPosition(startPos.Row, startPos.Column + 1);
+        }
+
+        return true;
+    }
+
+    private bool PasteBeforeCursor(VimState state, TsvDocument document)
+    {
+        // Try to use LastYank, or fallback to clipboard
+        var yank = state.LastYank ?? ClipboardHelper.ReadFromClipboard();
+
+        if (yank == null)
+            return true; // Key is handled, but nothing to paste
+
+        var startPos = state.CursorPosition;
+
+        // For character paste, move cursor left before pasting
+        if (yank.SourceType == VisualType.Character)
+        {
+            // Move cursor one cell to the left
+            var newPos = startPos.MoveLeft(1).Clamp(document);
+            state.CursorPosition = newPos;
+            startPos = newPos;
+        }
+
+        // Create and execute paste command (paste before: pasteBefore = true)
+        var command = new Commands.PasteCommand(document, startPos, yank, pasteBefore: true);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        // Trigger column width update for affected columns
+        if (command.AffectedColumns.Any())
+        {
+            state.OnColumnWidthUpdateRequested(command.AffectedColumns);
+        }
+
+        // Move cursor based on paste type
+        if (yank.SourceType == VisualType.Line)
+        {
+            // Move cursor to the first inserted row (same as current position since we inserted above)
+            state.CursorPosition = new GridPosition(startPos.Row, startPos.Column);
+        }
+        else if (yank.SourceType == VisualType.Block)
+        {
+            // Move cursor to the first inserted column (same as current position since we inserted to the left)
+            state.CursorPosition = new GridPosition(startPos.Row, startPos.Column);
         }
 
         return true;

@@ -129,6 +129,96 @@ public class UndoRedoTests
     }
 
     [Fact]
+    public void PasteBefore_InsertsAboveCurrentRow()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+
+        var yank = new YankedContent
+        {
+            SourceType = VisualType.Line,
+            Values = new string[,] { { "X", "Y", "Z" } },
+            Rows = 1,
+            Columns = 3
+        };
+
+        var command = new PasteCommand(document, new GridPosition(0, 0), yank, pasteBefore: true);
+
+        // Act - Paste before (line-wise paste inserts above)
+        command.Execute();
+
+        // Assert - Row was inserted above
+        Assert.Equal(2, document.RowCount);
+        Assert.Equal("X", document.Rows[0].Cells[0].Value);
+        Assert.Equal("A", document.Rows[1].Cells[0].Value);
+    }
+
+    [Fact]
+    public void PasteBeforeBlock_InsertsLeftOfCurrentColumn()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+
+        var yank = new YankedContent
+        {
+            SourceType = VisualType.Block,
+            Values = new string[,] { { "X" } },
+            Rows = 1,
+            Columns = 1
+        };
+
+        var command = new PasteCommand(document, new GridPosition(0, 1), yank, pasteBefore: true);
+
+        // Act - Paste before (block-wise paste inserts to the left)
+        command.Execute();
+
+        // Assert - Column was inserted to the left
+        Assert.Equal(4, document.ColumnCount);
+        Assert.Equal("A", document.Rows[0].Cells[0].Value);
+        Assert.Equal("X", document.Rows[0].Cells[1].Value);
+        Assert.Equal("B", document.Rows[0].Cells[2].Value);
+        Assert.Equal("C", document.Rows[0].Cells[3].Value);
+    }
+
+    [Fact]
+    public void PasteBefore_CanUndo()
+    {
+        // Arrange
+        var document = new TsvDocument();
+        var row1 = new Row(0, new[] { "A", "B", "C" });
+        document.Rows.Add(row1);
+
+        var commandHistory = new CommandHistory();
+        var yank = new YankedContent
+        {
+            SourceType = VisualType.Line,
+            Values = new string[,] { { "X", "Y", "Z" } },
+            Rows = 1,
+            Columns = 3
+        };
+
+        var command = new PasteCommand(document, new GridPosition(0, 0), yank, pasteBefore: true);
+
+        // Act - Paste before
+        commandHistory.Execute(command);
+
+        // Assert - Row was inserted above
+        Assert.Equal(2, document.RowCount);
+        Assert.Equal("X", document.Rows[0].Cells[0].Value);
+
+        // Act - Undo
+        commandHistory.Undo();
+
+        // Assert - Pasted row was removed
+        Assert.Equal(1, document.RowCount);
+        Assert.Equal("A", document.Rows[0].Cells[0].Value);
+    }
+
+    [Fact]
     public void Sort_CanUndo()
     {
         // Arrange

@@ -162,6 +162,10 @@ public class NormalMode : IVimMode
             Key.W when state.PendingKeys.Keys.Count < 2 => MoveToNextNonEmptyCell(state, document),
             Key.B => MoveToPreviousNonEmptyCell(state, document),
 
+            // Scroll commands
+            Key.Z when state.PendingKeys.Keys.LastOrDefault() == Key.Z => ScrollToCenter(state),
+            Key.Z when state.PendingKeys.Keys.Count == 0 => HandlePendingZ(state),
+
             // Placeholder keys for future implementation
             Key.C =>true,
             Key.E =>true,
@@ -172,7 +176,6 @@ public class NormalMode : IVimMode
             Key.R =>true,
             Key.S =>true,
             Key.T =>true,
-            Key.Z =>true,
 
             _ => false
         };
@@ -183,6 +186,7 @@ public class NormalMode : IVimMode
                                    (key == Key.Y && state.PendingKeys.Keys.Count > 0) ||
                                    (key == Key.D && state.PendingKeys.Keys.Count > 0) ||
                                    (key == Key.Space && state.PendingKeys.Keys.Count > 0) ||
+                                   (key == Key.Z && state.PendingKeys.Keys.Count > 0) ||
                                    ((key == Key.I || key == Key.A) && state.PendingKeys.Keys.Count > 1) ||
                                    (key == Key.W && state.PendingKeys.Keys.Count > 1);
 
@@ -1278,6 +1282,22 @@ public class NormalMode : IVimMode
             }
         }
 
+        return true;
+    }
+
+    private bool HandlePendingZ(VimState state)
+    {
+        // Add 'z' to pending keys, wait for second 'z'
+        state.PendingKeys.Add(Key.Z);
+        return true;
+    }
+
+    private bool ScrollToCenter(VimState state)
+    {
+        // Trigger scroll to center operation via VimState event
+        System.Diagnostics.Debug.WriteLine("[NormalMode] ScrollToCenter called");
+        state.OnScrollToCenterRequested();
+        state.PendingKeys.Clear();
         return true;
     }
 }

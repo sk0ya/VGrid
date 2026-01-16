@@ -72,6 +72,11 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<TabItemViewModel> Tabs { get; }
     public StatusBarViewModel StatusBarViewModel { get; }
     public GitChangesViewModel GitChangesViewModel { get; }
+
+    /// <summary>
+    /// Event raised when scrolling to center is requested from a VimState
+    /// </summary>
+    public event EventHandler? OnScrollToCenterRequested;
     public IColumnWidthService ColumnWidthService => _columnWidthService;
 
     public TabItemViewModel? SelectedTab
@@ -249,6 +254,14 @@ public class MainViewModel : ViewModelBase
             }
         };
 
+        vimState.ScrollToCenterRequested += (s, e) =>
+        {
+            if (tab == SelectedTab)
+            {
+                OnScrollToCenterRequested?.Invoke(this, EventArgs.Empty);
+            }
+        };
+
         Tabs.Add(tab);
         SelectedTab = tab;
     }
@@ -392,6 +405,14 @@ public class MainViewModel : ViewModelBase
                 if (tab == SelectedTab)
                 {
                     SwitchToNextTab();
+                }
+            };
+
+            vimState.ScrollToCenterRequested += (s, e) =>
+            {
+                if (tab == SelectedTab)
+                {
+                    OnScrollToCenterRequested?.Invoke(this, EventArgs.Empty);
                 }
             };
 

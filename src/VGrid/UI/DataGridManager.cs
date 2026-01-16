@@ -29,6 +29,9 @@ public class DataGridManager
     private readonly Dictionary<DataGrid, (TabItemViewModel tab, PropertyChangedEventHandler vimStateHandler, PropertyChangedEventHandler documentHandler, EventHandler<IEnumerable<int>> columnWidthHandler)> _dataGridHandlers
         = new Dictionary<DataGrid, (TabItemViewModel, PropertyChangedEventHandler, PropertyChangedEventHandler, EventHandler<IEnumerable<int>>)>();
 
+    // Reverse lookup: tab to DataGrid
+    private readonly Dictionary<TabItemViewModel, DataGrid> _tabToDataGrid = new Dictionary<TabItemViewModel, DataGrid>();
+
     public DataGridManager(MainViewModel viewModel)
     {
         _viewModel = viewModel;
@@ -849,6 +852,7 @@ public class DataGridManager
             existingInfo.tab.Document.PropertyChanged -= existingInfo.documentHandler;
             existingInfo.tab.VimState.ColumnWidthUpdateRequested -= existingInfo.columnWidthHandler;
             _dataGridHandlers.Remove(dataGrid);
+            _tabToDataGrid.Remove(existingInfo.tab);
         }
 
         if (newTab != null)
@@ -890,7 +894,88 @@ public class DataGridManager
             newTab.VimState.ColumnWidthUpdateRequested += columnWidthHandler;
 
             _dataGridHandlers[dataGrid] = (newTab, vimStateHandler, documentHandler, columnWidthHandler);
+            _tabToDataGrid[newTab] = dataGrid;
         }
+    }
+
+    /// <summary>
+    /// Scrolls the DataGrid for the specified tab so that the current cursor position is centered vertically
+    /// </summary>
+    public void ScrollToCenterForTab(TabItemViewModel tab)
+    {
+        System.Diagnostics.Debug.WriteLine("[DataGridManager] ScrollToCenterForTab called");
+
+        if (!_tabToDataGrid.TryGetValue(tab, out var grid))
+        {
+            System.Diagnostics.Debug.WriteLine("[DataGridManager] DataGrid not found for tab");
+            return;
+        }
+
+        System.Diagnostics.Debug.WriteLine("[DataGridManager] DataGrid found for tab");
+        ScrollToCenter(grid, tab);
+    }
+
+    /// <summary>
+    /// Scrolls the DataGrid so that the current cursor position is centered vertically
+    /// </summary>
+    public void ScrollToCenter(DataGrid grid, TabItemViewModel tab)
+    {
+        System.Diagnostics.Debug.WriteLine("[DataGridManager] ScrollToCenter called");
+        if (grid == null || tab == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[DataGridManager] Grid or tab is null");
+            return;
+        }
+
+        var pos = tab.VimState.CursorPosition;
+        System.Diagnostics.Debug.WriteLine($"[DataGridManager] Cursor position: Row={pos.Row}, Items.Count={grid.Items.Count}");
+
+        if (grid.Items.Count == 0 || pos.Row < 0 || pos.Row >= grid.Items.Count)
+        {
+            System.Diagnostics.Debug.WriteLine("[DataGridManager] Invalid row position");
+            return;
+        }
+
+        // First, ensure the row is in view
+        grid.ScrollIntoView(grid.Items[pos.Row]);
+        grid.UpdateLayout();
+
+        // Find the ScrollViewer in the DataGrid's visual tree
+        var scrollViewer = FindVisualChild<ScrollViewer>(grid);
+        if (scrollViewer == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[DataGridManager] ScrollViewer not found");
+            return;
+        }
+
+        // Calculate the vertical position to center the current row
+        var row = grid.ItemContainerGenerator.ContainerFromIndex(pos.Row) as DataGridRow;
+        if (row == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[DataGridManager] DataGridRow not found");
+            return;
+        }
+
+        // Get the row's position relative to the viewport
+        var transform = row.TransformToAncestor(scrollViewer);
+        var rowPosition = transform.Transform(new Point(0, 0));
+
+        // Calculate center offset
+        double viewportHeight = scrollViewer.ViewportHeight;
+        double rowHeight = row.ActualHeight;
+        double currentOffset = scrollViewer.VerticalOffset;
+
+        // Calculate the offset needed to center the row
+        // We want the row to be at: (viewportHeight - rowHeight) / 2
+        double desiredOffset = currentOffset + rowPosition.Y - (viewportHeight - rowHeight) / 2;
+
+        // Clamp to valid scroll range
+        desiredOffset = Math.Max(0, Math.Min(desiredOffset, scrollViewer.ScrollableHeight));
+
+        System.Diagnostics.Debug.WriteLine($"[DataGridManager] Scrolling to offset: {desiredOffset} (current: {currentOffset}, viewport: {viewportHeight})");
+
+        // Scroll to the calculated position
+        scrollViewer.ScrollToVerticalOffset(desiredOffset);
     }
 
     private void ApplyBulkEdit(TabItemViewModel tab)

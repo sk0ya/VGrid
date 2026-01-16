@@ -661,6 +661,11 @@ public class VimState : INotifyPropertyChanged
     public event EventHandler? NextTabRequested;
 
     /// <summary>
+    /// Event raised when scrolling current line to center is requested
+    /// </summary>
+    public event EventHandler? ScrollToCenterRequested;
+
+    /// <summary>
     /// Raises the SaveRequested event
     /// </summary>
     public void OnSaveRequested()
@@ -716,6 +721,14 @@ public class VimState : INotifyPropertyChanged
     public void OnNextTabRequested()
     {
         NextTabRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Raises the ScrollToCenterRequested event
+    /// </summary>
+    public void OnScrollToCenterRequested()
+    {
+        ScrollToCenterRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

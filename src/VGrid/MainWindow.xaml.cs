@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using VGrid.UI;
 using VGrid.ViewModels;
 using VGrid.VimEngine;
@@ -58,6 +59,9 @@ public partial class MainWindow : Window
                 _folderTreeManager.PopulateFolderTree();
             }
         };
+
+        // Subscribe to ScrollToCenterRequested event from MainViewModel
+        _viewModel.OnScrollToCenterRequested += OnScrollToCenterRequested;
 
         // Set focus to the window and restore session asynchronously
         Loaded += MainWindow_Loaded;
@@ -161,5 +165,86 @@ public partial class MainWindow : Window
                 }
             }
         }
+    }
+
+    private void OnScrollToCenterRequested(object? sender, EventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine("[MainWindow] OnScrollToCenterRequested called");
+        if (_viewModel?.SelectedTab == null || _dataGridManager == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[MainWindow] ViewModel or DataGridManager is null");
+            return;
+        }
+
+        // Use DataGridManager's lookup to find the DataGrid for this tab
+        _dataGridManager.ScrollToCenterForTab(_viewModel.SelectedTab);
+    }
+
+    private DataGrid? FindDataGridForTab(TabItemViewModel tab)
+    {
+        System.Diagnostics.Debug.WriteLine("[MainWindow] FindDataGridForTab called");
+
+        // Find the TabControl
+        var tabControl = FindVisualChild<TabControl>(this);
+        if (tabControl == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[MainWindow] TabControl not found");
+            return null;
+        }
+
+        System.Diagnostics.Debug.WriteLine($"[MainWindow] TabControl found, SelectedItem={tabControl.SelectedItem?.GetType().Name}");
+
+        // For TabControl with ItemsSource, we need to find the ContentPresenter differently
+        // First, ensure the selected item is the current tab
+        if (tabControl.SelectedItem != tab)
+        {
+            System.Diagnostics.Debug.WriteLine("[MainWindow] Selected item is not the current tab");
+            return null;
+        }
+
+        // Update the layout to ensure containers are generated
+        tabControl.UpdateLayout();
+
+        // Find the ContentPresenter for the selected content
+        var contentPresenter = FindVisualChild<ContentPresenter>(tabControl);
+        if (contentPresenter == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[MainWindow] ContentPresenter not found");
+            return null;
+        }
+
+        System.Diagnostics.Debug.WriteLine("[MainWindow] ContentPresenter found");
+
+        // Find the DataGrid within the ContentPresenter
+        var dataGrid = FindVisualChild<DataGrid>(contentPresenter);
+        if (dataGrid == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[MainWindow] DataGrid not found in ContentPresenter");
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] DataGrid found: Items.Count={dataGrid.Items.Count}");
+        }
+
+        return dataGrid;
+    }
+
+    private T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        if (parent == null)
+            return null;
+
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild)
+                return typedChild;
+
+            var result = FindVisualChild<T>(child);
+            if (result != null)
+                return result;
+        }
+
+        return null;
     }
 }

@@ -85,6 +85,31 @@ public class VimInputHandler
             return;
         }
 
+        // Handle Ctrl+Shift+; for Insert Line Below (works regardless of Vim mode)
+        if (e.Key == Key.OemPlus && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+        {
+            var tab = _viewModel.SelectedTab;
+            if (tab != null)
+            {
+                var document = tab.GridViewModel.Document;
+                var vimState = tab.VimState;
+
+                // Insert a new row below the current row
+                int insertRow = vimState.CursorPosition.Row + 1;
+                int currentColumn = vimState.CursorPosition.Column;
+                var command = new InsertRowCommand(document, insertRow);
+
+                // Execute through command history
+                vimState.CommandHistory?.Execute(command);
+
+                // Move cursor to the new row
+                vimState.CursorPosition = new Models.GridPosition(insertRow, currentColumn);
+
+                e.Handled = true;
+                return;
+            }
+        }
+
         // Handle Ctrl++ to insert current date (Excel-like shortcut on Japanese keyboard, works in Normal and Visual modes)
         if (e.Key == Key.OemPlus && Keyboard.Modifiers == ModifierKeys.Control)
         {

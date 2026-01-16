@@ -130,13 +130,15 @@ public class NormalMode : IVimMode
             Key.Y when state.PendingKeys.Keys.LastOrDefault() == Key.Y => YankLine(state, document),
             Key.Y when state.PendingKeys.Keys.Count == 0 => HandlePendingY(state),
 
-            // Word text object for yank/delete (yiw, yaw, diw, daw)
+            // Word text object for yank/delete/change (yiw, yaw, diw, daw, ciw, caw)
             Key.W when state.PendingKeys.Keys.Count == 2 && state.PendingKeys.Keys[0] == Key.Y &&
                       (state.PendingKeys.Keys[1] == Key.I || state.PendingKeys.Keys[1] == Key.A) => YankWord(state, document),
             Key.W when state.PendingKeys.Keys.Count == 2 && state.PendingKeys.Keys[0] == Key.D &&
                       (state.PendingKeys.Keys[1] == Key.I || state.PendingKeys.Keys[1] == Key.A) => DeleteWord(state, document),
-            Key.I when state.PendingKeys.Keys.Count == 1 && (state.PendingKeys.Keys[0] == Key.Y || state.PendingKeys.Keys[0] == Key.D) => HandleTextObject(state, Key.I),
-            Key.A when state.PendingKeys.Keys.Count == 1 && (state.PendingKeys.Keys[0] == Key.Y || state.PendingKeys.Keys[0] == Key.D) => HandleTextObject(state, Key.A),
+            Key.W when state.PendingKeys.Keys.Count == 2 && state.PendingKeys.Keys[0] == Key.C &&
+                      (state.PendingKeys.Keys[1] == Key.I || state.PendingKeys.Keys[1] == Key.A) => ChangeWord(state, document),
+            Key.I when state.PendingKeys.Keys.Count == 1 && (state.PendingKeys.Keys[0] == Key.Y || state.PendingKeys.Keys[0] == Key.D || state.PendingKeys.Keys[0] == Key.C) => HandleTextObject(state, Key.I),
+            Key.A when state.PendingKeys.Keys.Count == 1 && (state.PendingKeys.Keys[0] == Key.Y || state.PendingKeys.Keys[0] == Key.D || state.PendingKeys.Keys[0] == Key.C) => HandleTextObject(state, Key.A),
 
             // Mode switching
             Key.I when modifiers.HasFlag(ModifierKeys.Shift) => MoveLeftAndInsert(state, document),
@@ -168,8 +170,11 @@ public class NormalMode : IVimMode
             Key.Z when state.PendingKeys.Keys.LastOrDefault() == Key.Z => ScrollToCenter(state),
             Key.Z when state.PendingKeys.Keys.Count == 0 => HandlePendingZ(state),
 
+            // Change operations
+            Key.C when state.PendingKeys.Keys.LastOrDefault() == Key.C => ChangeLine(state, document),
+            Key.C when state.PendingKeys.Keys.Count == 0 => HandlePendingC(state),
+
             // Placeholder keys for future implementation
-            Key.C =>true,
             Key.E =>true,
             Key.F =>true,
             Key.G =>true,
@@ -187,6 +192,7 @@ public class NormalMode : IVimMode
         bool isMultiKeySequence = (key == Key.G && state.PendingKeys.Keys.Count > 0) ||
                                    (key == Key.Y && state.PendingKeys.Keys.Count > 0) ||
                                    (key == Key.D && state.PendingKeys.Keys.Count > 0) ||
+                                   (key == Key.C && state.PendingKeys.Keys.Count > 0) ||
                                    (key == Key.Space && state.PendingKeys.Keys.Count > 0) ||
                                    (key == Key.Z && state.PendingKeys.Keys.Count > 0) ||
                                    ((key == Key.I || key == Key.A) && state.PendingKeys.Keys.Count > 1) ||
@@ -853,6 +859,66 @@ public class NormalMode : IVimMode
         return true;
     }
 
+    private bool ChangeWord(VimState state, TsvDocument document)
+    {
+        // In TSV editor, "word" = current cell
+        // ciw and caw both yank, clear the current cell value, and enter insert mode
+        if (state.CursorPosition.Row >= document.RowCount)
+        {
+            state.PendingKeys.Clear();
+            return true;
+        }
+
+        var cell = document.GetCell(state.CursorPosition);
+        if (cell == null)
+        {
+            state.PendingKeys.Clear();
+            return true;
+        }
+
+        // First, yank the cell value
+        string[,] values = new string[1, 1];
+        values[0, 0] = cell.Value;
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Character,
+            Rows = 1,
+            Columns = 1
+        };
+
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
+
+        // Then clear the cell value
+        var command = new Commands.EditCellCommand(document, state.CursorPosition, string.Empty);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        // Clear pending keys before switching mode
+        state.PendingKeys.Clear();
+
+        // Enter insert mode at the start of the cell
+        state.CellEditCaretPosition = CellEditCaretPosition.Start;
+        state.PendingInsertType = ChangeType.ChangeWord;
+        state.InsertModeStartPosition = state.CursorPosition;
+        state.SwitchMode(VimMode.Insert);
+
+        return true;
+    }
+
     private bool YankCurrentCell(VimState state, TsvDocument document)
     {
         // Yank current cell with Ctrl+C
@@ -1106,6 +1172,12 @@ public class NormalMode : IVimMode
             case ChangeType.InsertLineAbove:
                 return RepeatInsertLine(state, document, change, effectiveCount);
 
+            case ChangeType.ChangeLine:
+                return RepeatChangeLine(state, document, change, effectiveCount);
+
+            case ChangeType.ChangeWord:
+                return RepeatChangeWord(state, document, change, effectiveCount);
+
             default:
                 return true;
         }
@@ -1287,6 +1359,98 @@ public class NormalMode : IVimMode
         return true;
     }
 
+    private bool RepeatChangeLine(VimState state, TsvDocument document, LastChange change, int count)
+    {
+        if (string.IsNullOrEmpty(change.InsertedText))
+            return true;
+
+        var currentPos = state.CursorPosition;
+
+        // For change line operations (cc), apply the text 'count' times
+        for (int i = 0; i < count; i++)
+        {
+            if (currentPos.Row >= document.RowCount)
+                break;
+
+            // Clear all cells in the current row
+            var row = document.Rows[currentPos.Row];
+            var columnCount = row.Cells.Count;
+            var positions = new List<GridPosition>();
+
+            for (int c = 0; c < columnCount; c++)
+            {
+                positions.Add(new GridPosition(currentPos.Row, c));
+            }
+
+            var clearCommand = new Commands.BulkEditCellsCommand(document, positions, string.Empty);
+
+            if (state.CommandHistory != null)
+            {
+                state.CommandHistory.Execute(clearCommand);
+            }
+            else
+            {
+                clearCommand.Execute();
+            }
+
+            // Set the first cell value to the inserted text
+            var editCommand = new Commands.EditCellCommand(document,
+                new GridPosition(currentPos.Row, 0), change.InsertedText);
+
+            if (state.CommandHistory != null)
+            {
+                state.CommandHistory.Execute(editCommand);
+            }
+            else
+            {
+                editCommand.Execute();
+            }
+
+            // Move down to next row for next iteration
+            if (i < count - 1)
+            {
+                currentPos = currentPos.MoveDown(1).Clamp(document);
+            }
+        }
+
+        return true;
+    }
+
+    private bool RepeatChangeWord(VimState state, TsvDocument document, LastChange change, int count)
+    {
+        if (string.IsNullOrEmpty(change.InsertedText))
+            return true;
+
+        // For change word operations (ciw, caw), apply the text 'count' times at current position
+        for (int i = 0; i < count; i++)
+        {
+            var currentPos = state.CursorPosition;
+
+            if (currentPos.Row >= document.RowCount)
+                break;
+
+            // Simply set the cell value to the inserted text
+            var command = new Commands.EditCellCommand(document, currentPos, change.InsertedText);
+
+            if (state.CommandHistory != null)
+            {
+                state.CommandHistory.Execute(command);
+            }
+            else
+            {
+                command.Execute();
+            }
+
+            // Move right after each change (for multiple repeats)
+            if (i < count - 1)
+            {
+                state.CursorPosition = currentPos.MoveRight(1).Clamp(document);
+            }
+        }
+
+        return true;
+    }
+
     private bool HandlePendingZ(VimState state)
     {
         // Add 'z' to pending keys, wait for second 'z'
@@ -1300,6 +1464,80 @@ public class NormalMode : IVimMode
         System.Diagnostics.Debug.WriteLine("[NormalMode] ScrollToCenter called");
         state.OnScrollToCenterRequested();
         state.PendingKeys.Clear();
+        return true;
+    }
+
+    private bool HandlePendingC(VimState state)
+    {
+        // Add 'c' to pending keys, wait for second 'c'
+        state.PendingKeys.Add(Key.C);
+        return true;
+    }
+
+    private bool ChangeLine(VimState state, TsvDocument document)
+    {
+        // Clear entire row (not delete) and enter insert mode
+        if (state.CursorPosition.Row >= document.RowCount)
+        {
+            state.PendingKeys.Clear();
+            return true; // Key is handled, but no row to change
+        }
+
+        var row = document.Rows[state.CursorPosition.Row];
+        var columnCount = row.Cells.Count;
+
+        // First, yank the line (like Vim: change = yank + delete + insert)
+        string[,] values = new string[1, columnCount];
+        for (int c = 0; c < columnCount; c++)
+        {
+            values[0, c] = row.Cells[c].Value;
+        }
+
+        state.LastYank = new YankedContent
+        {
+            Values = values,
+            SourceType = VisualType.Line,
+            Rows = 1,
+            Columns = columnCount
+        };
+
+        // Copy to system clipboard
+        ClipboardHelper.CopyToClipboard(state.LastYank);
+
+        // Notify that a yank was performed
+        state.OnYankPerformed();
+
+        // Then clear all cells in the row (not delete the row)
+        var positions = new List<GridPosition>();
+        for (int c = 0; c < columnCount; c++)
+        {
+            positions.Add(new GridPosition(state.CursorPosition.Row, c));
+        }
+
+        var command = new Commands.BulkEditCellsCommand(document, positions, string.Empty);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        // Move cursor to first column and enter insert mode
+        state.CursorPosition = new GridPosition(state.CursorPosition.Row, 0);
+        state.CellEditCaretPosition = CellEditCaretPosition.Start;
+        state.PendingInsertType = ChangeType.ChangeLine;
+        state.InsertModeStartPosition = state.CursorPosition;
+
+        // Clear pending keys before switching mode
+        state.PendingKeys.Clear();
+
+        // Switch to insert mode
+        state.SwitchMode(VimMode.Insert);
+
         return true;
     }
 }

@@ -104,5 +104,15 @@ public enum ChangeType
     /// <summary>
     /// Bulk edit in visual mode (visual mode i/a)
     /// </summary>
-    VisualBulkEdit
+    VisualBulkEdit,
+
+    /// <summary>
+    /// Change line (clear and enter insert mode) (cc)
+    /// </summary>
+    ChangeLine,
+
+    /// <summary>
+    /// Change word/cell (clear and enter insert mode) (ciw, caw)
+    /// </summary>
+    ChangeWord
 }

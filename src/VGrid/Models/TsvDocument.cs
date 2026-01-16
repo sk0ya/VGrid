@@ -241,13 +241,14 @@ public class TsvDocument : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Creates a new empty document with Excel-like dimensions (1000 rows x 50 columns)
+    /// Creates a new empty document with initial dimensions (100 rows x 50 columns)
+    /// Optimized for performance - creates smaller initial grid that grows as needed
     /// </summary>
     public static TsvDocument CreateEmpty()
     {
         var doc = new TsvDocument();
-        // Create 1000 empty rows with 50 columns like Excel
-        for (int i = 0; i < 1000; i++)
+        // Create 100 empty rows with 50 columns - optimized for tab switching performance
+        for (int i = 0; i < 100; i++)
         {
             doc.Rows.Add(new Row(i, 50));
         }

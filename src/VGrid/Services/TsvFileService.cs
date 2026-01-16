@@ -39,8 +39,8 @@ public class TsvFileService : ITsvFileService
             IsDirty = false
         };
 
-        // Ensure Excel-like size (minimum 1000 rows x 50 columns)
-        document.EnsureSize(1000, 50);
+        // Performance optimization: Start with 200 rows for loaded files (balance between performance and usability)
+        document.EnsureSize(200, 50);
 
         return document;
     }

@@ -77,6 +77,12 @@ public class MainViewModel : ViewModelBase
     /// Event raised when scrolling to center is requested from a VimState
     /// </summary>
     public event EventHandler? OnScrollToCenterRequested;
+
+    /// <summary>
+    /// Event raised when a tab is closed (Phase 2 optimization: notify DataGridManager for cleanup)
+    /// </summary>
+    public event EventHandler<TabItemViewModel>? TabClosed;
+
     public IColumnWidthService ColumnWidthService => _columnWidthService;
 
     public TabItemViewModel? SelectedTab
@@ -552,6 +558,9 @@ public class MainViewModel : ViewModelBase
 
         Tabs.Remove(tab);
 
+        // Phase 2 optimization: Notify listeners to cleanup cached handlers
+        TabClosed?.Invoke(this, tab);
+
         // If we closed the selected tab, select another
         if (SelectedTab == tab || SelectedTab == null)
         {
@@ -574,6 +583,9 @@ public class MainViewModel : ViewModelBase
             return;
 
         Tabs.Remove(tab);
+
+        // Phase 2 optimization: Notify listeners to cleanup cached handlers
+        TabClosed?.Invoke(this, tab);
 
         // If we closed the selected tab, select another
         if (SelectedTab == tab || SelectedTab == null)

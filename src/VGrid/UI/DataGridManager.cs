@@ -32,6 +32,13 @@ public class DataGridManager
     // Reverse lookup: tab to DataGrid
     private readonly Dictionary<TabItemViewModel, DataGrid> _tabToDataGrid = new Dictionary<TabItemViewModel, DataGrid>();
 
+    // Store handlers per tab for reuse across tab switches (Phase 2 optimization)
+    private readonly Dictionary<TabItemViewModel, (PropertyChangedEventHandler vimStateHandler, PropertyChangedEventHandler documentHandler, EventHandler<IEnumerable<int>> columnWidthHandler)> _tabHandlers
+        = new Dictionary<TabItemViewModel, (PropertyChangedEventHandler, PropertyChangedEventHandler, EventHandler<IEnumerable<int>>)>();
+
+    // Phase 1 optimization: Track column count per DataGrid to avoid unnecessary regeneration
+    private readonly Dictionary<DataGrid, int> _dataGridColumnCount = new Dictionary<DataGrid, int>();
+
     public DataGridManager(MainViewModel viewModel)
     {
         _viewModel = viewModel;
@@ -87,16 +94,52 @@ public class DataGridManager
         }
     }
 
+    /// <summary>
+    /// Phase 1 optimization: Update column bindings and widths without recreating columns
+    /// </summary>
+    private void UpdateColumnBindings(DataGrid grid, TabItemViewModel tab)
+    {
+        if (grid == null || tab == null)
+            return;
+
+        for (int i = 0; i < grid.Columns.Count; i++)
+        {
+            if (grid.Columns[i] is DataGridTextColumn textColumn)
+            {
+                // Update binding path (in case columns are reused across different documents)
+                textColumn.Binding = new Binding($"Cells[{i}].Value")
+                {
+                    Mode = BindingMode.TwoWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+                };
+
+                // Update width from tab's saved column widths
+                textColumn.Width = tab.ColumnWidths.ContainsKey(i)
+                    ? new DataGridLength(tab.ColumnWidths[i], DataGridLengthUnitType.Pixel)
+                    : new DataGridLength(100, DataGridLengthUnitType.Pixel);
+            }
+        }
+    }
+
     private void GenerateColumns(DataGrid grid, TabItemViewModel tab)
     {
         if (grid == null || tab == null)
             return;
 
+        var requiredColumnCount = Math.Max(50, tab.GridViewModel.ColumnCount);
+
+        // Phase 1 optimization: Only regenerate if column count changed
+        if (_dataGridColumnCount.TryGetValue(grid, out var existingCount) && existingCount == requiredColumnCount)
+        {
+            // Column count matches - just update bindings and widths
+            UpdateColumnBindings(grid, tab);
+            return;
+        }
+
+        // Column count changed - need to regenerate
         grid.Columns.Clear();
 
-        var columnCount = Math.Max(50, tab.GridViewModel.ColumnCount);
-
-        for (int i = 0; i < columnCount; i++)
+        for (int i = 0; i < requiredColumnCount; i++)
         {
             var columnIndex = i;
             var cellStyle = CreateVisualModeCellStyle(columnIndex);
@@ -118,6 +161,9 @@ public class DataGridManager
 
             grid.Columns.Add(column);
         }
+
+        // Track the column count for this DataGrid
+        _dataGridColumnCount[grid] = requiredColumnCount;
     }
 
     private void AutoFitAllColumns(DataGrid grid, TabItemViewModel tab)
@@ -843,11 +889,13 @@ public class DataGridManager
 
         var newTab = e.NewValue as TabItemViewModel;
 
+        // Phase 2 optimization: Unsubscribe old handlers from DataGrid
         if (_dataGridHandlers.TryGetValue(dataGrid, out var existingInfo))
         {
             if (existingInfo.tab == newTab)
                 return;
 
+            // Unsubscribe from old tab (but keep handlers cached for reuse)
             existingInfo.tab.VimState.PropertyChanged -= existingInfo.vimStateHandler;
             existingInfo.tab.Document.PropertyChanged -= existingInfo.documentHandler;
             existingInfo.tab.VimState.ColumnWidthUpdateRequested -= existingInfo.columnWidthHandler;
@@ -857,43 +905,56 @@ public class DataGridManager
 
         if (newTab != null)
         {
-            PropertyChangedEventHandler vimStateHandler = (s, evt) =>
+            // Phase 2 optimization: Reuse handlers if they already exist for this tab
+            if (!_tabHandlers.TryGetValue(newTab, out var handlers))
             {
-                if (evt.PropertyName == nameof(newTab.VimState.CursorPosition) && newTab == _viewModel?.SelectedTab)
+                // Create handlers only once per tab
+                PropertyChangedEventHandler vimStateHandler = (s, evt) =>
                 {
-                    UpdateDataGridSelection(dataGrid, newTab);
-                }
-                else if (evt.PropertyName == nameof(newTab.VimState.CurrentMode) && newTab == _viewModel?.SelectedTab)
-                {
-                    HandleModeChange(dataGrid, newTab);
-                }
-                else if (evt.PropertyName == nameof(newTab.VimState.CurrentSelection) && newTab == _viewModel?.SelectedTab && newTab.VimState.CurrentMode == VimMode.Visual)
-                {
-                    InitializeVisualSelection(newTab);
-                }
-            };
+                    if (evt.PropertyName == nameof(newTab.VimState.CursorPosition) && newTab == _viewModel?.SelectedTab)
+                    {
+                        if (_tabToDataGrid.TryGetValue(newTab, out var grid))
+                            UpdateDataGridSelection(grid, newTab);
+                    }
+                    else if (evt.PropertyName == nameof(newTab.VimState.CurrentMode) && newTab == _viewModel?.SelectedTab)
+                    {
+                        if (_tabToDataGrid.TryGetValue(newTab, out var grid))
+                            HandleModeChange(grid, newTab);
+                    }
+                    else if (evt.PropertyName == nameof(newTab.VimState.CurrentSelection) && newTab == _viewModel?.SelectedTab && newTab.VimState.CurrentMode == VimMode.Visual)
+                    {
+                        InitializeVisualSelection(newTab);
+                    }
+                };
 
-            PropertyChangedEventHandler documentHandler = (s, evt) =>
-            {
-                if (evt.PropertyName == nameof(TsvDocument.ColumnCount) && newTab == _viewModel?.SelectedTab)
+                PropertyChangedEventHandler documentHandler = (s, evt) =>
                 {
-                    GenerateColumns(dataGrid, newTab);
-                }
-            };
+                    if (evt.PropertyName == nameof(TsvDocument.ColumnCount) && newTab == _viewModel?.SelectedTab)
+                    {
+                        if (_tabToDataGrid.TryGetValue(newTab, out var grid))
+                            GenerateColumns(grid, newTab);
+                    }
+                };
 
-            EventHandler<IEnumerable<int>> columnWidthHandler = (s, columnIndices) =>
-            {
-                if (newTab == _viewModel?.SelectedTab)
+                EventHandler<IEnumerable<int>> columnWidthHandler = (s, columnIndices) =>
                 {
-                    AutoFitColumns(dataGrid, newTab, columnIndices);
-                }
-            };
+                    if (newTab == _viewModel?.SelectedTab)
+                    {
+                        if (_tabToDataGrid.TryGetValue(newTab, out var grid))
+                            AutoFitColumns(grid, newTab, columnIndices);
+                    }
+                };
 
-            newTab.VimState.PropertyChanged += vimStateHandler;
-            newTab.Document.PropertyChanged += documentHandler;
-            newTab.VimState.ColumnWidthUpdateRequested += columnWidthHandler;
+                handlers = (vimStateHandler, documentHandler, columnWidthHandler);
+                _tabHandlers[newTab] = handlers;
+            }
 
-            _dataGridHandlers[dataGrid] = (newTab, vimStateHandler, documentHandler, columnWidthHandler);
+            // Subscribe to events (reusing cached handlers)
+            newTab.VimState.PropertyChanged += handlers.vimStateHandler;
+            newTab.Document.PropertyChanged += handlers.documentHandler;
+            newTab.VimState.ColumnWidthUpdateRequested += handlers.columnWidthHandler;
+
+            _dataGridHandlers[dataGrid] = (newTab, handlers.vimStateHandler, handlers.documentHandler, handlers.columnWidthHandler);
             _tabToDataGrid[newTab] = dataGrid;
         }
     }
@@ -1060,5 +1121,31 @@ public class DataGridManager
 
         tab.VimState.PendingBulkEditRange = null;
         tab.VimState.OriginalCellValueForBulkEdit = string.Empty;
+    }
+
+    /// <summary>
+    /// Cleans up cached event handlers for a tab (called when tab is closed)
+    /// Phase 2 optimization: Prevents memory leaks from cached handlers
+    /// </summary>
+    public void CleanupTab(TabItemViewModel tab)
+    {
+        if (tab == null)
+            return;
+
+        // Remove cached handlers for this tab
+        _tabHandlers.Remove(tab);
+
+        // Remove from reverse lookup
+        _tabToDataGrid.Remove(tab);
+
+        // Remove from DataGrid handlers if present
+        var dataGridToRemove = _dataGridHandlers.FirstOrDefault(kvp => kvp.Value.tab == tab).Key;
+        if (dataGridToRemove != null)
+        {
+            _dataGridHandlers.Remove(dataGridToRemove);
+
+            // Phase 1 optimization: Also remove column count tracking for this DataGrid
+            _dataGridColumnCount.Remove(dataGridToRemove);
+        }
     }
 }

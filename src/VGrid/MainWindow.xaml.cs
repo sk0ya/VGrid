@@ -63,6 +63,9 @@ public partial class MainWindow : Window
         // Subscribe to ScrollToCenterRequested event from MainViewModel
         _viewModel.OnScrollToCenterRequested += OnScrollToCenterRequested;
 
+        // Phase 2 optimization: Subscribe to TabClosed event for cleanup
+        _viewModel.TabClosed += OnTabClosed;
+
         // Set focus to the window and restore session asynchronously
         Loaded += MainWindow_Loaded;
 
@@ -178,6 +181,14 @@ public partial class MainWindow : Window
 
         // Use DataGridManager's lookup to find the DataGrid for this tab
         _dataGridManager.ScrollToCenterForTab(_viewModel.SelectedTab);
+    }
+
+    /// <summary>
+    /// Phase 2 optimization: Clean up cached handlers when a tab is closed
+    /// </summary>
+    private void OnTabClosed(object? sender, TabItemViewModel tab)
+    {
+        _dataGridManager?.CleanupTab(tab);
     }
 
     private DataGrid? FindDataGridForTab(TabItemViewModel tab)

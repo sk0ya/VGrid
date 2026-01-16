@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.WindowsAPICodePack.Dialogs;
@@ -600,9 +601,67 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Checks for unsaved changes across all tabs and prompts user to save before closing application.
+    /// </summary>
+    /// <returns>True if safe to close (saved or user chose not to save), False if user cancelled</returns>
+    public bool ConfirmCloseApplication()
+    {
+        var dirtyTabs = Tabs.Where(t => t.IsDirty).ToList();
+
+        if (dirtyTabs.Count == 0)
+            return true; // No unsaved changes, safe to close
+
+        // Show confirmation dialog
+        var message = dirtyTabs.Count == 1
+            ? $"Do you want to save changes to {dirtyTabs[0].Header}?"
+            : $"You have {dirtyTabs.Count} unsaved file(s). Do you want to save them before closing?";
+
+        var result = System.Windows.MessageBox.Show(
+            message,
+            "VGrid",
+            System.Windows.MessageBoxButton.YesNoCancel,
+            System.Windows.MessageBoxImage.Question);
+
+        if (result == System.Windows.MessageBoxResult.Cancel)
+            return false; // User cancelled, abort close
+
+        if (result == System.Windows.MessageBoxResult.No)
+            return true; // User chose to discard changes
+
+        // result == Yes: Save all dirty tabs
+        foreach (var tab in dirtyTabs)
+        {
+            var previousSelected = SelectedTab;
+            SelectedTab = tab;
+
+            if (string.IsNullOrEmpty(tab.FilePath) || tab.FilePath.StartsWith("Untitled"))
+            {
+                // Untitled file needs SaveAs dialog
+                SaveFileAs(); // Shows dialog and saves (already implemented)
+                if (tab.IsDirty) // User cancelled SaveAs dialog
+                {
+                    SelectedTab = previousSelected;
+                    return false; // Abort close
+                }
+            }
+            else
+            {
+                // Save existing file
+                SaveFile(); // Already implemented
+            }
+
+            SelectedTab = previousSelected;
+        }
+
+        return true; // All saves completed
+    }
+
     private void Exit()
     {
-        System.Windows.Application.Current.Shutdown();
+        // Close the main window instead of direct shutdown
+        // This will trigger MainWindow_Closing event which checks for unsaved changes
+        System.Windows.Application.Current.MainWindow?.Close();
     }
 
     private void InsertRowAbove(int rowIndex)

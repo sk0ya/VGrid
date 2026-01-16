@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
@@ -70,11 +71,20 @@ public class TsvDocument : INotifyPropertyChanged
     public TsvDocument()
     {
         Rows = new ObservableCollection<Row>();
+        Rows.CollectionChanged += Rows_CollectionChanged;
     }
 
     public TsvDocument(IEnumerable<Row> rows)
     {
         Rows = new ObservableCollection<Row>(rows);
+        Rows.CollectionChanged += Rows_CollectionChanged;
+
+        // Subscribe to existing rows and cells
+        foreach (var row in Rows)
+        {
+            SubscribeToRow(row);
+        }
+
         NormalizeColumnCount();
     }
 
@@ -333,6 +343,71 @@ public class TsvDocument : INotifyPropertyChanged
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Subscribes to a row's cells collection and all existing cells
+    /// </summary>
+    private void SubscribeToRow(Row row)
+    {
+        // Subscribe to the row's cells collection
+        row.Cells.CollectionChanged += Cells_CollectionChanged;
+
+        // Subscribe to all existing cells in the row
+        foreach (var cell in row.Cells)
+        {
+            SubscribeToCell(cell);
+        }
+    }
+
+    /// <summary>
+    /// Subscribes to a cell's property changed event
+    /// </summary>
+    private void SubscribeToCell(Cell cell)
+    {
+        cell.PropertyChanged += Cell_PropertyChanged;
+    }
+
+    /// <summary>
+    /// Handles when rows are added or removed from the document
+    /// </summary>
+    private void Rows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Subscribe to newly added rows
+        if (e.NewItems != null)
+        {
+            foreach (Row row in e.NewItems)
+            {
+                SubscribeToRow(row);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handles when cells are added or removed from a row
+    /// </summary>
+    private void Cells_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Subscribe to newly added cells
+        if (e.NewItems != null)
+        {
+            foreach (Cell cell in e.NewItems)
+            {
+                SubscribeToCell(cell);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handles when a cell's property changes
+    /// </summary>
+    private void Cell_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // When a cell's Value changes, mark the document as dirty
+        if (e.PropertyName == nameof(Cell.Value))
+        {
+            IsDirty = true;
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

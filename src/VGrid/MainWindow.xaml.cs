@@ -126,6 +126,22 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
+        // Check for unsaved changes BEFORE cleanup
+        if (_viewModel != null)
+        {
+            bool canClose = _viewModel.ConfirmCloseApplication();
+
+            if (!canClose)
+            {
+                // User cancelled, prevent window from closing
+                e.Cancel = true;
+                return;
+            }
+
+            // User confirmed close, save session
+            _viewModel.SaveSession();
+        }
+
         // Clean up clipboard monitoring
         if (_hwndSource != null)
         {
@@ -134,8 +150,6 @@ public partial class MainWindow : Window
             _hwndSource.RemoveHook(WndProc);
             _hwndSource = null;
         }
-
-        _viewModel?.SaveSession();
     }
 
     // Clipboard Monitoring

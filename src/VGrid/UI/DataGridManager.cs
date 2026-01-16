@@ -785,16 +785,17 @@ public class DataGridManager
             }
             else
             {
-                grid.CommitEdit(DataGridEditingUnit.Cell, true);
-                grid.CommitEdit(DataGridEditingUnit.Row, true);
-
-                if (tab.VimState.PendingBulkEditRange != null)
-                {
-                    ApplyBulkEdit(tab);
-                }
-
+                // Commit edit asynchronously to allow TextBox key event processing to complete
                 grid.Dispatcher.BeginInvoke(new Action(() =>
                 {
+                    grid.CommitEdit(DataGridEditingUnit.Cell, true);
+                    grid.CommitEdit(DataGridEditingUnit.Row, true);
+
+                    if (tab.VimState.PendingBulkEditRange != null)
+                    {
+                        ApplyBulkEdit(tab);
+                    }
+
                     grid.Focus();
                 }), System.Windows.Threading.DispatcherPriority.Input);
             }

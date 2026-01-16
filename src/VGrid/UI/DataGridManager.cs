@@ -62,7 +62,13 @@ public class DataGridManager
         try
         {
             GenerateColumns(grid, tabItem);
-            AutoFitAllColumns(grid, tabItem);
+
+            // Only auto-fit if column widths haven't been calculated yet
+            // (TsvGrid_OnDataContextChanged may have already done this)
+            if (tabItem.ColumnWidths.Count == 0)
+            {
+                AutoFitAllColumns(grid, tabItem);
+            }
 
             grid.CurrentCellChanged -= TsvGrid_CurrentCellChangedHandler;
             grid.CurrentCellChanged += TsvGrid_CurrentCellChangedHandler;
@@ -956,6 +962,16 @@ public class DataGridManager
 
             _dataGridHandlers[dataGrid] = (newTab, handlers.vimStateHandler, handlers.documentHandler, handlers.columnWidthHandler);
             _tabToDataGrid[newTab] = dataGrid;
+
+            // Regenerate columns and auto-fit when switching to a new tab
+            // This ensures column widths are properly applied when opening files
+            GenerateColumns(dataGrid, newTab);
+
+            // Only auto-fit if column widths haven't been calculated yet
+            if (newTab.ColumnWidths.Count == 0)
+            {
+                AutoFitAllColumns(dataGrid, newTab);
+            }
         }
     }
 

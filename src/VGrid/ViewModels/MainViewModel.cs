@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using VGrid.Commands;
@@ -22,10 +23,12 @@ public class MainViewModel : ViewModelBase
     private readonly ISettingsService _settingsService;
     private readonly IGitService _gitService;
     private readonly IColumnWidthService _columnWidthService;
+    private readonly ITemplateService _templateService;
     private TabItemViewModel? _selectedTab;
     private string? _selectedFolderPath;
     private bool _isVimModeEnabled = true;
     private string _filterText = string.Empty;
+    private ObservableCollection<TemplateInfo> _templates = new ObservableCollection<TemplateInfo>();
 
     public MainViewModel()
     {
@@ -33,6 +36,7 @@ public class MainViewModel : ViewModelBase
         _settingsService = new SettingsService();
         _gitService = new GitService();
         _columnWidthService = new ColumnWidthService();
+        _templateService = new TemplateService();
 
         Tabs = new ObservableCollection<TabItemViewModel>();
         StatusBarViewModel = new StatusBarViewModel();
@@ -56,6 +60,11 @@ public class MainViewModel : ViewModelBase
         ToggleVimModeCommand = new RelayCommand(ToggleVimMode);
         ViewGitHistoryCommand = new RelayCommand(async () => await ViewGitHistoryAsync(), CanViewGitHistory);
         OpenFileInExplorerCommand = new RelayCommand(OpenFileInExplorer, CanOpenFileInExplorer);
+        OpenTemplateCommand = new RelayCommand<TemplateInfo>(OpenTemplate, CanOpenTemplate);
+        NewTemplateCommand = new RelayCommand(NewTemplate);
+        DeleteTemplateCommand = new RelayCommand<TemplateInfo>(DeleteTemplate, CanDeleteTemplate);
+        RefreshTemplatesCommand = new RelayCommand(RefreshTemplates);
+        OpenTemplateFolderCommand = new RelayCommand(OpenTemplateFolder);
 
         // Subscribe to SelectedFolderPath changes to update GitChangesViewModel
         PropertyChanged += (s, e) =>
@@ -65,6 +74,9 @@ public class MainViewModel : ViewModelBase
                 GitChangesViewModel.SetRepositoryPath(SelectedFolderPath);
             }
         };
+
+        // Load templates
+        RefreshTemplates();
 
         // Session restoration will be done after window loads
         // Don't create a new file here - let RestoreSessionAsync handle it
@@ -85,6 +97,7 @@ public class MainViewModel : ViewModelBase
     public event EventHandler<TabItemViewModel>? TabClosed;
 
     public IColumnWidthService ColumnWidthService => _columnWidthService;
+    public ITemplateService TemplateService => _templateService;
 
     public TabItemViewModel? SelectedTab
     {
@@ -122,6 +135,12 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _filterText, value);
     }
 
+    public ObservableCollection<TemplateInfo> Templates
+    {
+        get => _templates;
+        set => SetProperty(ref _templates, value);
+    }
+
     public WpfCommand NewFileCommand { get; }
     public WpfCommand OpenFileCommand { get; }
     public WpfCommand OpenFolderCommand { get; }
@@ -136,6 +155,11 @@ public class MainViewModel : ViewModelBase
     public WpfCommand ToggleVimModeCommand { get; }
     public WpfCommand ViewGitHistoryCommand { get; }
     public WpfCommand OpenFileInExplorerCommand { get; }
+    public WpfCommand OpenTemplateCommand { get; }
+    public WpfCommand NewTemplateCommand { get; }
+    public WpfCommand DeleteTemplateCommand { get; }
+    public WpfCommand RefreshTemplatesCommand { get; }
+    public WpfCommand OpenTemplateFolderCommand { get; }
 
     public string WindowTitle => "VGrid - TSV Editor with Vim Keybindings";
 
@@ -495,7 +519,17 @@ public class MainViewModel : ViewModelBase
         try
         {
             await _fileService.SaveAsync(SelectedTab.Document, SelectedTab.FilePath);
-            StatusBarViewModel.ShowMessage($"Saved: {SelectedTab.FilePath}");
+
+            // Check if this is a template file
+            if (_templateService.IsTemplateFile(SelectedTab.FilePath))
+            {
+                RefreshTemplates();
+                StatusBarViewModel.ShowMessage($"Saved template: {Path.GetFileName(SelectedTab.FilePath)}");
+            }
+            else
+            {
+                StatusBarViewModel.ShowMessage($"Saved: {SelectedTab.FilePath}");
+            }
         }
         catch (Exception ex)
         {
@@ -936,4 +970,170 @@ public class MainViewModel : ViewModelBase
             SelectedTab = Tabs[currentIndex + 1];
         }
     }
+
+    #region Template Management
+
+    /// <summary>
+    /// テンプレート一覧を更新
+    /// </summary>
+    private void RefreshTemplates()
+    {
+        var templates = _templateService.GetAvailableTemplates();
+        Templates.Clear();
+        foreach (var template in templates)
+        {
+            Templates.Add(template);
+        }
+    }
+
+    /// <summary>
+    /// テンプレートファイルを開く
+    /// </summary>
+    private async void OpenTemplate(TemplateInfo? template)
+    {
+        if (template == null)
+            return;
+
+        await OpenFileAsync(template.FullPath);
+    }
+
+    /// <summary>
+    /// テンプレートを開けるかチェック
+    /// </summary>
+    private bool CanOpenTemplate(TemplateInfo? template)
+    {
+        return template != null && File.Exists(template.FullPath);
+    }
+
+    /// <summary>
+    /// 新しいテンプレートを作成
+    /// </summary>
+    private async void NewTemplate()
+    {
+        // シンプルなダイアログを作成
+        var dialog = new System.Windows.Window
+        {
+            Title = "New Template",
+            Width = 400,
+            Height = 150,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = Application.Current.MainWindow,
+            ResizeMode = ResizeMode.NoResize
+        };
+
+        var stackPanel = new StackPanel { Margin = new Thickness(10) };
+        stackPanel.Children.Add(new TextBlock { Text = "Template Name:", Margin = new Thickness(0, 0, 0, 5) });
+
+        var textBox = new TextBox { Margin = new Thickness(0, 0, 0, 10) };
+        stackPanel.Children.Add(textBox);
+
+        var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var okButton = new Button { Content = "OK", Width = 75, Margin = new Thickness(0, 0, 5, 0), IsDefault = true };
+        var cancelButton = new Button { Content = "Cancel", Width = 75, IsCancel = true };
+
+        bool dialogResult = false;
+        okButton.Click += (s, e) => { dialogResult = true; dialog.Close(); };
+        cancelButton.Click += (s, e) => { dialog.Close(); };
+
+        buttonPanel.Children.Add(okButton);
+        buttonPanel.Children.Add(cancelButton);
+        stackPanel.Children.Add(buttonPanel);
+
+        dialog.Content = stackPanel;
+        textBox.Focus();
+        dialog.ShowDialog();
+
+        if (dialogResult && !string.IsNullOrWhiteSpace(textBox.Text))
+        {
+            try
+            {
+                var templatePath = _templateService.CreateNewTemplate(textBox.Text);
+                RefreshTemplates();
+                await OpenFileAsync(templatePath);
+                StatusBarViewModel.ShowMessage($"Created template: {textBox.Text}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to create template: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    /// <summary>
+    /// テンプレートを削除
+    /// </summary>
+    private void DeleteTemplate(TemplateInfo? template)
+    {
+        if (template == null)
+            return;
+
+        // 確認ダイアログ表示
+        var result = MessageBox.Show(
+            $"Are you sure you want to delete template '{template.DisplayName}'?",
+            "Confirm Delete",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        // テンプレートが現在開いているかチェック
+        if (Tabs.Any(t => t.FilePath == template.FullPath))
+        {
+            MessageBox.Show(
+                "Template is currently open. Please close the tab first.",
+                "Cannot Delete",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            _templateService.DeleteTemplate(template.FileName);
+            RefreshTemplates();
+            StatusBarViewModel.ShowMessage($"Deleted template: {template.DisplayName}");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Failed to delete template: {ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// テンプレートを削除できるかチェック
+    /// </summary>
+    private bool CanDeleteTemplate(TemplateInfo? template)
+    {
+        return template != null && File.Exists(template.FullPath);
+    }
+
+    /// <summary>
+    /// テンプレートフォルダを開く
+    /// </summary>
+    private void OpenTemplateFolder()
+    {
+        try
+        {
+            var templateDir = _templateService.GetTemplateDirectoryPath();
+            if (Directory.Exists(templateDir))
+            {
+                System.Diagnostics.Process.Start("explorer.exe", $"\"{templateDir}\"");
+            }
+            else
+            {
+                MessageBox.Show("Template folder does not exist.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to open template folder: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    #endregion
 }

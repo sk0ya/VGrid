@@ -132,6 +132,71 @@
                           IsCheckable="True"
                           IsChecked="{Binding IsVimModeEnabled, Mode=TwoWay}"/>
             </MenuItem>
+            <MenuItem Header="_Template">
+                <!-- New Template -->
+                <MenuItem Header="_New Template..."
+                          Command="{Binding NewTemplateCommand}"/>
+
+                <Separator/>
+
+                <!-- Open Template Submenu -->
+                <MenuItem Header="_Open Template">
+                    <MenuItem.Style>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="ItemsSource" Value="{Binding Templates}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Templates.Count}" Value="0">
+                                    <Setter Property="IsEnabled" Value="False"/>
+                                    <Setter Property="ItemsSource" Value="{x:Null}"/>
+                                    <Setter Property="Header" Value="_Open Template (No templates available)"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </MenuItem.Style>
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Header" Value="{Binding DisplayName}"/>
+                            <Setter Property="Command" Value="{Binding DataContext.OpenTemplateCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                            <Setter Property="CommandParameter" Value="{Binding}"/>
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                </MenuItem>
+
+                <Separator/>
+
+                <!-- Manage Templates -->
+                <MenuItem Header="_Manage Templates">
+                    <MenuItem Header="_Delete Template...">
+                        <MenuItem.Style>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="ItemsSource" Value="{Binding Templates}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Templates.Count}" Value="0">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                        <Setter Property="ItemsSource" Value="{x:Null}"/>
+                                        <Setter Property="Header" Value="_Delete Template... (No templates available)"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </MenuItem.Style>
+                        <MenuItem.ItemContainerStyle>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Header" Value="{Binding DisplayName}"/>
+                                <Setter Property="Command" Value="{Binding DataContext.DeleteTemplateCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Setter Property="CommandParameter" Value="{Binding}"/>
+                            </Style>
+                        </MenuItem.ItemContainerStyle>
+                    </MenuItem>
+
+                    <Separator/>
+
+                    <MenuItem Header="_Open Template Folder"
+                              Command="{Binding OpenTemplateFolderCommand}"/>
+
+                    <MenuItem Header="_Refresh Template List"
+                              Command="{Binding RefreshTemplatesCommand}"/>
+                </MenuItem>
+            </MenuItem>
             <MenuItem Header="_Git">
                 <MenuItem Header="_View Git History..."
                           Command="{Binding ViewGitHistoryCommand}"

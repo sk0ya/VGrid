@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using VGrid.Services;
 using VGrid.ViewModels;
 
 namespace VGrid.UI;
@@ -18,13 +19,15 @@ public class FolderTreeManager
 {
     private readonly System.Windows.Controls.TreeView _treeView;
     private readonly MainViewModel _viewModel;
+    private readonly ITemplateService _templateService;
     private TreeViewItem? _draggedItem;
     private System.Windows.Point _dragStartPoint;
 
-    public FolderTreeManager(System.Windows.Controls.TreeView treeView, MainViewModel viewModel)
+    public FolderTreeManager(System.Windows.Controls.TreeView treeView, MainViewModel viewModel, ITemplateService templateService)
     {
         _treeView = treeView;
         _viewModel = viewModel;
+        _templateService = templateService;
     }
 
     public void PopulateFolderTree()
@@ -58,6 +61,8 @@ public class FolderTreeManager
             var newFileMenuItem = new MenuItem { Header = "新しいファイル(_F)" };
             newFileMenuItem.Click += NewFileMenuItem_Click;
             rootContextMenu.Items.Add(newFileMenuItem);
+
+            AddTemplateMenuItems(rootContextMenu, rootItem, _viewModel.SelectedFolderPath);
 
             var newFolderMenuItem = new MenuItem { Header = "新しいフォルダ(_N)" };
             newFolderMenuItem.Click += NewFolderMenuItem_Click;
@@ -136,6 +141,8 @@ public class FolderTreeManager
                 var newFileMenuItem = new MenuItem { Header = "新しいファイル(_F)" };
                 newFileMenuItem.Click += NewFileMenuItem_Click;
                 contextMenu.Items.Add(newFileMenuItem);
+
+                AddTemplateMenuItems(contextMenu, dirItem, dir);
 
                 var newFolderMenuItem = new MenuItem { Header = "新しいフォルダ(_N)" };
                 newFolderMenuItem.Click += NewFolderMenuItem_Click;
@@ -1085,6 +1092,11 @@ public class FolderTreeManager
             };
             contextMenu.Items.Add(newFileMenuItem);
 
+            if (_treeView.Items.Count > 0 && _treeView.Items[0] is TreeViewItem rootItemForTemplate)
+            {
+                AddTemplateMenuItems(contextMenu, rootItemForTemplate, _viewModel.SelectedFolderPath);
+            }
+
             var newFolderMenuItem = new MenuItem { Header = "新しいフォルダ(_N)" };
             newFolderMenuItem.Click += (s, args) =>
             {
@@ -1477,5 +1489,101 @@ public class FolderTreeManager
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// コンテキストメニューに「テンプレートから新規作成」サブメニューを追加
+    /// </summary>
+    private void AddTemplateMenuItems(ContextMenu contextMenu, TreeViewItem parentItem, string folderPath)
+    {
+        var templates = _templateService.GetAvailableTemplates();
+
+        if (templates.Count == 0)
+            return; // テンプレートがない場合は何も追加しない
+
+        // サブメニュー作成
+        var templateMenuItem = new MenuItem
+        {
+            Header = "テンプレートから新規作成(_T)"
+        };
+
+        // 各テンプレートをサブアイテムとして追加
+        foreach (var template in templates)
+        {
+            var templateItem = new MenuItem
+            {
+                Header = template.DisplayName,
+                Tag = template
+            };
+
+            templateItem.Click += (s, e) =>
+                CreateFileFromTemplateMenuItem_Click(s, e, parentItem, folderPath);
+
+            templateMenuItem.Items.Add(templateItem);
+        }
+
+        // 「新しいファイル」の次に挿入（index 1）
+        contextMenu.Items.Insert(1, templateMenuItem);
+    }
+
+    /// <summary>
+    /// テンプレートからファイルを作成
+    /// </summary>
+    private void CreateFileFromTemplateMenuItem_Click(
+        object sender,
+        RoutedEventArgs e,
+        TreeViewItem parentItem,
+        string folderPath)
+    {
+        if (sender is not MenuItem menuItem || menuItem.Tag is not TemplateInfo template)
+            return;
+
+        try
+        {
+            // テンプレートからファイルを作成
+            var newFilePath = _templateService.CreateFileFromTemplate(
+                template.FileName,
+                folderPath
+            );
+
+            var newFileName = Path.GetFileName(newFilePath);
+
+            // 親ノードを展開
+            if (!parentItem.IsExpanded)
+            {
+                parentItem.IsExpanded = true;
+            }
+
+            // TreeViewを更新
+            RefreshTreeNode(parentItem);
+
+            // 新しく作成されたファイルアイテムを探して選択＋名前変更モードに入る
+            var newFileItem = FindTreeItemByPath(parentItem, newFilePath);
+            if (newFileItem != null)
+            {
+                newFileItem.IsSelected = true;
+                BeginRenameTreeItem(newFileItem, false);
+            }
+
+            _viewModel.StatusBarViewModel.ShowMessage(
+                $"Created from template: {newFileName}"
+            );
+        }
+        catch (FileNotFoundException ex)
+        {
+            MessageBox.Show(
+                $"テンプレートファイルが見つかりません: {ex.Message}",
+                "エラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"テンプレートからのファイル作成に失敗しました: {ex.Message}",
+                "エラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 }

@@ -42,7 +42,7 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
 
         // Initialize manager classes
-        _folderTreeManager = new FolderTreeManager(FolderTreeView, _viewModel);
+        _folderTreeManager = new FolderTreeManager(FolderTreeView, _viewModel, _viewModel.TemplateService);
         _dataGridManager = new DataGridManager(_viewModel);
         _selectionManager = new SelectionManager(_viewModel);
         _vimInputHandler = new VimInputHandler(_viewModel);

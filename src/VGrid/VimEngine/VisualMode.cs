@@ -97,7 +97,9 @@ public class VisualMode : IVimMode
         {
             Key.H when modifiers.HasFlag(ModifierKeys.Shift) => MoveSelection(state, document, state.CursorPosition.MoveToLineStart()),
             Key.H => MoveSelection(state, document, state.CursorPosition.MoveLeft(1)),
+            Key.J when modifiers.HasFlag(ModifierKeys.Shift) => MoveSelection(state, document, state.CursorPosition.MoveDown(10)),
             Key.J => MoveSelection(state, document, state.CursorPosition.MoveDown(1)),
+            Key.K when modifiers.HasFlag(ModifierKeys.Shift) => MoveSelection(state, document, state.CursorPosition.MoveUp(10)),
             Key.K => MoveSelection(state, document, state.CursorPosition.MoveUp(1)),
             Key.L when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastNonEmptyColumnWithSelection(state, document),
             Key.L => MoveSelection(state, document, state.CursorPosition.MoveRight(1)),

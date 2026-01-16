@@ -88,7 +88,9 @@ public class NormalMode : IVimMode
             // Basic movement (hjkl)
             Key.H when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLineStart(state),
             Key.H => MoveLeft(state, document, count),
+            Key.J when modifiers.HasFlag(ModifierKeys.Shift) => MoveDown(state, document, 10),
             Key.J => MoveDown(state, document, count),
+            Key.K when modifiers.HasFlag(ModifierKeys.Shift) => MoveUp(state, document, 10),
             Key.K => MoveUp(state, document, count),
             Key.L when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastNonEmptyColumn(state, document),
             Key.L => MoveRight(state, document, count),

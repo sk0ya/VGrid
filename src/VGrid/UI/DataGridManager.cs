@@ -972,6 +972,13 @@ public class DataGridManager
             {
                 AutoFitAllColumns(dataGrid, newTab);
             }
+
+            // Update DataGrid selection to sync with VimState cursor position
+            // This ensures the selection is correct when switching tabs or opening files
+            dataGrid.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                UpdateDataGridSelection(dataGrid, newTab);
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
     }
 

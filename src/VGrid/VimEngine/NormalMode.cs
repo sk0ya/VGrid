@@ -79,7 +79,7 @@ public class NormalMode : IVimMode
         // Handle Ctrl+R for redo
         if (key == Key.R && modifiers.HasFlag(ModifierKeys.Control))
         {
-            return Redo(state);
+            return Redo(state, document);
         }
 
         // Handle navigation keys
@@ -160,7 +160,7 @@ public class NormalMode : IVimMode
             Key.Delete => DeleteCurrentCell(state, document),
 
             // Undo operation
-            Key.U => Undo(state),
+            Key.U => Undo(state, document),
 
             // Word movement
             Key.W when state.PendingKeys.Keys.Count < 2 => MoveToNextNonEmptyCell(state, document),
@@ -721,20 +721,28 @@ public class NormalMode : IVimMode
         return true;
     }
 
-    private bool Undo(VimState state)
+    private bool Undo(VimState state, TsvDocument document)
     {
         if (state.CommandHistory != null && state.CommandHistory.CanUndo)
         {
             state.CommandHistory.Undo();
+
+            // Trigger column width update for all columns after undo
+            var allColumns = Enumerable.Range(0, document.ColumnCount);
+            state.OnColumnWidthUpdateRequested(allColumns);
         }
         return true; // Key is always handled, even if there's nothing to undo
     }
 
-    private bool Redo(VimState state)
+    private bool Redo(VimState state, TsvDocument document)
     {
         if (state.CommandHistory != null && state.CommandHistory.CanRedo)
         {
             state.CommandHistory.Redo();
+
+            // Trigger column width update for all columns after redo
+            var allColumns = Enumerable.Range(0, document.ColumnCount);
+            state.OnColumnWidthUpdateRequested(allColumns);
         }
         return true; // Key is always handled, even if there's nothing to redo
     }
@@ -1279,6 +1287,8 @@ public class NormalMode : IVimMode
         if (string.IsNullOrEmpty(change.InsertedText))
             return true;
 
+        var affectedColumns = new HashSet<int>();
+
         // For insert operations (i, a), apply the inserted text to current cell
         // based on the caret position (Start = prepend, End = append)
         for (int i = 0; i < count; i++)
@@ -1315,11 +1325,19 @@ public class NormalMode : IVimMode
                 command.Execute();
             }
 
+            affectedColumns.Add(currentPos.Column);
+
             // Move right after each insert (for multiple repeats)
             if (i < count - 1)
             {
                 state.CursorPosition = currentPos.MoveRight(1).Clamp(document);
             }
+        }
+
+        // Trigger column width update for affected columns
+        if (affectedColumns.Count > 0)
+        {
+            state.OnColumnWidthUpdateRequested(affectedColumns);
         }
 
         return true;
@@ -1379,6 +1397,9 @@ public class NormalMode : IVimMode
             }
         }
 
+        // Trigger column width update for the affected column
+        state.OnColumnWidthUpdateRequested(new[] { currentPos.Column });
+
         return true;
     }
 
@@ -1436,6 +1457,9 @@ public class NormalMode : IVimMode
             }
         }
 
+        // Trigger column width update for the first column (where text was inserted)
+        state.OnColumnWidthUpdateRequested(new[] { 0 });
+
         return true;
     }
 
@@ -1443,6 +1467,8 @@ public class NormalMode : IVimMode
     {
         if (string.IsNullOrEmpty(change.InsertedText))
             return true;
+
+        var affectedColumns = new HashSet<int>();
 
         // For change word operations (ciw, caw), apply the text 'count' times at current position
         for (int i = 0; i < count; i++)
@@ -1464,11 +1490,19 @@ public class NormalMode : IVimMode
                 command.Execute();
             }
 
+            affectedColumns.Add(currentPos.Column);
+
             // Move right after each change (for multiple repeats)
             if (i < count - 1)
             {
                 state.CursorPosition = currentPos.MoveRight(1).Clamp(document);
             }
+        }
+
+        // Trigger column width update for affected columns
+        if (affectedColumns.Count > 0)
+        {
+            state.OnColumnWidthUpdateRequested(affectedColumns);
         }
 
         return true;

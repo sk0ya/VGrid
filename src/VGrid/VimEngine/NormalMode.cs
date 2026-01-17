@@ -174,6 +174,9 @@ public class NormalMode : IVimMode
             Key.C when state.PendingKeys.Keys.LastOrDefault() == Key.C => ChangeLine(state, document),
             Key.C when state.PendingKeys.Keys.Count == 0 => HandlePendingC(state),
 
+            // Align columns (format all columns to equal width)
+            Key.OemPlus when !modifiers.HasFlag(ModifierKeys.Shift) => AlignAllColumns(state, document), // '=' key
+
             // Placeholder keys for future implementation
             Key.E =>true,
             Key.F =>true,
@@ -1537,6 +1540,27 @@ public class NormalMode : IVimMode
 
         // Switch to insert mode
         state.SwitchMode(VimMode.Insert);
+
+        return true;
+    }
+
+    private bool AlignAllColumns(VimState state, TsvDocument document)
+    {
+        // Align all columns by padding cells with spaces to match the maximum width in each column
+        if (document.RowCount == 0 || document.ColumnCount == 0)
+            return true; // Key is handled, but nothing to align
+
+        var command = new Commands.AlignColumnsCommand(document);
+
+        // Execute through command history if available
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
 
         return true;
     }

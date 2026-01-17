@@ -89,6 +89,19 @@ public partial class MainWindow : Window
     private void RowHeader_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.RowHeader_MouseRightButtonUp(sender, e);
     private void ColumnHeader_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.ColumnHeader_MouseRightButtonUp(sender, e);
 
+    // Tab Header Event Handler - Close tab on middle mouse button click
+    private void TabHeader_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.MiddleButton == MouseButtonState.Pressed)
+        {
+            if (sender is FrameworkElement element && element.DataContext is TabItemViewModel tab)
+            {
+                _viewModel?.CloseTabCommand.Execute(tab);
+                e.Handled = true;
+            }
+        }
+    }
+
     // Keyboard Input Handler - Delegate to VimInputHandler
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {

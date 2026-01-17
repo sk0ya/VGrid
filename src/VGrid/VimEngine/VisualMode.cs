@@ -111,6 +111,9 @@ public class VisualMode : IVimMode
             // gg command: move to first line
             Key.G when state.PendingKeys.Keys.LastOrDefault() == Key.G => MoveToFirstLineWithSelection(state, document),
             Key.G when state.PendingKeys.Keys.Count == 0 => HandlePendingG(state),
+            // Paragraph movement (empty row navigation)
+            Key.OemCloseBrackets when modifiers.HasFlag(ModifierKeys.Shift) => MoveToNextEmptyRowWithSelection(state, document), // '}'
+            Key.OemOpenBrackets when modifiers.HasFlag(ModifierKeys.Shift) => MoveToPreviousEmptyRowWithSelection(state, document), // '{'
             _ => false
         };
 
@@ -935,5 +938,88 @@ public class VisualMode : IVimMode
         UpdateSelection(state, document);
 
         return true;
+    }
+
+    private bool MoveToNextEmptyRowWithSelection(VimState state, TsvDocument document)
+    {
+        // Move to the next empty row (all cells are empty or whitespace) with selection
+        int currentRow = state.CursorPosition.Row;
+        int nextEmptyRow = FindNextEmptyRow(document, currentRow);
+
+        if (nextEmptyRow >= 0)
+        {
+            var newPosition = new GridPosition(nextEmptyRow, state.CursorPosition.Column);
+            state.CursorPosition = newPosition.Clamp(document);
+        }
+        else
+        {
+            // No empty row found, move to the last row
+            var newPosition = new GridPosition(document.RowCount - 1, state.CursorPosition.Column);
+            state.CursorPosition = newPosition.Clamp(document);
+        }
+
+        // Update selection to include the range from selection start to new position
+        UpdateSelection(state, document);
+
+        return true;
+    }
+
+    private bool MoveToPreviousEmptyRowWithSelection(VimState state, TsvDocument document)
+    {
+        // Move to the previous empty row (all cells are empty or whitespace) with selection
+        int currentRow = state.CursorPosition.Row;
+        int prevEmptyRow = FindPreviousEmptyRow(document, currentRow);
+
+        if (prevEmptyRow >= 0)
+        {
+            var newPosition = new GridPosition(prevEmptyRow, state.CursorPosition.Column);
+            state.CursorPosition = newPosition.Clamp(document);
+        }
+        else
+        {
+            // No empty row found, move to the first row
+            var newPosition = new GridPosition(0, state.CursorPosition.Column);
+            state.CursorPosition = newPosition.Clamp(document);
+        }
+
+        // Update selection to include the range from selection start to new position
+        UpdateSelection(state, document);
+
+        return true;
+    }
+
+    private int FindNextEmptyRow(TsvDocument document, int startRow)
+    {
+        // Search for the next empty row after startRow
+        for (int row = startRow + 1; row < document.RowCount; row++)
+        {
+            if (IsEmptyRow(document, row))
+            {
+                return row;
+            }
+        }
+        return -1; // No empty row found
+    }
+
+    private int FindPreviousEmptyRow(TsvDocument document, int startRow)
+    {
+        // Search for the previous empty row before startRow
+        for (int row = startRow - 1; row >= 0; row--)
+        {
+            if (IsEmptyRow(document, row))
+            {
+                return row;
+            }
+        }
+        return -1; // No empty row found
+    }
+
+    private bool IsEmptyRow(TsvDocument document, int rowIndex)
+    {
+        if (rowIndex < 0 || rowIndex >= document.RowCount)
+            return false;
+
+        var row = document.Rows[rowIndex];
+        return row.Cells.All(cell => string.IsNullOrWhiteSpace(cell.Value));
     }
 }

@@ -177,6 +177,10 @@ public class NormalMode : IVimMode
             // Align columns (format all columns to equal width)
             Key.OemPlus when !modifiers.HasFlag(ModifierKeys.Shift) => AlignAllColumns(state, document), // '=' key
 
+            // Paragraph movement (empty row navigation)
+            Key.OemCloseBrackets when modifiers.HasFlag(ModifierKeys.Shift) => MoveToNextEmptyRow(state, document, count), // '}'
+            Key.OemOpenBrackets when modifiers.HasFlag(ModifierKeys.Shift) => MoveToPreviousEmptyRow(state, document, count), // '{'
+
             // Placeholder keys for future implementation
             Key.E =>true,
             Key.F =>true,
@@ -1563,5 +1567,90 @@ public class NormalMode : IVimMode
         }
 
         return true;
+    }
+
+    private bool MoveToNextEmptyRow(VimState state, TsvDocument document, int count)
+    {
+        // Move to the next empty row (all cells are empty or whitespace)
+        // Repeat 'count' times
+        int currentRow = state.CursorPosition.Row;
+
+        for (int i = 0; i < count; i++)
+        {
+            int nextEmptyRow = FindNextEmptyRow(document, currentRow);
+            if (nextEmptyRow >= 0)
+            {
+                currentRow = nextEmptyRow;
+            }
+            else
+            {
+                // No more empty rows found, move to the last row
+                currentRow = document.RowCount - 1;
+                break;
+            }
+        }
+
+        state.CursorPosition = new GridPosition(currentRow, state.CursorPosition.Column).Clamp(document);
+        return true;
+    }
+
+    private bool MoveToPreviousEmptyRow(VimState state, TsvDocument document, int count)
+    {
+        // Move to the previous empty row (all cells are empty or whitespace)
+        // Repeat 'count' times
+        int currentRow = state.CursorPosition.Row;
+
+        for (int i = 0; i < count; i++)
+        {
+            int prevEmptyRow = FindPreviousEmptyRow(document, currentRow);
+            if (prevEmptyRow >= 0)
+            {
+                currentRow = prevEmptyRow;
+            }
+            else
+            {
+                // No more empty rows found, move to the first row
+                currentRow = 0;
+                break;
+            }
+        }
+
+        state.CursorPosition = new GridPosition(currentRow, state.CursorPosition.Column).Clamp(document);
+        return true;
+    }
+
+    private int FindNextEmptyRow(TsvDocument document, int startRow)
+    {
+        // Search for the next empty row after startRow
+        for (int row = startRow + 1; row < document.RowCount; row++)
+        {
+            if (IsEmptyRow(document, row))
+            {
+                return row;
+            }
+        }
+        return -1; // No empty row found
+    }
+
+    private int FindPreviousEmptyRow(TsvDocument document, int startRow)
+    {
+        // Search for the previous empty row before startRow
+        for (int row = startRow - 1; row >= 0; row--)
+        {
+            if (IsEmptyRow(document, row))
+            {
+                return row;
+            }
+        }
+        return -1; // No empty row found
+    }
+
+    private bool IsEmptyRow(TsvDocument document, int rowIndex)
+    {
+        if (rowIndex < 0 || rowIndex >= document.RowCount)
+            return false;
+
+        var row = document.Rows[rowIndex];
+        return row.Cells.All(cell => string.IsNullOrWhiteSpace(cell.Value));
     }
 }

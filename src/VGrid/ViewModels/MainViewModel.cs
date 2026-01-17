@@ -24,6 +24,7 @@ public class MainViewModel : ViewModelBase
     private readonly IGitService _gitService;
     private readonly IColumnWidthService _columnWidthService;
     private readonly ITemplateService _templateService;
+    private readonly IVimrcService _vimrcService;
     private TabItemViewModel? _selectedTab;
     private string? _selectedFolderPath;
     private bool _isVimModeEnabled = true;
@@ -37,6 +38,10 @@ public class MainViewModel : ViewModelBase
         _gitService = new GitService();
         _columnWidthService = new ColumnWidthService();
         _templateService = new TemplateService();
+        _vimrcService = new VimrcService();
+
+        // Load vimrc configuration
+        _vimrcService.Load();
 
         Tabs = new ObservableCollection<TabItemViewModel>();
         StatusBarViewModel = new StatusBarViewModel();
@@ -180,7 +185,8 @@ public class MainViewModel : ViewModelBase
 
         var vimState = new VimState
         {
-            CommandHistory = commandHistory
+            CommandHistory = commandHistory,
+            KeyBindingConfig = _vimrcService.Config
         };
 
         var tab = new TabItemViewModel($"Untitled{Tabs.Count + 1}.tsv", document, vimState, gridViewModel);
@@ -334,7 +340,8 @@ public class MainViewModel : ViewModelBase
 
             var vimState = new VimState
             {
-                CommandHistory = commandHistory
+                CommandHistory = commandHistory,
+                KeyBindingConfig = _vimrcService.Config
             };
 
             var tab = new TabItemViewModel(filePath, document, vimState, gridViewModel);

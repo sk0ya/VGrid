@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using VGrid.Commands;
 using VGrid.Models;
+using VGrid.VimEngine.Actions;
+using VGrid.VimEngine.KeyBinding;
 
 namespace VGrid.VimEngine;
 
@@ -501,6 +503,11 @@ public class VimState : INotifyPropertyChanged
     public CommandHistory? CommandHistory { get; set; }
 
     /// <summary>
+    /// Custom keybinding configuration loaded from .vimrc
+    /// </summary>
+    public KeyBindingConfig? KeyBindingConfig { get; set; }
+
+    /// <summary>
     /// Registers for yank/paste operations
     /// </summary>
     public Dictionary<char, string> Registers => _registers;
@@ -553,7 +560,48 @@ public class VimState : INotifyPropertyChanged
             CountPrefix = null;
         }
 
+        // Check for custom keybindings first
+        if (TryExecuteCustomBinding(key, modifiers, document))
+        {
+            return true;
+        }
+
         return _modeHandler.HandleKey(this, key, modifiers, document);
+    }
+
+    /// <summary>
+    /// Tries to execute a custom keybinding if one is defined
+    /// </summary>
+    private bool TryExecuteCustomBinding(Key key, ModifierKeys modifiers, TsvDocument document)
+    {
+        if (KeyBindingConfig == null)
+            return false;
+
+        var binding = new KeyBinding.KeyBinding(key, modifiers);
+
+        if (!KeyBindingConfig.TryGetAction(CurrentMode, binding, out var actionName) || actionName == null)
+            return false;
+
+        // Find the action in the registry
+        if (!ActionRegistry.Instance.TryGetAction(actionName, out var action) || action == null)
+        {
+            System.Diagnostics.Debug.WriteLine($"[VimState] Unknown action: {actionName}");
+            return false;
+        }
+
+        // Execute the action
+        var count = CountPrefix ?? 1;
+        var context = new VimActionContext(this, document, count);
+        var handled = action.Execute(context);
+
+        if (handled)
+        {
+            // Clear count prefix after successful execution
+            CountPrefix = null;
+            _pendingKeys.Clear();
+        }
+
+        return handled;
     }
 
     /// <summary>

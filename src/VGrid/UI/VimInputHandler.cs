@@ -146,9 +146,151 @@ public class VimInputHandler
             }
         }
 
-        // If Vim mode is disabled, let DataGrid handle keys normally
+        // If Vim mode is disabled, handle standard shortcuts (Excel-like behavior)
         if (!_viewModel.IsVimModeEnabled)
+        {
+            // If editing a cell (TextBox has focus), let TextBox handle standard shortcuts
+            if (Keyboard.FocusedElement is TextBox)
+                return;
+
+            var tab = _viewModel.SelectedTab;
+            var document = tab.GridViewModel.Document;
+            var pos = tab.VimState.CursorPosition;
+
+            // Ctrl+A: Select all cells
+            if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // Select all cells by setting visual selection
+                tab.VimState.CurrentSelection = new VimEngine.SelectionRange(
+                    VimEngine.VisualType.Block,
+                    new Models.GridPosition(0, 0),
+                    new Models.GridPosition(document.RowCount - 1, document.ColumnCount - 1));
+                e.Handled = true;
+                return;
+            }
+
+            // Ctrl+C: Copy selected cell(s)
+            if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                string textToCopy;
+                if (tab.VimState.CurrentSelection != null)
+                {
+                    // Copy selection (use StartRow/EndRow/StartColumn/EndColumn for proper ordering)
+                    var selection = tab.VimState.CurrentSelection;
+                    var lines = new System.Collections.Generic.List<string>();
+                    for (int row = selection.StartRow; row <= selection.EndRow; row++)
+                    {
+                        var cells = new System.Collections.Generic.List<string>();
+                        for (int col = selection.StartColumn; col <= selection.EndColumn; col++)
+                        {
+                            var cell = document.GetCell(row, col);
+                            cells.Add(cell?.Value ?? string.Empty);
+                        }
+                        lines.Add(string.Join("\t", cells));
+                    }
+                    textToCopy = string.Join("\r\n", lines);
+                }
+                else
+                {
+                    // Copy current cell
+                    var cell = document.GetCell(pos.Row, pos.Column);
+                    textToCopy = cell?.Value ?? string.Empty;
+                }
+                System.Windows.Clipboard.SetText(textToCopy);
+                e.Handled = true;
+                return;
+            }
+
+            // Ctrl+V: Paste
+            if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (System.Windows.Clipboard.ContainsText())
+                {
+                    var text = System.Windows.Clipboard.GetText();
+                    var clipboardLines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                    // Remove trailing empty line if exists (from copy ending with newline)
+                    if (clipboardLines.Length > 1 && string.IsNullOrEmpty(clipboardLines[clipboardLines.Length - 1]))
+                    {
+                        clipboardLines = clipboardLines.Take(clipboardLines.Length - 1).ToArray();
+                    }
+
+                    // Parse clipboard into YankedContent
+                    var clipboardData = clipboardLines.Select(line => line.Split('\t')).ToArray();
+                    int rowCount = clipboardData.Length;
+                    int colCount = clipboardData.Max(row => row.Length);
+
+                    var yank = new VimEngine.YankedContent
+                    {
+                        Rows = rowCount,
+                        Columns = colCount,
+                        SourceType = VimEngine.VisualType.Character,
+                        Values = new string[rowCount, colCount]
+                    };
+                    for (int r = 0; r < rowCount; r++)
+                    {
+                        for (int c = 0; c < colCount; c++)
+                        {
+                            yank.Values[r, c] = c < clipboardData[r].Length ? clipboardData[r][c] : string.Empty;
+                        }
+                    }
+
+                    if (tab.VimState.CurrentSelection != null)
+                    {
+                        // Use PasteOverSelectionCommand (same as Vim visual mode paste)
+                        var pasteCommand = new Commands.PasteOverSelectionCommand(document, tab.VimState.CurrentSelection, yank);
+                        tab.VimState.CommandHistory?.Execute(pasteCommand);
+                        tab.VimState.CurrentSelection = null;
+                    }
+                    else
+                    {
+                        // No selection: create a 1x1 selection at current position and paste
+                        var selection = new VimEngine.SelectionRange(
+                            VimEngine.VisualType.Character,
+                            pos,
+                            new Models.GridPosition(pos.Row + rowCount - 1, pos.Column + colCount - 1));
+                        var pasteCommand = new Commands.PasteOverSelectionCommand(document, selection, yank);
+                        tab.VimState.CommandHistory?.Execute(pasteCommand);
+                    }
+                }
+                e.Handled = true;
+                return;
+            }
+
+            // Delete: Clear selected cell(s)
+            if (e.Key == Key.Delete)
+            {
+                if (tab.VimState.CurrentSelection != null)
+                {
+                    // Delete selection (use StartRow/EndRow/StartColumn/EndColumn for proper ordering)
+                    var selection = tab.VimState.CurrentSelection;
+                    for (int row = selection.StartRow; row <= selection.EndRow; row++)
+                    {
+                        for (int col = selection.StartColumn; col <= selection.EndColumn; col++)
+                        {
+                            var command = new Commands.EditCellCommand(
+                                document,
+                                new Models.GridPosition(row, col),
+                                string.Empty);
+                            tab.VimState.CommandHistory?.Execute(command);
+                        }
+                    }
+                    tab.VimState.CurrentSelection = null;
+                }
+                else
+                {
+                    // Delete current cell
+                    var command = new Commands.EditCellCommand(
+                        document,
+                        pos,
+                        string.Empty);
+                    tab.VimState.CommandHistory?.Execute(command);
+                }
+                e.Handled = true;
+                return;
+            }
+
             return;
+        }
 
         var currentTab = _viewModel.SelectedTab;
         var currentMode = currentTab.VimState.CurrentMode;

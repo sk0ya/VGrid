@@ -263,14 +263,17 @@ public class DataGridManager
             // Only record if something actually changed
             if (newValue != originalValue && rowIndex >= 0 && columnIndex >= 0)
             {
-                // Record for dot command
+                // Record for dot command - extract only the inserted text portion
                 if (tab.VimState.PendingInsertType != ChangeType.None)
                 {
+                    // Calculate the actually inserted text based on caret position
+                    string insertedText = ExtractInsertedText(originalValue, newValue, tab.VimState.CellEditCaretPosition);
+
                     tab.VimState.LastChange = new LastChange
                     {
                         Type = tab.VimState.PendingInsertType,
                         Count = 1,  // Insert operations don't use count prefix
-                        InsertedText = newValue,
+                        InsertedText = insertedText,
                         CaretPosition = tab.VimState.CellEditCaretPosition
                     };
                 }
@@ -1158,6 +1161,53 @@ public class DataGridManager
 
         tab.VimState.PendingBulkEditRange = null;
         tab.VimState.OriginalCellValueForBulkEdit = string.Empty;
+    }
+
+    /// <summary>
+    /// Extracts the actually inserted text by comparing old and new values based on caret position
+    /// </summary>
+    /// <param name="originalValue">The cell value before editing</param>
+    /// <param name="newValue">The cell value after editing</param>
+    /// <param name="caretPosition">Where the caret was positioned (Start = 'i', End = 'a')</param>
+    /// <returns>The text that was actually inserted</returns>
+    private string ExtractInsertedText(string originalValue, string newValue, CellEditCaretPosition caretPosition)
+    {
+        if (string.IsNullOrEmpty(originalValue))
+        {
+            // If original was empty, everything is inserted text
+            return newValue ?? string.Empty;
+        }
+
+        if (string.IsNullOrEmpty(newValue))
+        {
+            // If new value is empty, nothing was inserted (or everything was deleted)
+            return string.Empty;
+        }
+
+        // For 'i' (caret at start): new text was prepended
+        // For 'a' (caret at end): new text was appended
+        if (caretPosition == CellEditCaretPosition.Start)
+        {
+            // Text was inserted at the beginning
+            // Expected: newValue = insertedText + originalValue
+            if (newValue.EndsWith(originalValue))
+            {
+                return newValue.Substring(0, newValue.Length - originalValue.Length);
+            }
+        }
+        else // CellEditCaretPosition.End
+        {
+            // Text was appended at the end
+            // Expected: newValue = originalValue + insertedText
+            if (newValue.StartsWith(originalValue))
+            {
+                return newValue.Substring(originalValue.Length);
+            }
+        }
+
+        // Fallback: if we can't determine the exact insertion, return the full new value
+        // This handles cases where the user edited in the middle or made complex changes
+        return newValue;
     }
 
     /// <summary>

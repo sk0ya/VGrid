@@ -1279,7 +1279,8 @@ public class NormalMode : IVimMode
         if (string.IsNullOrEmpty(change.InsertedText))
             return true;
 
-        // For insert operations (i, a), apply the text 'count' times at current position
+        // For insert operations (i, a), apply the inserted text to current cell
+        // based on the caret position (Start = prepend, End = append)
         for (int i = 0; i < count; i++)
         {
             var currentPos = state.CursorPosition;
@@ -1287,8 +1288,23 @@ public class NormalMode : IVimMode
             if (currentPos.Row >= document.RowCount)
                 break;
 
-            // Simply set the cell value to the inserted text
-            var command = new Commands.EditCellCommand(document, currentPos, change.InsertedText);
+            var currentCell = document.GetCell(currentPos);
+            string currentValue = currentCell?.Value ?? string.Empty;
+
+            // Apply the inserted text based on original caret position
+            string newValue;
+            if (change.CaretPosition == CellEditCaretPosition.Start)
+            {
+                // 'i' - insert at beginning
+                newValue = change.InsertedText + currentValue;
+            }
+            else
+            {
+                // 'a' - append at end
+                newValue = currentValue + change.InsertedText;
+            }
+
+            var command = new Commands.EditCellCommand(document, currentPos, newValue);
 
             if (state.CommandHistory != null)
             {

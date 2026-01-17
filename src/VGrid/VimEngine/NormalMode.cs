@@ -97,7 +97,7 @@ public class NormalMode : IVimMode
 
             // Line movement
             Key.D0 when state.CountPrefix == null => MoveToFirstRowFirstColumn(state),
-            Key.D4 when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLineEnd(state, document), // $ (Shift+4)
+            Key.D4 when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastNonEmptyColumn(state, document), // $ (Shift+4)
 
             // Tab navigation
             Key.OemComma when modifiers.HasFlag(ModifierKeys.Shift) => SwitchToPreviousTab(state), // <

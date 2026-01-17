@@ -104,6 +104,7 @@ public class VisualMode : IVimMode
             Key.L when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastNonEmptyColumnWithSelection(state, document),
             Key.L => MoveSelection(state, document, state.CursorPosition.MoveRight(1)),
             Key.D0 => MoveSelection(state, document, new GridPosition(0, 0)),
+            Key.D4 when modifiers.HasFlag(ModifierKeys.Shift) => MoveToLastNonEmptyColumnWithSelection(state, document), // $ (Shift+4)
             Key.W => MoveToNextNonEmptyCellWithSelection(state, document),
             Key.B => MoveToPreviousNonEmptyCellWithSelection(state, document),
             // G command: move to last line (Shift+G)

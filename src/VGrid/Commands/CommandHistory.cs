@@ -65,6 +65,33 @@ public class CommandHistory
     }
 
     /// <summary>
+    /// Adds a command that has already been executed (e.g., by data binding) to the history
+    /// </summary>
+    public void AddExecutedCommand(ICommand command)
+    {
+        _undoStack.Push(command);
+
+        // Clear redo stack when a new command is added
+        _redoStack.Clear();
+
+        // Limit history size
+        if (_undoStack.Count > _maxHistorySize)
+        {
+            // Remove oldest command (bottom of stack)
+            var temp = new Stack<ICommand>();
+            while (_undoStack.Count > 1)
+            {
+                temp.Push(_undoStack.Pop());
+            }
+            _undoStack.Pop(); // Remove oldest
+            while (temp.Count > 0)
+            {
+                _undoStack.Push(temp.Pop());
+            }
+        }
+    }
+
+    /// <summary>
     /// Undoes the last command
     /// </summary>
     public void Undo()

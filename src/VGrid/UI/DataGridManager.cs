@@ -251,25 +251,35 @@ public class DataGridManager
 
         var tab = _viewModel.SelectedTab;
         int columnIndex = e.Column.DisplayIndex;
+        int rowIndex = e.Row != null ? tab.GridViewModel.Document.Rows.IndexOf((Row)e.Row.Item) : -1;
 
-        // Record insert mode change for dot command (if applicable)
-        if (tab.VimState.PendingInsertType != ChangeType.None &&
-            tab.VimState.InsertModeStartPosition != null &&
+        // Record insert mode change for dot command and undo support (if applicable)
+        if (tab.VimState.InsertModeStartPosition != null &&
             e.EditingElement is TextBox textBox)
         {
             string newValue = textBox.Text;
             string originalValue = tab.VimState.InsertModeOriginalValue;
 
             // Only record if something actually changed
-            if (newValue != originalValue)
+            if (newValue != originalValue && rowIndex >= 0 && columnIndex >= 0)
             {
-                tab.VimState.LastChange = new LastChange
+                // Record for dot command
+                if (tab.VimState.PendingInsertType != ChangeType.None)
                 {
-                    Type = tab.VimState.PendingInsertType,
-                    Count = 1,  // Insert operations don't use count prefix
-                    InsertedText = newValue,
-                    CaretPosition = tab.VimState.CellEditCaretPosition
-                };
+                    tab.VimState.LastChange = new LastChange
+                    {
+                        Type = tab.VimState.PendingInsertType,
+                        Count = 1,  // Insert operations don't use count prefix
+                        InsertedText = newValue,
+                        CaretPosition = tab.VimState.CellEditCaretPosition
+                    };
+                }
+
+                // Add to command history for undo support
+                // The value has already been applied by data binding, so we use AddExecutedCommand
+                var position = new GridPosition(rowIndex, columnIndex);
+                var command = new EditCellCommand(tab.GridViewModel.Document, position, newValue, originalValue);
+                tab.VimState.CommandHistory?.AddExecutedCommand(command);
             }
 
             // Clear the tracking state
@@ -646,16 +656,19 @@ public class DataGridManager
 
         if (currentMode == VimMode.Insert)
         {
-            // Save the original cell value when entering insert mode (for dot command tracking)
-            if (tab.VimState.InsertModeStartPosition != null)
-            {
-                int rowIndex = e.Row != null ? tab.GridViewModel.Document.Rows.IndexOf((Row)e.Row.Item) : -1;
-                int columnIndex = e.Column?.DisplayIndex ?? -1;
+            // Save the original cell value when entering insert mode (for undo and dot command tracking)
+            int rowIndex = e.Row != null ? tab.GridViewModel.Document.Rows.IndexOf((Row)e.Row.Item) : -1;
+            int columnIndex = e.Column?.DisplayIndex ?? -1;
 
-                if (rowIndex >= 0 && columnIndex >= 0)
+            if (rowIndex >= 0 && columnIndex >= 0)
+            {
+                var cell = tab.GridViewModel.Document.GetCell(rowIndex, columnIndex);
+                tab.VimState.InsertModeOriginalValue = cell?.Value ?? string.Empty;
+
+                // Set InsertModeStartPosition if not already set (e.g., when entering via double-click)
+                if (tab.VimState.InsertModeStartPosition == null)
                 {
-                    var cell = tab.GridViewModel.Document.GetCell(rowIndex, columnIndex);
-                    tab.VimState.InsertModeOriginalValue = cell?.Value ?? string.Empty;
+                    tab.VimState.InsertModeStartPosition = new GridPosition(rowIndex, columnIndex);
                 }
             }
             return;

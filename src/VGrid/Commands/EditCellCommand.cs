@@ -25,6 +25,17 @@ public class EditCellCommand : ICommand
         _oldValue = cell?.Value ?? string.Empty;
     }
 
+    /// <summary>
+    /// Constructor with explicit old value (for when the change has already been applied by data binding)
+    /// </summary>
+    public EditCellCommand(TsvDocument document, GridPosition position, string newValue, string oldValue)
+    {
+        _document = document;
+        _position = position;
+        _newValue = newValue;
+        _oldValue = oldValue;
+    }
+
     public void Execute()
     {
         _document.SetCell(_position, _newValue);

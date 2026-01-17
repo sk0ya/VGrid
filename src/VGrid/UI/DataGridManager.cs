@@ -39,6 +39,9 @@ public class DataGridManager
     // Phase 1 optimization: Track column count per DataGrid to avoid unnecessary regeneration
     private readonly Dictionary<DataGrid, int> _dataGridColumnCount = new Dictionary<DataGrid, int>();
 
+    // Store pending text input for non-Vim mode editing (Excel-like behavior)
+    private string? _pendingTextInput = null;
+
     public DataGridManager(MainViewModel viewModel)
     {
         _viewModel = viewModel;
@@ -80,6 +83,9 @@ public class DataGridManager
             grid.PreviewMouseLeftButtonDown += TsvGrid_PreviewMouseLeftButtonDown;
             grid.PreviewMouseLeftButtonUp -= TsvGrid_PreviewMouseLeftButtonUp;
             grid.PreviewMouseLeftButtonUp += TsvGrid_PreviewMouseLeftButtonUp;
+
+            grid.PreviewTextInput -= TsvGrid_PreviewTextInput;
+            grid.PreviewTextInput += TsvGrid_PreviewTextInput;
 
             grid.LoadingRow += (s, evt) => { evt.Row.Header = (evt.Row.GetIndex() + 1).ToString(); };
 
@@ -475,6 +481,29 @@ public class DataGridManager
         return null;
     }
 
+    private void TsvGrid_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        // Only handle when Vim mode is disabled - enable Excel-like typing to edit
+        if (_viewModel.IsVimModeEnabled)
+            return;
+
+        // If already editing (TextBox has focus), let the TextBox handle the input
+        if (Keyboard.FocusedElement is TextBox)
+            return;
+
+        if (sender is DataGrid grid && grid.DataContext is TabItemViewModel tab)
+        {
+            // If not already in edit mode, start editing and insert the typed text
+            if (!grid.IsReadOnly && grid.CurrentCell.Column != null)
+            {
+                // Store the pending text to be inserted when TextBox is ready
+                _pendingTextInput = e.Text;
+                grid.BeginEdit();
+                e.Handled = true;
+            }
+        }
+    }
+
     private void TsvGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 2 && sender is DataGrid grid && grid.DataContext is TabItemViewModel tab)
@@ -492,7 +521,8 @@ public class DataGridManager
                     {
                         tab.VimState.CursorPosition = new GridPosition(rowIndex, colIndex);
 
-                        if (tab.VimState.CurrentMode != VimMode.Insert)
+                        // Only switch to Insert mode if Vim mode is enabled
+                        if (_viewModel.IsVimModeEnabled && tab.VimState.CurrentMode != VimMode.Insert)
                         {
                             tab.VimState.SwitchMode(VimMode.Insert);
                             tab.VimState.CellEditCaretPosition = CellEditCaretPosition.End;
@@ -655,6 +685,13 @@ public class DataGridManager
             return;
 
         var tab = _viewModel.SelectedTab;
+
+        // If Vim mode is disabled, allow editing without any Vim state checks
+        if (!_viewModel.IsVimModeEnabled)
+        {
+            return;
+        }
+
         var currentMode = tab.VimState.CurrentMode;
 
         if (currentMode == VimMode.Insert)
@@ -688,7 +725,14 @@ public class DataGridManager
 
             textBox.Loaded += (s, evt) =>
             {
-                if (tab.VimState.CellEditCaretPosition == CellEditCaretPosition.Start)
+                // Handle pending text input for non-Vim mode (Excel-like behavior)
+                if (!_viewModel.IsVimModeEnabled && _pendingTextInput != null)
+                {
+                    textBox.Text = _pendingTextInput;
+                    textBox.CaretIndex = textBox.Text.Length;
+                    _pendingTextInput = null;
+                }
+                else if (tab.VimState.CellEditCaretPosition == CellEditCaretPosition.Start)
                 {
                     textBox.CaretIndex = 0;
                 }
@@ -707,6 +751,7 @@ public class DataGridManager
                     actualKey = evt.ImeProcessedKey;
                 }
 
+                // Ctrl+Shift+; for date insertion works regardless of Vim mode
                 if (actualKey == Key.OemPlus && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
                 {
                     string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
@@ -714,8 +759,53 @@ public class DataGridManager
                     textBox.Text = textBox.Text.Insert(caretIndex, currentDate);
                     textBox.CaretIndex = caretIndex + currentDate.Length;
                     evt.Handled = true;
+                    return;
                 }
-                else if (actualKey == Key.Enter && evt.Key != Key.ImeProcessed)
+
+                // Handle non-Vim mode: arrow keys move to adjacent cells (Excel-like behavior)
+                if (!_viewModel.IsVimModeEnabled)
+                {
+                    // Only handle arrow keys when not processed by IME
+                    if (evt.Key != Key.ImeProcessed &&
+                        (actualKey == Key.Up || actualKey == Key.Down || actualKey == Key.Left || actualKey == Key.Right))
+                    {
+                        if (sender is DataGrid grid)
+                        {
+                            // Commit the edit first
+                            grid.CommitEdit(DataGridEditingUnit.Cell, true);
+
+                            // Calculate new position
+                            var pos = tab.VimState.CursorPosition;
+                            int newRow = pos.Row;
+                            int newCol = pos.Column;
+                            int maxRow = tab.GridViewModel.Document.RowCount - 1;
+                            int maxCol = tab.GridViewModel.Document.ColumnCount - 1;
+
+                            switch (actualKey)
+                            {
+                                case Key.Up:
+                                    newRow = Math.Max(0, pos.Row - 1);
+                                    break;
+                                case Key.Down:
+                                    newRow = Math.Min(maxRow, pos.Row + 1);
+                                    break;
+                                case Key.Left:
+                                    newCol = Math.Max(0, pos.Column - 1);
+                                    break;
+                                case Key.Right:
+                                    newCol = Math.Min(maxCol, pos.Column + 1);
+                                    break;
+                            }
+
+                            // Move cursor
+                            tab.VimState.CursorPosition = new GridPosition(newRow, newCol);
+                            evt.Handled = true;
+                        }
+                    }
+                    return;
+                }
+
+                if (actualKey == Key.Enter && evt.Key != Key.ImeProcessed)
                 {
                     tab.VimState.SwitchMode(VimMode.Normal);
                     evt.Handled = true;

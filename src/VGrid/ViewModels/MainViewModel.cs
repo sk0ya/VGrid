@@ -167,6 +167,12 @@ public class MainViewModel : ViewModelBase
             if (SetProperty(ref _selectedColorTheme, value))
             {
                 ThemeService.Instance.CurrentTheme = value == "Dark" ? ThemeType.Dark : ThemeType.Light;
+
+                // Refresh DataGrid header bindings for all tabs
+                foreach (var tab in Tabs)
+                {
+                    tab.VimState.RefreshCursorPositionBinding();
+                }
             }
         }
     }

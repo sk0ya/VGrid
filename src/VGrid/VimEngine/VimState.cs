@@ -785,4 +785,13 @@ public class VimState : INotifyPropertyChanged
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+
+    /// <summary>
+    /// Forces a PropertyChanged notification for CursorPosition to refresh UI bindings.
+    /// Used when theme changes to update header colors.
+    /// </summary>
+    public void RefreshCursorPositionBinding()
+    {
+        OnPropertyChanged(nameof(CursorPosition));
+    }
 }

@@ -53,7 +53,7 @@ namespace VGrid.Services
                 Source = new Uri(themePath, UriKind.Relative)
             };
 
-            // Remove old theme dictionaries
+            // Find old theme dictionaries
             var toRemove = new System.Collections.Generic.List<ResourceDictionary>();
             foreach (var dict in app.Resources.MergedDictionaries)
             {
@@ -65,13 +65,20 @@ namespace VGrid.Services
                 }
             }
 
-            foreach (var dict in toRemove)
+            // Batch update using BeginInit/EndInit to prevent multiple UI refreshes
+            app.Resources.BeginInit();
+            try
             {
-                app.Resources.MergedDictionaries.Remove(dict);
+                foreach (var dict in toRemove)
+                {
+                    app.Resources.MergedDictionaries.Remove(dict);
+                }
+                app.Resources.MergedDictionaries.Add(themeDict);
             }
-
-            // Add new theme
-            app.Resources.MergedDictionaries.Add(themeDict);
+            finally
+            {
+                app.Resources.EndInit();
+            }
 
             _currentTheme = theme;
         }

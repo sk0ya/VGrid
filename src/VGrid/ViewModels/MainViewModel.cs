@@ -32,7 +32,8 @@ public class MainViewModel : ViewModelBase
     private ObservableCollection<TemplateInfo> _templates = new ObservableCollection<TemplateInfo>();
     private SidebarView _selectedSidebarView = SidebarView.Explorer;
     private bool _isSidebarOpen = true;
-    private bool _isDarkTheme = false;
+    private string _selectedColorTheme = "Light";
+    private readonly List<string> _colorThemes = new() { "Light", "Dark" };
 
     public MainViewModel()
     {
@@ -156,14 +157,16 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _isSidebarOpen, value);
     }
 
-    public bool IsDarkTheme
+    public List<string> ColorThemes => _colorThemes;
+
+    public string SelectedColorTheme
     {
-        get => _isDarkTheme;
+        get => _selectedColorTheme;
         set
         {
-            if (SetProperty(ref _isDarkTheme, value))
+            if (SetProperty(ref _selectedColorTheme, value))
             {
-                ThemeService.Instance.CurrentTheme = value ? ThemeType.Dark : ThemeType.Light;
+                ThemeService.Instance.CurrentTheme = value == "Dark" ? ThemeType.Dark : ThemeType.Light;
             }
         }
     }
@@ -774,8 +777,8 @@ public class MainViewModel : ViewModelBase
 
     private void ToggleTheme()
     {
-        IsDarkTheme = !IsDarkTheme;
-        StatusBarViewModel.ShowMessage(IsDarkTheme ? "Dark theme enabled" : "Light theme enabled");
+        SelectedColorTheme = SelectedColorTheme == "Light" ? "Dark" : "Light";
+        StatusBarViewModel.ShowMessage($"{SelectedColorTheme} theme enabled");
     }
 
     private void UpdateStatusBarForTab(TabItemViewModel? tab)
@@ -834,7 +837,7 @@ public class MainViewModel : ViewModelBase
         IsVimModeEnabled = session.IsVimModeEnabled;
 
         // Restore theme setting
-        IsDarkTheme = session.IsDarkTheme;
+        SelectedColorTheme = session.ColorTheme ?? "Light";
 
         // Restore folder path first (updates folder tree once)
         if (!string.IsNullOrEmpty(session.SelectedFolderPath) &&
@@ -880,7 +883,7 @@ public class MainViewModel : ViewModelBase
             SelectedTabIndex = SelectedTab != null ? Tabs.IndexOf(SelectedTab) : 0,
             SelectedFolderPath = SelectedFolderPath,
             IsVimModeEnabled = IsVimModeEnabled,
-            IsDarkTheme = IsDarkTheme
+            ColorTheme = SelectedColorTheme
         };
 
         _settingsService.SaveSession(session);

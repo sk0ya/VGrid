@@ -26,7 +26,7 @@ public class SessionSettings
     public bool IsVimModeEnabled { get; set; } = true;
 
     /// <summary>
-    /// Whether dark theme is enabled. Default is false (light theme).
+    /// Color theme name. Values: "Light" or "Dark". Default is "Light".
     /// </summary>
-    public bool IsDarkTheme { get; set; } = false;
+    public string ColorTheme { get; set; } = "Light";
 }

@@ -641,18 +641,23 @@
                                            Foreground="{DynamicResource SidebarHeaderForegroundBrush}"
                                            Margin="0,16,0,8"/>
 
-                                <!-- Theme Toggle -->
+                                <!-- Color Theme -->
                                 <Border Background="{DynamicResource SidebarItemHoverBrush}"
                                         CornerRadius="4" Padding="12,8" Margin="0,0,0,8">
                                     <DockPanel>
-                                        <CheckBox DockPanel.Dock="Right"
-                                                  IsChecked="{Binding IsDarkTheme, Mode=TwoWay}"
-                                                  VerticalAlignment="Center"/>
+                                        <ComboBox DockPanel.Dock="Right"
+                                                  ItemsSource="{Binding ColorThemes}"
+                                                  SelectedItem="{Binding SelectedColorTheme, Mode=TwoWay}"
+                                                  VerticalAlignment="Center"
+                                                  Width="80"
+                                                  Background="{DynamicResource TextBoxBackgroundBrush}"
+                                                  Foreground="{DynamicResource TextBoxForegroundBrush}"
+                                                  BorderBrush="{DynamicResource TextBoxBorderBrush}"/>
                                         <StackPanel>
-                                            <TextBlock Text="Dark Theme"
+                                            <TextBlock Text="Color Theme"
                                                        Foreground="{DynamicResource SidebarForegroundBrush}"
                                                        FontSize="12"/>
-                                            <TextBlock Text="Use dark color theme for the application"
+                                            <TextBlock Text="Select color theme for the application"
                                                        Foreground="{DynamicResource SidebarHeaderForegroundBrush}"
                                                        FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                         </StackPanel>

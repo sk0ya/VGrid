@@ -132,71 +132,6 @@
                           IsCheckable="True"
                           IsChecked="{Binding IsVimModeEnabled, Mode=TwoWay}"/>
             </MenuItem>
-            <MenuItem Header="_Template">
-                <!-- New Template -->
-                <MenuItem Header="_New Template..."
-                          Command="{Binding NewTemplateCommand}"/>
-
-                <Separator/>
-
-                <!-- Open Template Submenu -->
-                <MenuItem Header="_Open Template">
-                    <MenuItem.Style>
-                        <Style TargetType="MenuItem">
-                            <Setter Property="ItemsSource" Value="{Binding Templates}"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Templates.Count}" Value="0">
-                                    <Setter Property="IsEnabled" Value="False"/>
-                                    <Setter Property="ItemsSource" Value="{x:Null}"/>
-                                    <Setter Property="Header" Value="_Open Template (No templates available)"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </MenuItem.Style>
-                    <MenuItem.ItemContainerStyle>
-                        <Style TargetType="MenuItem">
-                            <Setter Property="Header" Value="{Binding DisplayName}"/>
-                            <Setter Property="Command" Value="{Binding DataContext.OpenTemplateCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                            <Setter Property="CommandParameter" Value="{Binding}"/>
-                        </Style>
-                    </MenuItem.ItemContainerStyle>
-                </MenuItem>
-
-                <Separator/>
-
-                <!-- Manage Templates -->
-                <MenuItem Header="_Manage Templates">
-                    <MenuItem Header="_Delete Template...">
-                        <MenuItem.Style>
-                            <Style TargetType="MenuItem">
-                                <Setter Property="ItemsSource" Value="{Binding Templates}"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Templates.Count}" Value="0">
-                                        <Setter Property="IsEnabled" Value="False"/>
-                                        <Setter Property="ItemsSource" Value="{x:Null}"/>
-                                        <Setter Property="Header" Value="_Delete Template... (No templates available)"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </MenuItem.Style>
-                        <MenuItem.ItemContainerStyle>
-                            <Style TargetType="MenuItem">
-                                <Setter Property="Header" Value="{Binding DisplayName}"/>
-                                <Setter Property="Command" Value="{Binding DataContext.DeleteTemplateCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                <Setter Property="CommandParameter" Value="{Binding}"/>
-                            </Style>
-                        </MenuItem.ItemContainerStyle>
-                    </MenuItem>
-
-                    <Separator/>
-
-                    <MenuItem Header="_Open Template Folder"
-                              Command="{Binding OpenTemplateFolderCommand}"/>
-
-                    <MenuItem Header="_Refresh Template List"
-                              Command="{Binding RefreshTemplatesCommand}"/>
-                </MenuItem>
-            </MenuItem>
             <MenuItem Header="_Git">
                 <MenuItem Header="_View Git History..."
                           Command="{Binding ViewGitHistoryCommand}"
@@ -388,6 +323,55 @@
                                     </ContextMenu>
                                 </ListBox.ContextMenu>
                             </ListBox>
+                        </DockPanel>
+                    </TabItem>
+
+                    <!-- Template Tab -->
+                    <TabItem Header="Template">
+                        <DockPanel Background="#FAFAFA">
+                            <!-- Toolbar -->
+                            <Border DockPanel.Dock="Top" Background="#FFFFFF"
+                                    BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="+ 新規" Click="NewTemplateButton_Click"
+                                            Padding="8,4" Margin="0,0,4,0"
+                                            Background="#F0F0F0" BorderBrush="#D0D0D0"
+                                            ToolTip="新しいテンプレートを作成"/>
+                                    <Button Content="📁 フォルダ" Click="NewTemplateFolderButton_Click"
+                                            Padding="8,4" Margin="0,0,4,0"
+                                            Background="#F0F0F0" BorderBrush="#D0D0D0"
+                                            ToolTip="新しいフォルダを作成"/>
+                                    <Button Content="↻" Click="RefreshTemplateButton_Click"
+                                            Padding="8,4"
+                                            Background="#F0F0F0" BorderBrush="#D0D0D0"
+                                            ToolTip="テンプレート一覧を更新"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- TreeView for Templates -->
+                            <TreeView x:Name="TemplateTreeView"
+                                      BorderThickness="0"
+                                      Background="#FAFAFA"
+                                      Margin="0"
+                                      Padding="6"
+                                      KeyDown="TemplateTreeView_KeyDown"
+                                      MouseRightButtonUp="TemplateTreeView_MouseRightButtonUp"
+                                      FontSize="12">
+                                <TreeView.Resources>
+                                    <Style TargetType="TreeViewItem">
+                                        <Setter Property="Padding" Value="2"/>
+                                        <Setter Property="Margin" Value="0,1,0,1"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#F0F0F0"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#E3F2FD"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TreeView.Resources>
+                            </TreeView>
                         </DockPanel>
                     </TabItem>
                 </TabControl>

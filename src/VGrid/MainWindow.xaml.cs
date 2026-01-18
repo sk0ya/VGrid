@@ -22,6 +22,7 @@ public partial class MainWindow : Window
 
     // Manager classes
     private FolderTreeManager? _folderTreeManager;
+    private TemplateTreeManager? _templateTreeManager;
     private DataGridManager? _dataGridManager;
     private SelectionManager? _selectionManager;
     private VimInputHandler? _vimInputHandler;
@@ -43,9 +44,13 @@ public partial class MainWindow : Window
 
         // Initialize manager classes
         _folderTreeManager = new FolderTreeManager(FolderTreeView, _viewModel, _viewModel.TemplateService);
+        _templateTreeManager = new TemplateTreeManager(TemplateTreeView, _viewModel, _viewModel.TemplateService);
         _dataGridManager = new DataGridManager(_viewModel);
         _selectionManager = new SelectionManager(_viewModel);
         _vimInputHandler = new VimInputHandler(_viewModel);
+
+        // Initialize template tree
+        _templateTreeManager.PopulateTemplateTree();
 
         // Subscribe to SelectedFolderPath and FilterText changes
         _viewModel.PropertyChanged += (s, e) =>
@@ -76,6 +81,15 @@ public partial class MainWindow : Window
     // Folder Tree Event Handlers - Delegate to FolderTreeManager
     private void FolderTreeView_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => _folderTreeManager?.FolderTreeView_KeyDown(sender, e);
     private void FolderTreeView_MouseRightButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e) => _folderTreeManager?.FolderTreeView_MouseRightButtonUp(sender, e);
+
+    // Template Tree Event Handlers - Delegate to TemplateTreeManager
+    private void TemplateTreeView_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => _templateTreeManager?.TemplateTreeView_KeyDown(sender, e);
+    private void TemplateTreeView_MouseRightButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e) => _templateTreeManager?.TemplateTreeView_MouseRightButtonUp(sender, e);
+
+    // Template Toolbar Button Handlers
+    private void NewTemplateButton_Click(object sender, RoutedEventArgs e) => _templateTreeManager?.CreateNewTemplate();
+    private void NewTemplateFolderButton_Click(object sender, RoutedEventArgs e) => _templateTreeManager?.CreateNewFolder();
+    private void RefreshTemplateButton_Click(object sender, RoutedEventArgs e) => _templateTreeManager?.PopulateTemplateTree();
 
     // DataGrid Event Handlers - Delegate to DataGridManager
     private void TsvGrid_Loaded(object sender, RoutedEventArgs e) => _dataGridManager?.TsvGrid_Loaded(sender, e);

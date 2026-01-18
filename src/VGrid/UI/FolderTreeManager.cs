@@ -1498,34 +1498,52 @@ public class FolderTreeManager
 
     /// <summary>
     /// コンテキストメニューに「テンプレートから新規作成」サブメニューを追加
+    /// サブメニューを開いた時に動的にテンプレート一覧を取得する
     /// </summary>
     private void AddTemplateMenuItems(ContextMenu contextMenu, TreeViewItem parentItem, string folderPath)
     {
-        var templates = _templateService.GetAvailableTemplates();
-
-        if (templates.Count == 0)
-            return; // テンプレートがない場合は何も追加しない
-
         // サブメニュー作成
         var templateMenuItem = new MenuItem
         {
             Header = "テンプレートから新規作成(_T)"
         };
 
-        // 各テンプレートをサブアイテムとして追加
-        foreach (var template in templates)
+        // サブメニューを開いた時に動的にテンプレート一覧を取得
+        templateMenuItem.SubmenuOpened += (s, e) =>
         {
-            var templateItem = new MenuItem
+            templateMenuItem.Items.Clear();
+
+            var templates = _templateService.GetAvailableTemplates();
+
+            if (templates.Count == 0)
             {
-                Header = template.DisplayName,
-                Tag = template
-            };
+                var noTemplateItem = new MenuItem
+                {
+                    Header = "(テンプレートがありません)",
+                    IsEnabled = false
+                };
+                templateMenuItem.Items.Add(noTemplateItem);
+                return;
+            }
 
-            templateItem.Click += (s, e) =>
-                CreateFileFromTemplateMenuItem_Click(s, e, parentItem, folderPath);
+            // 各テンプレートをサブアイテムとして追加
+            foreach (var template in templates)
+            {
+                var templateItem = new MenuItem
+                {
+                    Header = template.DisplayName,
+                    Tag = template
+                };
 
-            templateMenuItem.Items.Add(templateItem);
-        }
+                templateItem.Click += (sender, args) =>
+                    CreateFileFromTemplateMenuItem_Click(sender, args, parentItem, folderPath);
+
+                templateMenuItem.Items.Add(templateItem);
+            }
+        };
+
+        // ダミーアイテムを追加（サブメニュー矢印を表示するため）
+        templateMenuItem.Items.Add(new MenuItem { Header = "Loading..." });
 
         // 「新しいファイル」の次に挿入（index 1）
         contextMenu.Items.Insert(1, templateMenuItem);

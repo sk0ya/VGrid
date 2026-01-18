@@ -55,16 +55,16 @@
     <SolidColorBrush x:Key="ListBoxBorderBrush" Color="#3F3F3F"/>
 
     <!-- DataGrid -->
-    <SolidColorBrush x:Key="DataGridBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="DataGridBackgroundBrush" Color="#2D2D2D"/>
     <SolidColorBrush x:Key="DataGridForegroundBrush" Color="#E0E0E0"/>
     <SolidColorBrush x:Key="DataGridGridLinesBrush" Color="#555555"/>
     <SolidColorBrush x:Key="DataGridBorderBrush" Color="#3F3F3F"/>
-    <SolidColorBrush x:Key="DataGridHeaderBackgroundBrush" Color="#2D2D2D"/>
+    <SolidColorBrush x:Key="DataGridHeaderBackgroundBrush" Color="#1E1E1E"/>
     <SolidColorBrush x:Key="DataGridHeaderForegroundBrush" Color="#E0E0E0"/>
     <SolidColorBrush x:Key="DataGridCellBorderBrush" Color="#555555"/>
     <SolidColorBrush x:Key="DataGridCellSelectedBrush" Color="#094771"/>
     <SolidColorBrush x:Key="DataGridCellSelectedBorderBrush" Color="#007ACC"/>
-    <SolidColorBrush x:Key="DataGridRowBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="DataGridRowBackgroundBrush" Color="#2D2D2D"/>
     <SolidColorBrush x:Key="DataGridCurrentRowHeaderBrush" Color="#094771"/>
     <SolidColorBrush x:Key="DataGridCurrentColumnHeaderBrush" Color="#094771"/>
 
@@ -84,6 +84,6 @@
     <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#6B6B6B"/>
 
     <!-- DataGrid SelectAll Button (top-left corner) -->
-    <SolidColorBrush x:Key="DataGridSelectAllButtonBrush" Color="#2D2D2D"/>
+    <SolidColorBrush x:Key="DataGridSelectAllButtonBrush" Color="#1E1E1E"/>
 
 </ResourceDictionary>

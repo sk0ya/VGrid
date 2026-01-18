@@ -5,6 +5,10 @@
     <SolidColorBrush x:Key="WindowBackgroundBrush" Color="White"/>
     <SolidColorBrush x:Key="WindowForegroundBrush" Color="Black"/>
 
+    <!-- Title Bar -->
+    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#E8E8E8"/>
+    <SolidColorBrush x:Key="TitleBarForegroundBrush" Color="#333333"/>
+
     <!-- Menu -->
     <SolidColorBrush x:Key="MenuBackgroundBrush" Color="#F0F0F0"/>
     <SolidColorBrush x:Key="MenuForegroundBrush" Color="Black"/>

@@ -4,7 +4,17 @@
         xmlns:converters="clr-namespace:VGrid.Converters"
         Title="{Binding DiffTitle, Mode=OneWay}" Height="700" Width="1200"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource WindowBackgroundBrush}">
+        Background="{DynamicResource WindowBackgroundBrush}"
+        WindowStyle="None"
+        AllowsTransparency="False">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="32"
+                      ResizeBorderThickness="5"
+                      GlassFrameThickness="0"
+                      CornerRadius="0"
+                      UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
 
     <Window.Resources>
         <converters:DiffStatusToColorConverter x:Key="DiffStatusToColorConverter"/>
@@ -98,6 +108,69 @@
     </Window.Resources>
 
     <DockPanel>
+        <!-- Custom Title Bar -->
+        <Grid DockPanel.Dock="Top" Height="32" Background="{DynamicResource TitleBarBackgroundBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Title -->
+            <TextBlock Grid.Column="0" Text="{Binding DiffTitle, Mode=OneWay}" FontWeight="SemiBold" FontSize="12"
+                       Foreground="{DynamicResource TitleBarForegroundBrush}"
+                       VerticalAlignment="Center" Margin="12,0,0,0"
+                       TextTrimming="CharacterEllipsis"/>
+
+            <!-- Window Control Buttons -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button x:Name="MinimizeButton" Click="MinimizeButton_Click"
+                        Width="46" Height="32" BorderThickness="0"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TitleBarForegroundBrush}"
+                        ToolTip="Minimize">
+                    <Path Data="M0,5 L10,5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1" Width="10" Height="10"/>
+                </Button>
+                <Button x:Name="MaximizeButton" Click="MaximizeButton_Click"
+                        Width="46" Height="32" BorderThickness="0"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TitleBarForegroundBrush}"
+                        ToolTip="Maximize">
+                    <Path Data="M0,0 L10,0 L10,10 L0,10 Z"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1" Fill="Transparent" Width="10" Height="10"/>
+                </Button>
+                <Button x:Name="CloseButton" Click="CloseButton_Click"
+                        Width="46" Height="32" BorderThickness="0"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TitleBarForegroundBrush}"
+                        ToolTip="Close">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="{TemplateBinding Background}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#E81123"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                    <Path Data="M0,0 L10,10 M10,0 L0,10"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1" Width="10" Height="10"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
         <!-- Main Content -->
         <Grid>
             <Grid.ColumnDefinitions>

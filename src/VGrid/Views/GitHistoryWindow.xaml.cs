@@ -25,6 +25,29 @@ public partial class GitHistoryWindow : Window
         CommitListBox.SelectionChanged += CommitListBox_SelectionChanged;
     }
 
+    // Window Control Button Handlers
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+        }
+        else
+        {
+            WindowState = WindowState.Maximized;
+        }
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
     private void CommitListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         _viewModel.SelectedCommits.Clear();

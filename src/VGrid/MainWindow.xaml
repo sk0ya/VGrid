@@ -9,7 +9,17 @@
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" Height="700" Width="1200"
         Background="{DynamicResource WindowBackgroundBrush}"
-        PreviewKeyDown="Window_PreviewKeyDown">
+        PreviewKeyDown="Window_PreviewKeyDown"
+        WindowStyle="None"
+        AllowsTransparency="False">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="32"
+                      ResizeBorderThickness="5"
+                      GlassFrameThickness="0"
+                      CornerRadius="0"
+                      UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
 
     <Window.Resources>
         <converters:ModeToColorConverter x:Key="ModeToColorConverter"/>
@@ -264,28 +274,91 @@
     </Window.Resources>
 
     <DockPanel Background="{DynamicResource WindowBackgroundBrush}">
-        <!-- Menu Bar -->
-        <Menu DockPanel.Dock="Top"
-              Background="{DynamicResource MenuBackgroundBrush}"
-              Foreground="{DynamicResource MenuForegroundBrush}"
-              BorderBrush="{DynamicResource MenuBorderBrush}"
-              BorderThickness="0">
-            <MenuItem Header="_File">
-                <MenuItem Header="_New" Command="{Binding NewFileCommand}" InputGestureText="Ctrl+N"/>
-                <MenuItem Header="_Open File..." Command="{Binding OpenFileCommand}" InputGestureText="Ctrl+O"/>
-                <MenuItem Header="Open _Folder..." Command="{Binding OpenFolderCommand}" InputGestureText="Ctrl+K Ctrl+O"/>
-                <Separator/>
-                <MenuItem Header="_Save" Command="{Binding SaveFileCommand}" InputGestureText="Ctrl+S"/>
-                <MenuItem Header="Save _As..." Command="{Binding SaveAsFileCommand}"/>
-                <Separator/>
-                <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
-            </MenuItem>
-            <MenuItem Header="_Git">
-                <MenuItem Header="_View Git History..."
-                          Command="{Binding ViewGitHistoryCommand}"
-                          InputGestureText="Ctrl+G"/>
-            </MenuItem>
-        </Menu>
+        <!-- Custom Title Bar with Menu -->
+        <Grid DockPanel.Dock="Top" Height="32" Background="{DynamicResource TitleBarBackgroundBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Menu in Title Bar -->
+            <Menu Grid.Column="0" Background="Transparent" VerticalAlignment="Center"
+                  WindowChrome.IsHitTestVisibleInChrome="True" Margin="8,0,0,0">
+                    <MenuItem Header="_File"
+                              Foreground="{DynamicResource TitleBarForegroundBrush}">
+                        <MenuItem Header="_New" Command="{Binding NewFileCommand}" InputGestureText="Ctrl+N"/>
+                        <MenuItem Header="_Open File..." Command="{Binding OpenFileCommand}" InputGestureText="Ctrl+O"/>
+                        <MenuItem Header="Open _Folder..." Command="{Binding OpenFolderCommand}" InputGestureText="Ctrl+K Ctrl+O"/>
+                        <Separator/>
+                        <MenuItem Header="_Save" Command="{Binding SaveFileCommand}" InputGestureText="Ctrl+S"/>
+                        <MenuItem Header="Save _As..." Command="{Binding SaveAsFileCommand}"/>
+                        <Separator/>
+                        <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
+                    </MenuItem>
+                <MenuItem Header="_Git"
+                          Foreground="{DynamicResource TitleBarForegroundBrush}">
+                    <MenuItem Header="_View Git History..."
+                              Command="{Binding ViewGitHistoryCommand}"
+                              InputGestureText="Ctrl+G"/>
+                </MenuItem>
+            </Menu>
+
+            <!-- Title (Center) -->
+            <TextBlock Grid.Column="1" Text="{Binding WindowTitle}" FontSize="12"
+                       Foreground="{DynamicResource TitleBarForegroundBrush}"
+                       VerticalAlignment="Center" HorizontalAlignment="Center"
+                       Opacity="0.7" TextTrimming="CharacterEllipsis"/>
+
+            <!-- Window Control Buttons -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button x:Name="MinimizeButton" Click="MinimizeButton_Click"
+                        Width="46" Height="32" BorderThickness="0"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TitleBarForegroundBrush}"
+                        ToolTip="Minimize">
+                    <Path Data="M0,5 L10,5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1" Width="10" Height="10"/>
+                </Button>
+                <Button x:Name="MaximizeButton" Click="MaximizeButton_Click"
+                        Width="46" Height="32" BorderThickness="0"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TitleBarForegroundBrush}"
+                        ToolTip="Maximize">
+                    <Path x:Name="MaximizeIcon" Data="M0,0 L10,0 L10,10 L0,10 Z"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1" Fill="Transparent" Width="10" Height="10"/>
+                </Button>
+                <Button x:Name="CloseButton" Click="CloseButton_Click"
+                        Width="46" Height="32" BorderThickness="0"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TitleBarForegroundBrush}"
+                        ToolTip="Close">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="{TemplateBinding Background}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#E81123"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                    <Path Data="M0,0 L10,10 M10,0 L0,10"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1" Width="10" Height="10"/>
+                </Button>
+            </StackPanel>
+        </Grid>
 
         <!-- Status Bar -->
         <StatusBar DockPanel.Dock="Bottom" Height="30"

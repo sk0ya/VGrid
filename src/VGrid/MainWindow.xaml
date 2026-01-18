@@ -8,6 +8,7 @@
         xmlns:views="clr-namespace:VGrid.Views"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" Height="700" Width="1200"
+        Background="{DynamicResource WindowBackgroundBrush}"
         PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.Resources>
@@ -22,14 +23,24 @@
 
         <!-- Excel-like DataGrid Style -->
         <Style x:Key="ExcelDataGridStyle" TargetType="DataGrid">
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource DataGridBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DataGridForegroundBrush}"/>
+            <Setter Property="RowBackground" Value="{DynamicResource DataGridRowBackgroundBrush}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource DataGridRowBackgroundBrush}"/>
             <Setter Property="GridLinesVisibility" Value="All"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#D0D0D0"/>
-            <Setter Property="VerticalGridLinesBrush" Value="#D0D0D0"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+            <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
             <Setter Property="RowHeaderWidth" Value="40"/>
             <Setter Property="ColumnHeaderHeight" Value="25"/>
-            <Setter Property="BorderBrush" Value="#BEBEBE"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Style.Resources>
+                <!-- Style for the top-left select all button -->
+                <Style TargetType="Button">
+                    <Setter Property="Background" Value="{DynamicResource DataGridSelectAllButtonBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
+                </Style>
+            </Style.Resources>
         </Style>
 
         <!-- Excel-like Column Header Style -->
@@ -42,9 +53,9 @@
                     </MultiBinding>
                 </Setter.Value>
             </Setter>
-            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderForegroundBrush}"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderBrush" Value="#BEBEBE"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="Padding" Value="5,3"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -62,9 +73,9 @@
                     </MultiBinding>
                 </Setter.Value>
             </Setter>
-            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderForegroundBrush}"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderBrush" Value="#BEBEBE"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="Width" Value="40"/>
@@ -74,7 +85,7 @@
 
         <!-- Excel-like Row Style -->
         <Style x:Key="ExcelRowStyle" TargetType="DataGridRow">
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource DataGridRowBackgroundBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Margin" Value="0"/>
             <Setter Property="Padding" Value="0"/>
@@ -88,7 +99,9 @@
 
         <!-- Excel-like Cell Style -->
         <Style x:Key="ExcelCellStyle" TargetType="DataGridCell">
-            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="Background" Value="{DynamicResource DataGridBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DataGridForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridCellBorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="Padding" Value="4,2"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -107,9 +120,9 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#D4E7F7"/>
-                    <Setter Property="Foreground" Value="Black"/>
-                    <Setter Property="BorderBrush" Value="#4A90E2"/>
+                    <Setter Property="Background" Value="{DynamicResource DataGridCellSelectedBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource DataGridForegroundBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource DataGridCellSelectedBorderBrush}"/>
                     <Setter Property="BorderThickness" Value="0,0,1,1"/>
                     <Setter Property="Padding" Value="4,2"/>
                 </Trigger>
@@ -121,7 +134,7 @@
             <Setter Property="Width" Value="48"/>
             <Setter Property="Height" Value="48"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#6F6F6F"/>
+            <Setter Property="Foreground" Value="{DynamicResource ActivityBarForegroundBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -139,12 +152,12 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="#424242"/>
-                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#E8E8E8"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ActivityBarActiveForegroundBrush}"/>
+                                <Setter TargetName="BackgroundBorder" Property="Background" Value="{DynamicResource ActivityBarHoverBackgroundBrush}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter Property="Foreground" Value="#424242"/>
-                                <Setter TargetName="LeftIndicator" Property="Background" Value="#424242"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ActivityBarActiveForegroundBrush}"/>
+                                <Setter TargetName="LeftIndicator" Property="Background" Value="{DynamicResource ActivityBarIndicatorBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -153,9 +166,11 @@
         </Style>
     </Window.Resources>
 
-    <DockPanel>
+    <DockPanel Background="{DynamicResource WindowBackgroundBrush}">
         <!-- Menu Bar -->
-        <Menu DockPanel.Dock="Top">
+        <Menu DockPanel.Dock="Top"
+              Background="{DynamicResource MenuBackgroundBrush}"
+              Foreground="{DynamicResource MenuForegroundBrush}">
             <MenuItem Header="_File">
                 <MenuItem Header="_New" Command="{Binding NewFileCommand}" InputGestureText="Ctrl+N"/>
                 <MenuItem Header="_Open File..." Command="{Binding OpenFileCommand}" InputGestureText="Ctrl+O"/>
@@ -170,6 +185,10 @@
                 <MenuItem Header="Enable _Vim Mode"
                           IsCheckable="True"
                           IsChecked="{Binding IsVimModeEnabled, Mode=TwoWay}"/>
+                <Separator/>
+                <MenuItem Header="_Dark Theme"
+                          IsCheckable="True"
+                          IsChecked="{Binding IsDarkTheme, Mode=TwoWay}"/>
             </MenuItem>
             <MenuItem Header="_Git">
                 <MenuItem Header="_View Git History..."
@@ -179,7 +198,8 @@
         </Menu>
 
         <!-- Status Bar -->
-        <StatusBar DockPanel.Dock="Bottom" Height="30">
+        <StatusBar DockPanel.Dock="Bottom" Height="30"
+                   Background="{DynamicResource StatusBarBackgroundBrush}">
             <StatusBarItem>
                 <StackPanel Orientation="Horizontal">
                     <Border Background="{Binding StatusBarViewModel.ModeBrush}"
@@ -188,8 +208,10 @@
                                    Foreground="White" FontWeight="Bold"/>
                     </Border>
                     <TextBlock Text="{Binding StatusBarViewModel.PositionText}"
+                               Foreground="{DynamicResource StatusBarForegroundBrush}"
                                Margin="10,0" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding StatusBarViewModel.MessageText}"
+                               Foreground="{DynamicResource StatusBarForegroundBrush}"
                                Margin="20,0" VerticalAlignment="Center" FontStyle="Italic"/>
                 </StackPanel>
             </StatusBarItem>
@@ -205,7 +227,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Activity Bar -->
-            <Border Grid.Column="0" Background="#F3F3F3" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
+            <Border Grid.Column="0" Background="{DynamicResource ActivityBarBackgroundBrush}" BorderBrush="{DynamicResource ActivityBarBorderBrush}" BorderThickness="0,0,1,0">
                 <StackPanel VerticalAlignment="Top">
                     <!-- Explorer Button -->
                     <RadioButton Style="{StaticResource ActivityBarButtonStyle}"
@@ -246,28 +268,28 @@
             </Border>
 
             <!-- Sidebar Content -->
-            <Border Grid.Column="1" BorderBrush="#CCCCCC" BorderThickness="0,0,1,0"
+            <Border Grid.Column="1" BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="0,0,1,0"
                     Visibility="{Binding IsSidebarOpen, Converter={StaticResource BoolToVisibilityConverter}}">
                 <Grid>
                     <!-- EXPLORER Panel -->
-                    <DockPanel Background="#FAFAFA"
+                    <DockPanel Background="{DynamicResource SidebarBackgroundBrush}"
                                Visibility="{Binding SelectedSidebarView, Converter={StaticResource SidebarViewToVisibilityConverter}, ConverterParameter=Explorer}">
                         <!-- Header Section -->
-                        <Border DockPanel.Dock="Top" Background="#F3F3F3"
-                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="12,8">
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource SidebarHeaderBackgroundBrush}"
+                                BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
                             <TextBlock Text="EXPLORER" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="#6F6F6F" VerticalAlignment="Center"/>
+                                       Foreground="{DynamicResource SidebarHeaderForegroundBrush}" VerticalAlignment="Center"/>
                         </Border>
 
                         <!-- Filter Box -->
-                        <Border DockPanel.Dock="Top" Background="#FFFFFF"
-                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8">
-                            <Border Background="#F8F8F8"
-                                    BorderBrush="#D0D0D0" BorderThickness="1"
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource TextBoxBackgroundBrush}"
+                                BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="0,0,0,1" Padding="8">
+                            <Border Background="{DynamicResource TextBoxBackgroundBrush}"
+                                    BorderBrush="{DynamicResource TextBoxBorderBrush}" BorderThickness="1"
                                     CornerRadius="3" Padding="0">
                                 <Grid>
                                     <TextBlock Text="Filter files..."
-                                               Foreground="#AAAAAA"
+                                               Foreground="{DynamicResource TextBoxPlaceholderBrush}"
                                                Margin="8,4,8,4"
                                                IsHitTestVisible="False"
                                                VerticalAlignment="Center">
@@ -289,6 +311,7 @@
                                              Height="28"
                                              Padding="8,4,8,4"
                                              Background="Transparent"
+                                             Foreground="{DynamicResource TextBoxForegroundBrush}"
                                              BorderThickness="0"
                                              VerticalContentAlignment="Center"
                                              FontSize="12"/>
@@ -299,7 +322,8 @@
                         <!-- TreeView -->
                         <TreeView x:Name="FolderTreeView"
                                   BorderThickness="0"
-                                  Background="#FAFAFA"
+                                  Background="{DynamicResource TreeViewBackgroundBrush}"
+                                  Foreground="{DynamicResource TreeViewForegroundBrush}"
                                   Margin="0"
                                   Padding="6"
                                   KeyDown="FolderTreeView_KeyDown"
@@ -307,14 +331,15 @@
                                   FontSize="12">
                             <TreeView.Resources>
                                 <Style TargetType="TreeViewItem">
+                                    <Setter Property="Foreground" Value="{DynamicResource TreeViewForegroundBrush}"/>
                                     <Setter Property="Padding" Value="2"/>
                                     <Setter Property="Margin" Value="0,1,0,1"/>
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#F0F0F0"/>
+                                            <Setter Property="Background" Value="{DynamicResource SidebarItemHoverBrush}"/>
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                            <Setter Property="Background" Value="{DynamicResource SidebarItemSelectedBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
@@ -323,57 +348,46 @@
                     </DockPanel>
 
                     <!-- Git Changes Panel -->
-                    <DockPanel Background="#F5F5F5"
+                    <DockPanel Background="{DynamicResource SidebarBackgroundBrush}"
                                Visibility="{Binding SelectedSidebarView, Converter={StaticResource SidebarViewToVisibilityConverter}, ConverterParameter=GitChanges}">
                         <!-- Header Section -->
-                        <Border DockPanel.Dock="Top" Background="#F3F3F3"
-                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="12,8">
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource SidebarHeaderBackgroundBrush}"
+                                BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
                             <TextBlock Text="SOURCE CONTROL" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="#6F6F6F" VerticalAlignment="Center"/>
+                                       Foreground="{DynamicResource SidebarHeaderForegroundBrush}" VerticalAlignment="Center"/>
                         </Border>
 
                         <!-- Commit Message and Button (Bottom) -->
-                        <Border DockPanel.Dock="Bottom" Height="100" Padding="5" Background="#F5F5F5">
+                        <Border DockPanel.Dock="Bottom" Height="100" Padding="5" Background="{DynamicResource SidebarBackgroundBrush}">
                             <DockPanel>
                                 <Button DockPanel.Dock="Bottom" Content="Commit"
                                         Command="{Binding GitChangesViewModel.CommitCommand}"
+                                        Background="{DynamicResource ButtonBackgroundBrush}"
+                                        Foreground="{DynamicResource ButtonForegroundBrush}"
+                                        BorderBrush="{DynamicResource ButtonBorderBrush}"
                                         Width="Auto" Margin="5,5,5,5"
                                         HorizontalAlignment="Left" Padding="10,3"/>
 
                                 <TextBox Text="{Binding GitChangesViewModel.CommitMessage, UpdateSourceTrigger=PropertyChanged}"
                                          AcceptsReturn="True" TextWrapping="Wrap"
                                          VerticalScrollBarVisibility="Auto"
-                                         BorderBrush="#CCCCCC" BorderThickness="1"
+                                         Background="{DynamicResource TextBoxBackgroundBrush}"
+                                         Foreground="{DynamicResource TextBoxForegroundBrush}"
+                                         BorderBrush="{DynamicResource TextBoxBorderBrush}" BorderThickness="1"
                                          Margin="5" Padding="5">
                                     <TextBox.InputBindings>
                                         <KeyBinding Key="Enter" Modifiers="Ctrl"
                                                     Command="{Binding GitChangesViewModel.CommitCommand}"/>
                                     </TextBox.InputBindings>
-                                    <TextBox.Style>
-                                        <Style TargetType="TextBox">
-                                            <Style.Triggers>
-                                                <Trigger Property="Text" Value="">
-                                                    <Setter Property="Background">
-                                                        <Setter.Value>
-                                                            <VisualBrush AlignmentX="Left" AlignmentY="Top" Stretch="None">
-                                                                <VisualBrush.Visual>
-                                                                    <TextBlock Text="Commit message (Ctrl+Enter to commit)..."
-                                                                              Foreground="#999" Margin="5,2,0,0"/>
-                                                                </VisualBrush.Visual>
-                                                            </VisualBrush>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBox.Style>
                                 </TextBox>
                             </DockPanel>
                         </Border>
 
                         <!-- Uncommitted Files List (Fill remaining space) -->
                         <ListBox ItemsSource="{Binding GitChangesViewModel.UncommittedFiles}"
-                                 Background="White" BorderBrush="#CCCCCC" BorderThickness="1"
+                                 Background="{DynamicResource ListBoxBackgroundBrush}"
+                                 Foreground="{DynamicResource ListBoxForegroundBrush}"
+                                 BorderBrush="{DynamicResource ListBoxBorderBrush}" BorderThickness="1"
                                  Margin="5">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
@@ -413,30 +427,36 @@
                     </DockPanel>
 
                     <!-- Template Panel -->
-                    <DockPanel Background="#FAFAFA"
+                    <DockPanel Background="{DynamicResource SidebarBackgroundBrush}"
                                Visibility="{Binding SelectedSidebarView, Converter={StaticResource SidebarViewToVisibilityConverter}, ConverterParameter=Template}">
                         <!-- Header Section -->
-                        <Border DockPanel.Dock="Top" Background="#F3F3F3"
-                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="12,8">
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource SidebarHeaderBackgroundBrush}"
+                                BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
                             <TextBlock Text="TEMPLATES" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="#6F6F6F" VerticalAlignment="Center"/>
+                                       Foreground="{DynamicResource SidebarHeaderForegroundBrush}" VerticalAlignment="Center"/>
                         </Border>
 
                         <!-- Toolbar -->
-                        <Border DockPanel.Dock="Top" Background="#FFFFFF"
-                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8">
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource SidebarBackgroundBrush}"
+                                BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="0,0,0,1" Padding="8">
                             <StackPanel Orientation="Horizontal">
                                 <Button Content="+ New" Click="NewTemplateButton_Click"
                                         Padding="8,4" Margin="0,0,4,0"
-                                        Background="#F0F0F0" BorderBrush="#D0D0D0"
+                                        Background="{DynamicResource ButtonBackgroundBrush}"
+                                        Foreground="{DynamicResource ButtonForegroundBrush}"
+                                        BorderBrush="{DynamicResource ButtonBorderBrush}"
                                         ToolTip="Create a new template"/>
                                 <Button Content="Folder" Click="NewTemplateFolderButton_Click"
                                         Padding="8,4" Margin="0,0,4,0"
-                                        Background="#F0F0F0" BorderBrush="#D0D0D0"
+                                        Background="{DynamicResource ButtonBackgroundBrush}"
+                                        Foreground="{DynamicResource ButtonForegroundBrush}"
+                                        BorderBrush="{DynamicResource ButtonBorderBrush}"
                                         ToolTip="Create a new folder"/>
                                 <Button Content="Refresh" Click="RefreshTemplateButton_Click"
                                         Padding="8,4"
-                                        Background="#F0F0F0" BorderBrush="#D0D0D0"
+                                        Background="{DynamicResource ButtonBackgroundBrush}"
+                                        Foreground="{DynamicResource ButtonForegroundBrush}"
+                                        BorderBrush="{DynamicResource ButtonBorderBrush}"
                                         ToolTip="Refresh template list"/>
                             </StackPanel>
                         </Border>
@@ -444,7 +464,8 @@
                         <!-- TreeView for Templates -->
                         <TreeView x:Name="TemplateTreeView"
                                   BorderThickness="0"
-                                  Background="#FAFAFA"
+                                  Background="{DynamicResource TreeViewBackgroundBrush}"
+                                  Foreground="{DynamicResource TreeViewForegroundBrush}"
                                   Margin="0"
                                   Padding="6"
                                   KeyDown="TemplateTreeView_KeyDown"
@@ -452,14 +473,15 @@
                                   FontSize="12">
                             <TreeView.Resources>
                                 <Style TargetType="TreeViewItem">
+                                    <Setter Property="Foreground" Value="{DynamicResource TreeViewForegroundBrush}"/>
                                     <Setter Property="Padding" Value="2"/>
                                     <Setter Property="Margin" Value="0,1,0,1"/>
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#F0F0F0"/>
+                                            <Setter Property="Background" Value="{DynamicResource SidebarItemHoverBrush}"/>
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                            <Setter Property="Background" Value="{DynamicResource SidebarItemSelectedBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
@@ -470,22 +492,26 @@
             </Border>
 
             <!-- Splitter -->
-            <GridSplitter Grid.Column="2" Width="5" HorizontalAlignment="Stretch" Background="#E0E0E0"
+            <GridSplitter Grid.Column="2" Width="5" HorizontalAlignment="Stretch" Background="{DynamicResource SplitterBackgroundBrush}"
                           Visibility="{Binding IsSidebarOpen, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
             <!-- Tab Control (Right Panel) -->
             <TabControl Grid.Column="3"
                         ItemsSource="{Binding Tabs}"
                         SelectedItem="{Binding SelectedTab}"
+                        Background="{DynamicResource TabBackgroundBrush}"
                         Margin="0" BorderThickness="0">
                 <TabControl.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal" MouseDown="TabHeader_MouseDown">
-                            <TextBlock Text="{Binding Header}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="{Binding Header}"
+                                       Foreground="{DynamicResource TabForegroundBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
                             <Button Content="×" FontSize="14" FontWeight="Bold"
                                     Width="18" Height="18"
                                     Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}"
+                                    Foreground="{DynamicResource TabForegroundBrush}"
                                     Background="Transparent" BorderThickness="0"
                                     Cursor="Hand" ToolTip="Close"/>
                         </StackPanel>

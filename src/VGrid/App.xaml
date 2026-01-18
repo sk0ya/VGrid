@@ -1,9 +1,78 @@
-﻿<Application x:Class="VGrid.App"
+<Application x:Class="VGrid.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:VGrid"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/LightTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Global Menu Style -->
+            <Style TargetType="Menu">
+                <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource MenuForegroundBrush}"/>
+            </Style>
+
+            <Style TargetType="MenuItem">
+                <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource MenuForegroundBrush}"/>
+            </Style>
+
+            <!-- Global StatusBar Style -->
+            <Style TargetType="StatusBar">
+                <Setter Property="Background" Value="{DynamicResource StatusBarBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource StatusBarForegroundBrush}"/>
+            </Style>
+
+            <Style TargetType="StatusBarItem">
+                <Setter Property="Foreground" Value="{DynamicResource StatusBarForegroundBrush}"/>
+            </Style>
+
+            <!-- Global TabControl Style -->
+            <Style TargetType="TabControl">
+                <Setter Property="Background" Value="{DynamicResource TabBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TabForegroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource TabBorderBrush}"/>
+            </Style>
+
+            <Style TargetType="TabItem">
+                <Setter Property="Background" Value="{DynamicResource TabHeaderBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TabForegroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource TabBorderBrush}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TabItem">
+                            <Border x:Name="Border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="1,1,1,0"
+                                    Padding="6,2">
+                                <ContentPresenter ContentSource="Header"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource TabHeaderSelectedBackgroundBrush}"/>
+                                    <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,0"/>
+                                    <Setter TargetName="Border" Property="Margin" Value="0,0,0,-1"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="False">
+                                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource TabHeaderBackgroundBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Global ScrollViewer Style -->
+            <Style TargetType="ScrollViewer">
+                <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}"/>
+            </Style>
+
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

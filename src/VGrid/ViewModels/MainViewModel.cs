@@ -32,6 +32,7 @@ public class MainViewModel : ViewModelBase
     private ObservableCollection<TemplateInfo> _templates = new ObservableCollection<TemplateInfo>();
     private SidebarView _selectedSidebarView = SidebarView.Explorer;
     private bool _isSidebarOpen = true;
+    private bool _isDarkTheme = false;
 
     public MainViewModel()
     {
@@ -65,6 +66,7 @@ public class MainViewModel : ViewModelBase
         InsertColumnLeftCommand = new RelayCommand<int>(InsertColumnLeft);
         InsertColumnRightCommand = new RelayCommand<int>(InsertColumnRight);
         ToggleVimModeCommand = new RelayCommand(ToggleVimMode);
+        ToggleThemeCommand = new RelayCommand(ToggleTheme);
         ViewGitHistoryCommand = new RelayCommand(async () => await ViewGitHistoryAsync(), CanViewGitHistory);
         OpenFileInExplorerCommand = new RelayCommand(OpenFileInExplorer, CanOpenFileInExplorer);
         OpenTemplateCommand = new RelayCommand<TemplateInfo>(OpenTemplate, CanOpenTemplate);
@@ -154,6 +156,18 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _isSidebarOpen, value);
     }
 
+    public bool IsDarkTheme
+    {
+        get => _isDarkTheme;
+        set
+        {
+            if (SetProperty(ref _isDarkTheme, value))
+            {
+                ThemeService.Instance.CurrentTheme = value ? ThemeType.Dark : ThemeType.Light;
+            }
+        }
+    }
+
     /// <summary>
     /// サイドバービューを選択する。同じビューが選択された場合はサイドバーを開閉トグル
     /// </summary>
@@ -190,6 +204,7 @@ public class MainViewModel : ViewModelBase
     public WpfCommand InsertColumnLeftCommand { get; }
     public WpfCommand InsertColumnRightCommand { get; }
     public WpfCommand ToggleVimModeCommand { get; }
+    public WpfCommand ToggleThemeCommand { get; }
     public WpfCommand ViewGitHistoryCommand { get; }
     public WpfCommand OpenFileInExplorerCommand { get; }
     public WpfCommand OpenTemplateCommand { get; }
@@ -755,6 +770,12 @@ public class MainViewModel : ViewModelBase
     {
         IsVimModeEnabled = !IsVimModeEnabled;
         StatusBarViewModel.ShowMessage(IsVimModeEnabled ? "Vim mode enabled" : "Vim mode disabled");
+    }
+
+    private void ToggleTheme()
+    {
+        IsDarkTheme = !IsDarkTheme;
+        StatusBarViewModel.ShowMessage(IsDarkTheme ? "Dark theme enabled" : "Light theme enabled");
     }
 
     private void UpdateStatusBarForTab(TabItemViewModel? tab)

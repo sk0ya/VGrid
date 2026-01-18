@@ -279,11 +279,16 @@ public class FolderTreeManager
 
     private object CreateHighlightedHeader(string text, string filterText)
     {
-        // If no filter, return plain text
+        // If no filter, return plain text with theme color
         if (string.IsNullOrWhiteSpace(filterText))
-            return text;
+        {
+            var simpleTextBlock = new TextBlock { Text = text };
+            simpleTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TreeViewForegroundBrush");
+            return simpleTextBlock;
+        }
 
         var textBlock = new TextBlock();
+        textBlock.SetResourceReference(TextBlock.ForegroundProperty, "TreeViewForegroundBrush");
         int currentIndex = 0;
 
         while (currentIndex < text.Length)
@@ -367,16 +372,7 @@ public class FolderTreeManager
 
         // Add text (with highlighting if filter is active)
         var textContent = CreateHighlightedHeader(text, filterText);
-        if (textContent is string str)
-        {
-            var textBlock = new TextBlock
-            {
-                Text = str,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            stackPanel.Children.Add(textBlock);
-        }
-        else if (textContent is TextBlock tb)
+        if (textContent is TextBlock tb)
         {
             tb.VerticalAlignment = VerticalAlignment.Center;
             stackPanel.Children.Add(tb);

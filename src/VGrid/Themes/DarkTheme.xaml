@@ -1,0 +1,85 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Window -->
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="WindowForegroundBrush" Color="#E0E0E0"/>
+
+    <!-- Menu -->
+    <SolidColorBrush x:Key="MenuBackgroundBrush" Color="#2D2D2D"/>
+    <SolidColorBrush x:Key="MenuForegroundBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="MenuBorderBrush" Color="#3F3F3F"/>
+
+    <!-- Status Bar -->
+    <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#252526"/>
+    <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#E0E0E0"/>
+
+    <!-- Activity Bar -->
+    <SolidColorBrush x:Key="ActivityBarBackgroundBrush" Color="#333333"/>
+    <SolidColorBrush x:Key="ActivityBarBorderBrush" Color="#3F3F3F"/>
+    <SolidColorBrush x:Key="ActivityBarForegroundBrush" Color="#858585"/>
+    <SolidColorBrush x:Key="ActivityBarHoverBackgroundBrush" Color="#454545"/>
+    <SolidColorBrush x:Key="ActivityBarActiveForegroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="ActivityBarIndicatorBrush" Color="#FFFFFF"/>
+
+    <!-- Sidebar -->
+    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#252526"/>
+    <SolidColorBrush x:Key="SidebarHeaderBackgroundBrush" Color="#333333"/>
+    <SolidColorBrush x:Key="SidebarHeaderForegroundBrush" Color="#BBBBBB"/>
+    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#3F3F3F"/>
+    <SolidColorBrush x:Key="SidebarItemHoverBrush" Color="#37373D"/>
+    <SolidColorBrush x:Key="SidebarItemSelectedBrush" Color="#094771"/>
+
+    <!-- TreeView -->
+    <SolidColorBrush x:Key="TreeViewBackgroundBrush" Color="#252526"/>
+    <SolidColorBrush x:Key="TreeViewForegroundBrush" Color="#CCCCCC"/>
+
+    <!-- TextBox -->
+    <SolidColorBrush x:Key="TextBoxBackgroundBrush" Color="#3C3C3C"/>
+    <SolidColorBrush x:Key="TextBoxForegroundBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="TextBoxBorderBrush" Color="#3F3F3F"/>
+    <SolidColorBrush x:Key="TextBoxPlaceholderBrush" Color="#6F6F6F"/>
+
+    <!-- Button -->
+    <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#3C3C3C"/>
+    <SolidColorBrush x:Key="ButtonForegroundBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#3F3F3F"/>
+
+    <!-- ListBox -->
+    <SolidColorBrush x:Key="ListBoxBackgroundBrush" Color="#2D2D2D"/>
+    <SolidColorBrush x:Key="ListBoxForegroundBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="ListBoxBorderBrush" Color="#3F3F3F"/>
+
+    <!-- DataGrid -->
+    <SolidColorBrush x:Key="DataGridBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="DataGridForegroundBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="DataGridGridLinesBrush" Color="#3F3F3F"/>
+    <SolidColorBrush x:Key="DataGridBorderBrush" Color="#3F3F3F"/>
+    <SolidColorBrush x:Key="DataGridHeaderBackgroundBrush" Color="#2D2D2D"/>
+    <SolidColorBrush x:Key="DataGridHeaderForegroundBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="DataGridCellBorderBrush" Color="#3F3F3F"/>
+    <SolidColorBrush x:Key="DataGridCellSelectedBrush" Color="#094771"/>
+    <SolidColorBrush x:Key="DataGridCellSelectedBorderBrush" Color="#007ACC"/>
+    <SolidColorBrush x:Key="DataGridRowBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="DataGridCurrentRowHeaderBrush" Color="#094771"/>
+    <SolidColorBrush x:Key="DataGridCurrentColumnHeaderBrush" Color="#094771"/>
+
+    <!-- TabControl -->
+    <SolidColorBrush x:Key="TabBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="TabForegroundBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="TabHeaderBackgroundBrush" Color="#2D2D2D"/>
+    <SolidColorBrush x:Key="TabHeaderSelectedBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="TabBorderBrush" Color="#3F3F3F"/>
+
+    <!-- Splitter -->
+    <SolidColorBrush x:Key="SplitterBackgroundBrush" Color="#3F3F3F"/>
+
+    <!-- ScrollBar -->
+    <SolidColorBrush x:Key="ScrollBarBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#4D4D4D"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#6B6B6B"/>
+
+    <!-- DataGrid SelectAll Button (top-left corner) -->
+    <SolidColorBrush x:Key="DataGridSelectAllButtonBrush" Color="#2D2D2D"/>
+
+</ResourceDictionary>

@@ -21,6 +21,20 @@
         <converters:SidebarViewToVisibilityConverter x:Key="SidebarViewToVisibilityConverter"/>
         <converters:BoolToGridLengthConverter x:Key="BoolToGridLengthConverter" OpenWidth="250"/>
 
+        <!-- DataGrid SelectAll Button Style (top-left corner) -->
+        <Style x:Key="{ComponentResourceKey TypeInTargetAssembly={x:Type DataGrid}, ResourceId=DataGridSelectAllButtonStyle}" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{DynamicResource DataGridSelectAllButtonBrush}"
+                                BorderBrush="{DynamicResource DataGridBorderBrush}"
+                                BorderThickness="0,0,1,1"
+                                SnapsToDevicePixels="True"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Excel-like DataGrid Style -->
         <Style x:Key="ExcelDataGridStyle" TargetType="DataGrid">
             <Setter Property="Background" Value="{DynamicResource DataGridBackgroundBrush}"/>
@@ -34,13 +48,6 @@
             <Setter Property="ColumnHeaderHeight" Value="25"/>
             <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Style.Resources>
-                <!-- Style for the top-left select all button -->
-                <Style TargetType="Button">
-                    <Setter Property="Background" Value="{DynamicResource DataGridSelectAllButtonBrush}"/>
-                    <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
-                </Style>
-            </Style.Resources>
         </Style>
 
         <!-- Excel-like Column Header Style -->

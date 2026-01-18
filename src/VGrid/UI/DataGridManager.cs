@@ -404,20 +404,15 @@ public class DataGridManager
     {
         var style = new Style(typeof(DataGridCell));
 
-        // Use theme-aware colors from resources
-        var cellBorderBrush = Application.Current.FindResource("DataGridCellBorderBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(85, 85, 85));
-        var cellSelectedBrush = Application.Current.FindResource("DataGridCellSelectedBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(9, 71, 113));
-        var cellSelectedBorderBrush = Application.Current.FindResource("DataGridCellSelectedBorderBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(0, 122, 204));
-        var foregroundBrush = Application.Current.FindResource("DataGridForegroundBrush") as Brush ?? Brushes.White;
-
-        style.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, cellBorderBrush));
+        // Use DynamicResourceExtension for theme-aware colors
+        style.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new DynamicResourceExtension("DataGridCellBorderBrush")));
         style.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
         style.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(4, 2, 4, 2)));
 
         var selectionTrigger = new Trigger { Property = DataGridCell.IsSelectedProperty, Value = true };
-        selectionTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, cellSelectedBrush));
-        selectionTrigger.Setters.Add(new Setter(DataGridCell.ForegroundProperty, foregroundBrush));
-        selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, cellSelectedBorderBrush));
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new DynamicResourceExtension("DataGridCellSelectedBrush")));
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.ForegroundProperty, new DynamicResourceExtension("DataGridForegroundBrush")));
+        selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new DynamicResourceExtension("DataGridCellSelectedBorderBrush")));
         selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
 
         var searchTrigger = new DataTrigger();
@@ -431,8 +426,8 @@ public class DataGridManager
         var visualTrigger = new DataTrigger();
         visualTrigger.Binding = new Binding($"Cells[{columnIndex}].IsSelected");
         visualTrigger.Value = true;
-        visualTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, cellSelectedBrush));
-        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, cellSelectedBorderBrush));
+        visualTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new DynamicResourceExtension("DataGridCellSelectedBrush")));
+        visualTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new DynamicResourceExtension("DataGridCellSelectedBorderBrush")));
         visualTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
         style.Triggers.Add(visualTrigger);
 

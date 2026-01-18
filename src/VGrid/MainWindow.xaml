@@ -129,6 +129,102 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Popup Border Style for Menus -->
+        <SolidColorBrush x:Key="{x:Static SystemColors.MenuBarBrushKey}" Color="#2D2D2D"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.MenuBrushKey}" Color="#2D2D2D"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.MenuTextBrushKey}" Color="#E0E0E0"/>
+
+        <!-- ContextMenu Style for Dark Theme -->
+        <Style TargetType="ContextMenu">
+            <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MenuForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{DynamicResource MenuBackgroundBrush}"
+                                BorderBrush="{DynamicResource MenuBorderBrush}"
+                                BorderThickness="1">
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Submenu Popup Style -->
+        <ControlTemplate x:Key="MenuItemSubmenuTemplate" TargetType="MenuItem">
+            <Border x:Name="Border" Background="Transparent" BorderThickness="0">
+                <Grid>
+                    <ContentPresenter x:Name="HeaderHost" ContentSource="Header" Margin="8,4" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                    <Popup x:Name="PART_Popup"
+                           AllowsTransparency="True"
+                           Focusable="False"
+                           IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                           Placement="Bottom"
+                           PopupAnimation="Fade">
+                        <Border Background="{DynamicResource MenuBackgroundBrush}"
+                                BorderBrush="{DynamicResource MenuBorderBrush}"
+                                BorderThickness="1">
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </Border>
+                    </Popup>
+                </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource MenuBorderBrush}"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- Submenu Item Template -->
+        <ControlTemplate x:Key="MenuItemItemTemplate" TargetType="MenuItem">
+            <Border x:Name="Border" Background="Transparent" BorderThickness="0" Padding="8,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="Icon"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="Shortcut"/>
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter x:Name="Icon" ContentSource="Icon" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                    <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Margin="20,0,0,0"
+                               Foreground="{DynamicResource MenuForegroundBrush}" Opacity="0.7" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource MenuBorderBrush}"/>
+                </Trigger>
+                <Trigger Property="Icon" Value="{x:Null}">
+                    <Setter TargetName="Icon" Property="Visibility" Value="Collapsed"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- Menu Item Style for Dark Theme -->
+        <Style TargetType="MenuItem">
+            <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MenuForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+            <Style.Triggers>
+                <Trigger Property="Role" Value="TopLevelHeader">
+                    <Setter Property="Template" Value="{StaticResource MenuItemSubmenuTemplate}"/>
+                </Trigger>
+                <Trigger Property="Role" Value="SubmenuItem">
+                    <Setter Property="Template" Value="{StaticResource MenuItemItemTemplate}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Separator Style -->
+        <Style TargetType="Separator">
+            <Setter Property="Background" Value="{DynamicResource MenuBorderBrush}"/>
+            <Setter Property="Margin" Value="4,2"/>
+            <Setter Property="Height" Value="1"/>
+        </Style>
+
         <!-- Activity Bar Button Style -->
         <Style x:Key="ActivityBarButtonStyle" TargetType="RadioButton">
             <Setter Property="Width" Value="48"/>
@@ -170,7 +266,9 @@
         <!-- Menu Bar -->
         <Menu DockPanel.Dock="Top"
               Background="{DynamicResource MenuBackgroundBrush}"
-              Foreground="{DynamicResource MenuForegroundBrush}">
+              Foreground="{DynamicResource MenuForegroundBrush}"
+              BorderBrush="{DynamicResource MenuBorderBrush}"
+              BorderThickness="0">
             <MenuItem Header="_File">
                 <MenuItem Header="_New" Command="{Binding NewFileCommand}" InputGestureText="Ctrl+N"/>
                 <MenuItem Header="_Open File..." Command="{Binding OpenFileCommand}" InputGestureText="Ctrl+O"/>

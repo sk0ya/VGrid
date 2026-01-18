@@ -16,6 +16,9 @@
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         <converters:RowIndexToBrushConverter x:Key="RowIndexToBrushConverter"/>
         <converters:ColumnIndexToBrushConverter x:Key="ColumnIndexToBrushConverter"/>
+        <converters:SidebarViewToBoolConverter x:Key="SidebarViewToBoolConverter"/>
+        <converters:SidebarViewToVisibilityConverter x:Key="SidebarViewToVisibilityConverter"/>
+        <converters:BoolToGridLengthConverter x:Key="BoolToGridLengthConverter" OpenWidth="250"/>
 
         <!-- Excel-like DataGrid Style -->
         <Style x:Key="ExcelDataGridStyle" TargetType="DataGrid">
@@ -112,6 +115,42 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Activity Bar Button Style -->
+        <Style x:Key="ActivityBarButtonStyle" TargetType="RadioButton">
+            <Setter Property="Width" Value="48"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#6F6F6F"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid>
+                            <Border x:Name="LeftIndicator"
+                                    Width="2"
+                                    HorizontalAlignment="Left"
+                                    Background="Transparent"/>
+                            <Border x:Name="BackgroundBorder"
+                                    Background="{TemplateBinding Background}"/>
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#424242"/>
+                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#E8E8E8"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Foreground" Value="#424242"/>
+                                <Setter TargetName="LeftIndicator" Property="Background" Value="#424242"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <DockPanel>
@@ -159,229 +198,283 @@
         <!-- Main Content Area with Splitter -->
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="250" MinWidth="150"/>
-                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="48"/>
+                <ColumnDefinition x:Name="SidebarColumn" Width="250" MinWidth="0"/>
+                <ColumnDefinition x:Name="SplitterColumn" Width="5"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Left Panel with Tabs -->
-            <Border Grid.Column="0" BorderBrush="#CCCCCC" BorderThickness="0,0,1,0">
-                <TabControl TabStripPlacement="Bottom">
-                    <!-- EXPLORER Tab -->
-                    <TabItem Header="EXPLORER">
-                        <DockPanel Background="#FAFAFA">
-                            <!-- Header Section -->
-                            <Border DockPanel.Dock="Top" Background="#FFFFFF"
-                                    BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8">
+            <!-- Activity Bar -->
+            <Border Grid.Column="0" Background="#F3F3F3" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
+                <StackPanel VerticalAlignment="Top">
+                    <!-- Explorer Button -->
+                    <RadioButton Style="{StaticResource ActivityBarButtonStyle}"
+                                 GroupName="ActivityBar"
+                                 Tag="Explorer"
+                                 Click="ActivityBarButton_Click"
+                                 IsChecked="{Binding SelectedSidebarView, Converter={StaticResource SidebarViewToBoolConverter}, ConverterParameter=Explorer, Mode=OneWay}"
+                                 ToolTip="Explorer (Ctrl+Shift+E)">
+                        <Path Data="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                              Width="24" Height="24" Stretch="Uniform"/>
+                    </RadioButton>
+
+                    <!-- Git Changes Button -->
+                    <RadioButton Style="{StaticResource ActivityBarButtonStyle}"
+                                 GroupName="ActivityBar"
+                                 Tag="GitChanges"
+                                 Click="ActivityBarButton_Click"
+                                 IsChecked="{Binding SelectedSidebarView, Converter={StaticResource SidebarViewToBoolConverter}, ConverterParameter=GitChanges, Mode=OneWay}"
+                                 ToolTip="Source Control (Ctrl+Shift+G)">
+                        <Path Data="M17.63,5.84C17.27,5.33 16.67,5 16,5H8C7.33,5 6.73,5.33 6.37,5.84L1.85,12.09C1.33,12.77 1.33,13.67 1.85,14.35L6.37,20.6C6.73,21.11 7.33,21.44 8,21.44H16C16.67,21.44 17.27,21.11 17.63,20.6L22.15,14.35C22.67,13.67 22.67,12.77 22.15,12.09L17.63,5.84M12,17.5A4.5,4.5 0 0,1 7.5,13A4.5,4.5 0 0,1 12,8.5A4.5,4.5 0 0,1 16.5,13A4.5,4.5 0 0,1 12,17.5M12,10.5A2.5,2.5 0 0,0 9.5,13A2.5,2.5 0 0,0 12,15.5A2.5,2.5 0 0,0 14.5,13A2.5,2.5 0 0,0 12,10.5Z"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                              Width="24" Height="24" Stretch="Uniform"/>
+                    </RadioButton>
+
+                    <!-- Template Button -->
+                    <RadioButton Style="{StaticResource ActivityBarButtonStyle}"
+                                 GroupName="ActivityBar"
+                                 Tag="Template"
+                                 Click="ActivityBarButton_Click"
+                                 IsChecked="{Binding SelectedSidebarView, Converter={StaticResource SidebarViewToBoolConverter}, ConverterParameter=Template, Mode=OneWay}"
+                                 ToolTip="Templates (Ctrl+Shift+T)">
+                        <Path Data="M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M12,3A1,1 0 0,1 13,4A1,1 0 0,1 12,5A1,1 0 0,1 11,4A1,1 0 0,1 12,3M7,7H17V5H19V19H5V5H7V7M12,9A2,2 0 0,0 10,11A2,2 0 0,0 12,13A2,2 0 0,0 14,11A2,2 0 0,0 12,9M8,17V16C8,14.67 10.67,14 12,14C13.33,14 16,14.67 16,16V17H8Z"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                              Width="24" Height="24" Stretch="Uniform"/>
+                    </RadioButton>
+                </StackPanel>
+            </Border>
+
+            <!-- Sidebar Content -->
+            <Border Grid.Column="1" BorderBrush="#CCCCCC" BorderThickness="0,0,1,0"
+                    Visibility="{Binding IsSidebarOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid>
+                    <!-- EXPLORER Panel -->
+                    <DockPanel Background="#FAFAFA"
+                               Visibility="{Binding SelectedSidebarView, Converter={StaticResource SidebarViewToVisibilityConverter}, ConverterParameter=Explorer}">
+                        <!-- Header Section -->
+                        <Border DockPanel.Dock="Top" Background="#F3F3F3"
+                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="12,8">
+                            <TextBlock Text="EXPLORER" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#6F6F6F" VerticalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Filter Box -->
+                        <Border DockPanel.Dock="Top" Background="#FFFFFF"
+                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8">
+                            <Border Background="#F8F8F8"
+                                    BorderBrush="#D0D0D0" BorderThickness="1"
+                                    CornerRadius="3" Padding="0">
                                 <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-
-                                    <!-- Filter Box -->
-                                    <Border  Background="#F8F8F8"
-                                            BorderBrush="#D0D0D0" BorderThickness="1"
-                                            CornerRadius="3" Padding="0">
-                                        <Grid>
-                                            <TextBlock Text="🔍 ファイルをフィルター..."
-                                                       Foreground="#AAAAAA"
-                                                       Margin="8,4,8,4"
-                                                       IsHitTestVisible="False"
-                                                       VerticalAlignment="Center">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding FilterText}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding FilterText}" Value="{x:Null}">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                                                     Height="28"
-                                                     Padding="8,4,8,4"
-                                                     Background="Transparent"
-                                                     BorderThickness="0"
-                                                     VerticalContentAlignment="Center"
-                                                     FontSize="12"/>
-                                        </Grid>
-                                    </Border>
-                                </Grid>
-                            </Border>
-
-                            <!-- TreeView -->
-                            <TreeView x:Name="FolderTreeView"
-                                      BorderThickness="0"
-                                      Background="#FAFAFA"
-                                      Margin="0"
-                                      Padding="6"
-                                      KeyDown="FolderTreeView_KeyDown"
-                                      MouseRightButtonUp="FolderTreeView_MouseRightButtonUp"
-                                      FontSize="12">
-                                <TreeView.Resources>
-                                    <Style TargetType="TreeViewItem">
-                                        <Setter Property="Padding" Value="2"/>
-                                        <Setter Property="Margin" Value="0,1,0,1"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#F0F0F0"/>
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="#E3F2FD"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TreeView.Resources>
-                                <!-- Tree items will be populated in code-behind -->
-                            </TreeView>
-                        </DockPanel>
-                    </TabItem>
-
-                    <!-- Git Changes Tab -->
-                    <TabItem Header="Git変更">
-                        <DockPanel Background="#F5F5F5">
-                            <!-- Commit Message and Button (Bottom) -->
-                            <Border DockPanel.Dock="Bottom" Height="100" Padding="5" Background="#F5F5F5">
-                                <DockPanel>
-                                    <Button DockPanel.Dock="Bottom" Content="Commit"
-                                            Command="{Binding GitChangesViewModel.CommitCommand}"
-                                            Width="Auto" Margin="5,5,5,5"
-                                            HorizontalAlignment="Left" Padding="10,3"/>
-
-                                    <TextBox Text="{Binding GitChangesViewModel.CommitMessage, UpdateSourceTrigger=PropertyChanged}"
-                                             AcceptsReturn="True" TextWrapping="Wrap"
-                                             VerticalScrollBarVisibility="Auto"
-                                             BorderBrush="#CCCCCC" BorderThickness="1"
-                                             Margin="5" Padding="5">
-                                        <TextBox.InputBindings>
-                                            <KeyBinding Key="Enter" Modifiers="Ctrl"
-                                                        Command="{Binding GitChangesViewModel.CommitCommand}"/>
-                                        </TextBox.InputBindings>
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox">
+                                    <TextBlock Text="Filter files..."
+                                               Foreground="#AAAAAA"
+                                               Margin="8,4,8,4"
+                                               IsHitTestVisible="False"
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
                                                 <Style.Triggers>
-                                                    <Trigger Property="Text" Value="">
-                                                        <Setter Property="Background">
-                                                            <Setter.Value>
-                                                                <VisualBrush AlignmentX="Left" AlignmentY="Top" Stretch="None">
-                                                                    <VisualBrush.Visual>
-                                                                        <TextBlock Text="Commit message (Ctrl+Enter to commit)..."
-                                                                                  Foreground="#999" Margin="5,2,0,0"/>
-                                                                    </VisualBrush.Visual>
-                                                                </VisualBrush>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding FilterText}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding FilterText}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
-                                </DockPanel>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                             Height="28"
+                                             Padding="8,4,8,4"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             VerticalContentAlignment="Center"
+                                             FontSize="12"/>
+                                </Grid>
                             </Border>
+                        </Border>
 
-                            <!-- Uncommitted Files List (Fill remaining space) -->
-                            <ListBox ItemsSource="{Binding GitChangesViewModel.UncommittedFiles}"
-                                     Background="White" BorderBrush="#CCCCCC" BorderThickness="1"
-                                     Margin="5">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" Margin="2">
-                                            <CheckBox IsChecked="{Binding IsSelected}"
-                                                      VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <TextBlock Text="{Binding StatusText}"
-                                                       FontWeight="Bold" Width="20"
-                                                       Foreground="Orange" Margin="0,0,8,0"/>
-                                            <TextBlock Text="{Binding RelativePath}"
-                                                       VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                                <ListBox.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="編集"
-                                                  Command="{Binding GitChangesViewModel.EditFileCommand}"
-                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                        <MenuItem Header="差分表示"
-                                                  Command="{Binding GitChangesViewModel.ShowDiffCommand}"
-                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                        <Separator/>
-                                        <MenuItem Header="エクスプローラーでフォルダを開く"
-                                                  Command="{Binding GitChangesViewModel.OpenFolderCommand}"
-                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                        <MenuItem Header="エディタで開く"
-                                                  Command="{Binding GitChangesViewModel.OpenInEditorCommand}"
-                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                        <Separator/>
-                                        <MenuItem Header="元に戻す"
-                                                  Command="{Binding GitChangesViewModel.RevertFileCommand}"
-                                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                    </ContextMenu>
-                                </ListBox.ContextMenu>
-                            </ListBox>
-                        </DockPanel>
-                    </TabItem>
+                        <!-- TreeView -->
+                        <TreeView x:Name="FolderTreeView"
+                                  BorderThickness="0"
+                                  Background="#FAFAFA"
+                                  Margin="0"
+                                  Padding="6"
+                                  KeyDown="FolderTreeView_KeyDown"
+                                  MouseRightButtonUp="FolderTreeView_MouseRightButtonUp"
+                                  FontSize="12">
+                            <TreeView.Resources>
+                                <Style TargetType="TreeViewItem">
+                                    <Setter Property="Padding" Value="2"/>
+                                    <Setter Property="Margin" Value="0,1,0,1"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#F0F0F0"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TreeView.Resources>
+                        </TreeView>
+                    </DockPanel>
 
-                    <!-- Template Tab -->
-                    <TabItem Header="Template">
-                        <DockPanel Background="#FAFAFA">
-                            <!-- Toolbar -->
-                            <Border DockPanel.Dock="Top" Background="#FFFFFF"
-                                    BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8">
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Content="+ 新規" Click="NewTemplateButton_Click"
-                                            Padding="8,4" Margin="0,0,4,0"
-                                            Background="#F0F0F0" BorderBrush="#D0D0D0"
-                                            ToolTip="新しいテンプレートを作成"/>
-                                    <Button Content="📁 フォルダ" Click="NewTemplateFolderButton_Click"
-                                            Padding="8,4" Margin="0,0,4,0"
-                                            Background="#F0F0F0" BorderBrush="#D0D0D0"
-                                            ToolTip="新しいフォルダを作成"/>
-                                    <Button Content="↻" Click="RefreshTemplateButton_Click"
-                                            Padding="8,4"
-                                            Background="#F0F0F0" BorderBrush="#D0D0D0"
-                                            ToolTip="テンプレート一覧を更新"/>
-                                </StackPanel>
-                            </Border>
+                    <!-- Git Changes Panel -->
+                    <DockPanel Background="#F5F5F5"
+                               Visibility="{Binding SelectedSidebarView, Converter={StaticResource SidebarViewToVisibilityConverter}, ConverterParameter=GitChanges}">
+                        <!-- Header Section -->
+                        <Border DockPanel.Dock="Top" Background="#F3F3F3"
+                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="12,8">
+                            <TextBlock Text="SOURCE CONTROL" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#6F6F6F" VerticalAlignment="Center"/>
+                        </Border>
 
-                            <!-- TreeView for Templates -->
-                            <TreeView x:Name="TemplateTreeView"
-                                      BorderThickness="0"
-                                      Background="#FAFAFA"
-                                      Margin="0"
-                                      Padding="6"
-                                      KeyDown="TemplateTreeView_KeyDown"
-                                      MouseRightButtonUp="TemplateTreeView_MouseRightButtonUp"
-                                      FontSize="12">
-                                <TreeView.Resources>
-                                    <Style TargetType="TreeViewItem">
-                                        <Setter Property="Padding" Value="2"/>
-                                        <Setter Property="Margin" Value="0,1,0,1"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#F0F0F0"/>
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="#E3F2FD"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TreeView.Resources>
-                            </TreeView>
-                        </DockPanel>
-                    </TabItem>
-                </TabControl>
+                        <!-- Commit Message and Button (Bottom) -->
+                        <Border DockPanel.Dock="Bottom" Height="100" Padding="5" Background="#F5F5F5">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Bottom" Content="Commit"
+                                        Command="{Binding GitChangesViewModel.CommitCommand}"
+                                        Width="Auto" Margin="5,5,5,5"
+                                        HorizontalAlignment="Left" Padding="10,3"/>
+
+                                <TextBox Text="{Binding GitChangesViewModel.CommitMessage, UpdateSourceTrigger=PropertyChanged}"
+                                         AcceptsReturn="True" TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto"
+                                         BorderBrush="#CCCCCC" BorderThickness="1"
+                                         Margin="5" Padding="5">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Enter" Modifiers="Ctrl"
+                                                    Command="{Binding GitChangesViewModel.CommitCommand}"/>
+                                    </TextBox.InputBindings>
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Style.Triggers>
+                                                <Trigger Property="Text" Value="">
+                                                    <Setter Property="Background">
+                                                        <Setter.Value>
+                                                            <VisualBrush AlignmentX="Left" AlignmentY="Top" Stretch="None">
+                                                                <VisualBrush.Visual>
+                                                                    <TextBlock Text="Commit message (Ctrl+Enter to commit)..."
+                                                                              Foreground="#999" Margin="5,2,0,0"/>
+                                                                </VisualBrush.Visual>
+                                                            </VisualBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Uncommitted Files List (Fill remaining space) -->
+                        <ListBox ItemsSource="{Binding GitChangesViewModel.UncommittedFiles}"
+                                 Background="White" BorderBrush="#CCCCCC" BorderThickness="1"
+                                 Margin="5">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="2">
+                                        <CheckBox IsChecked="{Binding IsSelected}"
+                                                  VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding StatusText}"
+                                                   FontWeight="Bold" Width="20"
+                                                   Foreground="Orange" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding RelativePath}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="編集"
+                                              Command="{Binding GitChangesViewModel.EditFileCommand}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    <MenuItem Header="差分表示"
+                                              Command="{Binding GitChangesViewModel.ShowDiffCommand}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    <Separator/>
+                                    <MenuItem Header="エクスプローラーでフォルダを開く"
+                                              Command="{Binding GitChangesViewModel.OpenFolderCommand}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    <MenuItem Header="エディタで開く"
+                                              Command="{Binding GitChangesViewModel.OpenInEditorCommand}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    <Separator/>
+                                    <MenuItem Header="元に戻す"
+                                              Command="{Binding GitChangesViewModel.RevertFileCommand}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+                        </ListBox>
+                    </DockPanel>
+
+                    <!-- Template Panel -->
+                    <DockPanel Background="#FAFAFA"
+                               Visibility="{Binding SelectedSidebarView, Converter={StaticResource SidebarViewToVisibilityConverter}, ConverterParameter=Template}">
+                        <!-- Header Section -->
+                        <Border DockPanel.Dock="Top" Background="#F3F3F3"
+                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="12,8">
+                            <TextBlock Text="TEMPLATES" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#6F6F6F" VerticalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Toolbar -->
+                        <Border DockPanel.Dock="Top" Background="#FFFFFF"
+                                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="+ New" Click="NewTemplateButton_Click"
+                                        Padding="8,4" Margin="0,0,4,0"
+                                        Background="#F0F0F0" BorderBrush="#D0D0D0"
+                                        ToolTip="Create a new template"/>
+                                <Button Content="Folder" Click="NewTemplateFolderButton_Click"
+                                        Padding="8,4" Margin="0,0,4,0"
+                                        Background="#F0F0F0" BorderBrush="#D0D0D0"
+                                        ToolTip="Create a new folder"/>
+                                <Button Content="Refresh" Click="RefreshTemplateButton_Click"
+                                        Padding="8,4"
+                                        Background="#F0F0F0" BorderBrush="#D0D0D0"
+                                        ToolTip="Refresh template list"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- TreeView for Templates -->
+                        <TreeView x:Name="TemplateTreeView"
+                                  BorderThickness="0"
+                                  Background="#FAFAFA"
+                                  Margin="0"
+                                  Padding="6"
+                                  KeyDown="TemplateTreeView_KeyDown"
+                                  MouseRightButtonUp="TemplateTreeView_MouseRightButtonUp"
+                                  FontSize="12">
+                            <TreeView.Resources>
+                                <Style TargetType="TreeViewItem">
+                                    <Setter Property="Padding" Value="2"/>
+                                    <Setter Property="Margin" Value="0,1,0,1"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#F0F0F0"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TreeView.Resources>
+                        </TreeView>
+                    </DockPanel>
+                </Grid>
             </Border>
 
             <!-- Splitter -->
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#E0E0E0"/>
+            <GridSplitter Grid.Column="2" Width="5" HorizontalAlignment="Stretch" Background="#E0E0E0"
+                          Visibility="{Binding IsSidebarOpen, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
             <!-- Tab Control (Right Panel) -->
-            <TabControl Grid.Column="2"
+            <TabControl Grid.Column="3"
                         ItemsSource="{Binding Tabs}"
                         SelectedItem="{Binding SelectedTab}"
                         Margin="0" BorderThickness="0">

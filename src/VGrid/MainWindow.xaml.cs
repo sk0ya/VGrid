@@ -19,6 +19,7 @@ public partial class MainWindow : Window
 {
     private MainViewModel? _viewModel;
     private HwndSource? _hwndSource;
+    private GridLength _savedSidebarWidth = new GridLength(250);
 
     // Manager classes
     private FolderTreeManager? _folderTreeManager;
@@ -52,7 +53,7 @@ public partial class MainWindow : Window
         // Initialize template tree
         _templateTreeManager.PopulateTemplateTree();
 
-        // Subscribe to SelectedFolderPath and FilterText changes
+        // Subscribe to SelectedFolderPath, FilterText, and IsSidebarOpen changes
         _viewModel.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(_viewModel.SelectedFolderPath))
@@ -62,6 +63,10 @@ public partial class MainWindow : Window
             else if (e.PropertyName == nameof(_viewModel.FilterText))
             {
                 _folderTreeManager.PopulateFolderTree();
+            }
+            else if (e.PropertyName == nameof(_viewModel.IsSidebarOpen))
+            {
+                UpdateSidebarWidth();
             }
         };
 
@@ -90,6 +95,41 @@ public partial class MainWindow : Window
     private void NewTemplateButton_Click(object sender, RoutedEventArgs e) => _templateTreeManager?.CreateNewTemplate();
     private void NewTemplateFolderButton_Click(object sender, RoutedEventArgs e) => _templateTreeManager?.CreateNewFolder();
     private void RefreshTemplateButton_Click(object sender, RoutedEventArgs e) => _templateTreeManager?.PopulateTemplateTree();
+
+    // Activity Bar Button Handlers
+    private void ActivityBarButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton radioButton && radioButton.Tag is string viewName)
+        {
+            if (Enum.TryParse<Models.SidebarView>(viewName, out var view))
+            {
+                _viewModel?.SelectSidebarView(view);
+            }
+        }
+    }
+
+    // Sidebar width management
+    private void UpdateSidebarWidth()
+    {
+        if (_viewModel == null) return;
+
+        if (_viewModel.IsSidebarOpen)
+        {
+            // Restore sidebar width
+            SidebarColumn.Width = _savedSidebarWidth;
+            SplitterColumn.Width = new GridLength(5);
+        }
+        else
+        {
+            // Save current width and collapse
+            if (SidebarColumn.Width.Value > 0)
+            {
+                _savedSidebarWidth = SidebarColumn.Width;
+            }
+            SidebarColumn.Width = new GridLength(0);
+            SplitterColumn.Width = new GridLength(0);
+        }
+    }
 
     // DataGrid Event Handlers - Delegate to DataGridManager
     private void TsvGrid_Loaded(object sender, RoutedEventArgs e) => _dataGridManager?.TsvGrid_Loaded(sender, e);

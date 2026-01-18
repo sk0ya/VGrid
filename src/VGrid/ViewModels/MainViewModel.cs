@@ -30,6 +30,8 @@ public class MainViewModel : ViewModelBase
     private bool _isVimModeEnabled = true;
     private string _filterText = string.Empty;
     private ObservableCollection<TemplateInfo> _templates = new ObservableCollection<TemplateInfo>();
+    private SidebarView _selectedSidebarView = SidebarView.Explorer;
+    private bool _isSidebarOpen = true;
 
     public MainViewModel()
     {
@@ -138,6 +140,36 @@ public class MainViewModel : ViewModelBase
     {
         get => _filterText;
         set => SetProperty(ref _filterText, value);
+    }
+
+    public SidebarView SelectedSidebarView
+    {
+        get => _selectedSidebarView;
+        set => SetProperty(ref _selectedSidebarView, value);
+    }
+
+    public bool IsSidebarOpen
+    {
+        get => _isSidebarOpen;
+        set => SetProperty(ref _isSidebarOpen, value);
+    }
+
+    /// <summary>
+    /// サイドバービューを選択する。同じビューが選択された場合はサイドバーを開閉トグル
+    /// </summary>
+    public void SelectSidebarView(SidebarView view)
+    {
+        if (SelectedSidebarView == view)
+        {
+            // 同じビューをクリックした場合はトグル
+            IsSidebarOpen = !IsSidebarOpen;
+        }
+        else
+        {
+            // 別のビューを選択した場合は切り替えて開く
+            SelectedSidebarView = view;
+            IsSidebarOpen = true;
+        }
     }
 
     public ObservableCollection<TemplateInfo> Templates

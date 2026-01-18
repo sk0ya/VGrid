@@ -26,6 +26,7 @@
     <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#FAFAFA"/>
     <SolidColorBrush x:Key="SidebarHeaderBackgroundBrush" Color="#F3F3F3"/>
     <SolidColorBrush x:Key="SidebarHeaderForegroundBrush" Color="#6F6F6F"/>
+    <SolidColorBrush x:Key="SidebarForegroundBrush" Color="#333333"/>
     <SolidColorBrush x:Key="SidebarBorderBrush" Color="#E0E0E0"/>
     <SolidColorBrush x:Key="SidebarItemHoverBrush" Color="#F0F0F0"/>
     <SolidColorBrush x:Key="SidebarItemSelectedBrush" Color="#E3F2FD"/>

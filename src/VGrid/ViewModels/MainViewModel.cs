@@ -833,6 +833,9 @@ public class MainViewModel : ViewModelBase
         // Restore Vim mode setting
         IsVimModeEnabled = session.IsVimModeEnabled;
 
+        // Restore theme setting
+        IsDarkTheme = session.IsDarkTheme;
+
         // Restore folder path first (updates folder tree once)
         if (!string.IsNullOrEmpty(session.SelectedFolderPath) &&
             Directory.Exists(session.SelectedFolderPath))
@@ -876,7 +879,8 @@ public class MainViewModel : ViewModelBase
                 .ToList(),
             SelectedTabIndex = SelectedTab != null ? Tabs.IndexOf(SelectedTab) : 0,
             SelectedFolderPath = SelectedFolderPath,
-            IsVimModeEnabled = IsVimModeEnabled
+            IsVimModeEnabled = IsVimModeEnabled,
+            IsDarkTheme = IsDarkTheme
         };
 
         _settingsService.SaveSession(session);

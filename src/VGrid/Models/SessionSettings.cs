@@ -24,4 +24,9 @@ public class SessionSettings
     /// Whether Vim keybindings are enabled. Default is true.
     /// </summary>
     public bool IsVimModeEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Whether dark theme is enabled. Default is false (light theme).
+    /// </summary>
+    public bool IsDarkTheme { get; set; } = false;
 }

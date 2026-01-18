@@ -18,5 +18,10 @@ public enum SidebarView
     /// <summary>
     /// テンプレート
     /// </summary>
-    Template
+    Template,
+
+    /// <summary>
+    /// 設定
+    /// </summary>
+    Settings
 }

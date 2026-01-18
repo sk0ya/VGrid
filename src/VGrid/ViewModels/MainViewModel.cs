@@ -457,38 +457,10 @@ public class MainViewModel : ViewModelBase
             Tabs.Add(tab);
             SelectedTab = tab;
             StatusBarViewModel.ShowMessage($"Opened: {filePath}");
-
-            // Update SelectedFolderPath to the repository root if the file is in a Git repository
-            await UpdateFolderPathForFileAsync(filePath);
         }
         catch (Exception ex)
         {
             System.Windows.MessageBox.Show($"Error opening file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    /// <summary>
-    /// Updates the SelectedFolderPath to the Git repository root of the given file
-    /// </summary>
-    private async System.Threading.Tasks.Task UpdateFolderPathForFileAsync(string filePath)
-    {
-        try
-        {
-            // Check if the file is in a Git repository
-            if (await _gitService.IsInGitRepositoryAsync(filePath))
-            {
-                // Get the repository root
-                var repoRoot = await _gitService.GetRepositoryRootAsync(filePath);
-                if (!string.IsNullOrEmpty(repoRoot))
-                {
-                    // Update SelectedFolderPath to the repository root
-                    SelectedFolderPath = repoRoot;
-                }
-            }
-        }
-        catch
-        {
-            // Silently fail - this is just a convenience feature
         }
     }
 
@@ -808,7 +780,14 @@ public class MainViewModel : ViewModelBase
         // Restore Vim mode setting
         IsVimModeEnabled = session.IsVimModeEnabled;
 
-        // Restore files on background thread
+        // Restore folder path first (updates folder tree once)
+        if (!string.IsNullOrEmpty(session.SelectedFolderPath) &&
+            Directory.Exists(session.SelectedFolderPath))
+        {
+            SelectedFolderPath = session.SelectedFolderPath;
+        }
+
+        // Restore files
         int validTabCount = 0;
         foreach (var filePath in session.OpenFiles)
         {
@@ -830,13 +809,6 @@ public class MainViewModel : ViewModelBase
         if (session.SelectedTabIndex >= 0 && session.SelectedTabIndex < Tabs.Count)
         {
             SelectedTab = Tabs[session.SelectedTabIndex];
-        }
-
-        // Restore folder path
-        if (!string.IsNullOrEmpty(session.SelectedFolderPath) &&
-            Directory.Exists(session.SelectedFolderPath))
-        {
-            SelectedFolderPath = session.SelectedFolderPath;
         }
     }
 

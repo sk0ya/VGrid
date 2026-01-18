@@ -22,6 +22,7 @@ public class FolderTreeManager
     private readonly ITemplateService _templateService;
     private TreeViewItem? _draggedItem;
     private System.Windows.Point _dragStartPoint;
+    private bool _isDoubleClickHandlerRegistered;
 
     public FolderTreeManager(System.Windows.Controls.TreeView treeView, MainViewModel viewModel, ITemplateService templateService)
     {
@@ -79,8 +80,12 @@ public class FolderTreeManager
             PopulateTreeNode(rootItem, _viewModel.SelectedFolderPath);
             _treeView.Items.Add(rootItem);
 
-            // Handle double-click on tree items
-            _treeView.MouseDoubleClick += FolderTreeView_MouseDoubleClick;
+            // Handle double-click on tree items (register only once)
+            if (!_isDoubleClickHandlerRegistered)
+            {
+                _treeView.MouseDoubleClick += FolderTreeView_MouseDoubleClick;
+                _isDoubleClickHandlerRegistered = true;
+            }
         }
         catch (Exception ex)
         {

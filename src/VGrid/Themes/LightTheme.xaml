@@ -86,4 +86,11 @@
     <!-- DataGrid SelectAll Button (top-left corner) -->
     <SolidColorBrush x:Key="DataGridSelectAllButtonBrush" Color="#F0F0F0"/>
 
+    <!-- Diff Colors -->
+    <SolidColorBrush x:Key="DiffUnchangedBrush" Color="White"/>
+    <SolidColorBrush x:Key="DiffModifiedBrush" Color="#FFFACD"/>
+    <SolidColorBrush x:Key="DiffAddedBrush" Color="#E6FFE6"/>
+    <SolidColorBrush x:Key="DiffDeletedBrush" Color="#FFE6E6"/>
+    <SolidColorBrush x:Key="DiffForegroundBrush" Color="Black"/>
+
 </ResourceDictionary>

@@ -3,29 +3,47 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:VGrid.Converters"
         Title="{Binding DiffTitle, Mode=OneWay}" Height="700" Width="1200"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <Window.Resources>
         <converters:DiffStatusToColorConverter x:Key="DiffStatusToColorConverter"/>
 
+        <!-- DataGrid SelectAll Button Style (top-left corner) -->
+        <Style x:Key="{ComponentResourceKey TypeInTargetAssembly={x:Type DataGrid}, ResourceId=DataGridSelectAllButtonStyle}" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{DynamicResource DataGridSelectAllButtonBrush}"
+                                BorderBrush="{DynamicResource DataGridBorderBrush}"
+                                BorderThickness="0,0,1,1"
+                                SnapsToDevicePixels="True"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Excel-like DataGrid Style -->
         <Style x:Key="ExcelDataGridStyle" TargetType="DataGrid">
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource DataGridBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DataGridForegroundBrush}"/>
+            <Setter Property="RowBackground" Value="{DynamicResource DataGridRowBackgroundBrush}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource DataGridRowBackgroundBrush}"/>
             <Setter Property="GridLinesVisibility" Value="All"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#D0D0D0"/>
-            <Setter Property="VerticalGridLinesBrush" Value="#D0D0D0"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+            <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
             <Setter Property="RowHeaderWidth" Value="40"/>
             <Setter Property="ColumnHeaderHeight" Value="25"/>
-            <Setter Property="BorderBrush" Value="#BEBEBE"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
 
         <!-- Excel-like Column Header Style -->
         <Style x:Key="ExcelColumnHeaderStyle" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#F0F0F0"/>
-            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Background" Value="{DynamicResource DataGridHeaderBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderForegroundBrush}"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderBrush" Value="#BEBEBE"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="Padding" Value="5,3"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -33,10 +51,10 @@
 
         <!-- Excel-like Row Header Style -->
         <Style x:Key="ExcelRowHeaderStyle" TargetType="DataGridRowHeader">
-            <Setter Property="Background" Value="#F0F0F0"/>
-            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Background" Value="{DynamicResource DataGridHeaderBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderForegroundBrush}"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderBrush" Value="#BEBEBE"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="Width" Value="40"/>
@@ -44,7 +62,8 @@
 
         <!-- Excel-like Cell Style -->
         <Style x:Key="ExcelCellStyle" TargetType="DataGridCell">
-            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource DataGridForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridCellBorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="Padding" Value="4,2"/>
             <Setter Property="Template">
@@ -61,12 +80,20 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#D4E7F7"/>
-                    <Setter Property="Foreground" Value="Black"/>
-                    <Setter Property="BorderBrush" Value="#4A90E2"/>
+                    <Setter Property="Background" Value="{DynamicResource DataGridCellSelectedBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource DataGridForegroundBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource DataGridCellSelectedBorderBrush}"/>
                     <Setter Property="BorderThickness" Value="2"/>
                 </Trigger>
             </Style.Triggers>
+        </Style>
+
+        <!-- Excel-like Row Style -->
+        <Style x:Key="ExcelRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="{DynamicResource DataGridRowBackgroundBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
         </Style>
     </Window.Resources>
 
@@ -80,11 +107,12 @@
             </Grid.ColumnDefinitions>
 
             <!-- File List -->
-            <Border Grid.Column="0" BorderBrush="#CCC" BorderThickness="0,0,1,0" Background="White">
+            <Border Grid.Column="0" BorderBrush="{DynamicResource ListBoxBorderBrush}" BorderThickness="0,0,1,0" Background="{DynamicResource ListBoxBackgroundBrush}">
                 <ListBox ItemsSource="{Binding ChangedFiles}"
                          SelectedItem="{Binding SelectedFile}"
                          BorderThickness="0"
-                         Background="White"
+                         Background="{DynamicResource ListBoxBackgroundBrush}"
+                         Foreground="{DynamicResource ListBoxForegroundBrush}"
                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
@@ -96,7 +124,7 @@
                 </ListBox>
             </Border>
 
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#E0E0E0"/>
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="{DynamicResource SplitterBackgroundBrush}"/>
 
             <!-- Diff Display Area -->
             <Grid Grid.Column="2">
@@ -107,10 +135,12 @@
                 </Grid.ColumnDefinitions>
 
                     <!-- Left DataGrid (Old Version) -->
-                    <Border Grid.Column="0" BorderBrush="#CCC" BorderThickness="1">
+                    <Border Grid.Column="0" BorderBrush="{DynamicResource DataGridBorderBrush}" BorderThickness="1">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="{Binding LeftHeader, Mode=OneWay}"
-                                       Background="#F0F0F0" Padding="5" FontWeight="Bold" TextAlignment="Center"/>
+                                       Background="{DynamicResource DataGridHeaderBackgroundBrush}"
+                                       Foreground="{DynamicResource DataGridHeaderForegroundBrush}"
+                                       Padding="5" FontWeight="Bold" TextAlignment="Center"/>
                             <DataGrid x:Name="LeftDataGrid"
                                       ItemsSource="{Binding LeftRows}"
                                       AutoGenerateColumns="False"
@@ -123,17 +153,20 @@
                                       Style="{StaticResource ExcelDataGridStyle}"
                                       ColumnHeaderStyle="{StaticResource ExcelColumnHeaderStyle}"
                                       RowHeaderStyle="{StaticResource ExcelRowHeaderStyle}"
+                                      RowStyle="{StaticResource ExcelRowStyle}"
                                       CellStyle="{StaticResource ExcelCellStyle}"/>
                         </DockPanel>
                     </Border>
 
-                    <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#E0E0E0"/>
+                    <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="{DynamicResource SplitterBackgroundBrush}"/>
 
                     <!-- Right DataGrid (New Version) -->
-                    <Border Grid.Column="2" BorderBrush="#CCC" BorderThickness="1">
+                    <Border Grid.Column="2" BorderBrush="{DynamicResource DataGridBorderBrush}" BorderThickness="1">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="{Binding RightHeader, Mode=OneWay}"
-                                       Background="#F0F0F0" Padding="5" FontWeight="Bold" TextAlignment="Center"/>
+                                       Background="{DynamicResource DataGridHeaderBackgroundBrush}"
+                                       Foreground="{DynamicResource DataGridHeaderForegroundBrush}"
+                                       Padding="5" FontWeight="Bold" TextAlignment="Center"/>
                             <DataGrid x:Name="RightDataGrid"
                                       ItemsSource="{Binding RightRows}"
                                       AutoGenerateColumns="False"
@@ -146,6 +179,7 @@
                                       Style="{StaticResource ExcelDataGridStyle}"
                                       ColumnHeaderStyle="{StaticResource ExcelColumnHeaderStyle}"
                                       RowHeaderStyle="{StaticResource ExcelRowHeaderStyle}"
+                                      RowStyle="{StaticResource ExcelRowStyle}"
                                       CellStyle="{StaticResource ExcelCellStyle}"/>
                         </DockPanel>
                     </Border>

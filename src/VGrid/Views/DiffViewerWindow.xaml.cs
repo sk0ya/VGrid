@@ -91,6 +91,7 @@ public partial class DiffViewerWindow : Window
             textBlock.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding($"Cells[{columnIndex}].Value"));
             textBlock.SetValue(TextBlock.PaddingProperty, new Thickness(4, 2, 4, 2));
             textBlock.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            textBlock.SetResourceReference(TextBlock.ForegroundProperty, "DiffForegroundBrush");
             cellTemplate.VisualTree = textBlock;
             column.CellTemplate = cellTemplate;
 

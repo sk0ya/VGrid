@@ -13,6 +13,7 @@ public class NormalMode : IVimMode
     public void OnEnter(VimState state)
     {
         // Clear any selection when entering normal mode
+        state.CurrentSelection = null;
         state.ResetState();
     }
 

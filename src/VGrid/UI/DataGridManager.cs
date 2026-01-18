@@ -604,7 +604,11 @@ public class DataGridManager
                                 _isUpdatingSelection = false;
                             }
 
-                            tab.VimState.SwitchMode(VimMode.Visual);
+                            // Only switch to Visual mode if Vim mode is enabled
+                            if (_viewModel.IsVimModeEnabled)
+                            {
+                                tab.VimState.SwitchMode(VimMode.Visual);
+                            }
                         }
                         else
                         {

@@ -106,34 +106,28 @@
 
         <!-- Excel-like Cell Style -->
         <Style x:Key="ExcelCellStyle" TargetType="DataGridCell">
-            <Setter Property="Background" Value="{DynamicResource DataGridBackgroundBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource DataGridForegroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DataGridCellBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="Padding" Value="4,2"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DataGridCell">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                Padding="{TemplateBinding Padding}"
+                        <Border x:Name="CellBorder"
+                                Background="{DynamicResource DataGridBackgroundBrush}"
+                                BorderBrush="{DynamicResource DataGridCellBorderBrush}"
+                                BorderThickness="0,0,1,1"
+                                Padding="4,2"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter VerticalAlignment="Center" SnapsToDevicePixels="True"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="CellBorder" Property="Background" Value="{DynamicResource DataGridCellSelectedBrush}"/>
+                                <Setter TargetName="CellBorder" Property="BorderBrush" Value="{DynamicResource DataGridCellSelectedBorderBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource DataGridCellSelectedBrush}"/>
-                    <Setter Property="Foreground" Value="{DynamicResource DataGridForegroundBrush}"/>
-                    <Setter Property="BorderBrush" Value="{DynamicResource DataGridCellSelectedBorderBrush}"/>
-                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                    <Setter Property="Padding" Value="4,2"/>
-                </Trigger>
-            </Style.Triggers>
         </Style>
 
         <!-- Popup Border Style for Menus -->

@@ -45,6 +45,9 @@
     <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#F0F0F0"/>
     <SolidColorBrush x:Key="ButtonForegroundBrush" Color="Black"/>
     <SolidColorBrush x:Key="ButtonBorderBrush" Color="#D0D0D0"/>
+    <SolidColorBrush x:Key="ButtonDisabledBackgroundBrush" Color="#E8E8E8"/>
+    <SolidColorBrush x:Key="ButtonDisabledForegroundBrush" Color="#A0A0A0"/>
+    <SolidColorBrush x:Key="ButtonDisabledBorderBrush" Color="#D0D0D0"/>
 
     <!-- ListBox -->
     <SolidColorBrush x:Key="ListBoxBackgroundBrush" Color="White"/>
@@ -58,9 +61,9 @@
     <SolidColorBrush x:Key="DataGridBorderBrush" Color="#BEBEBE"/>
     <SolidColorBrush x:Key="DataGridHeaderBackgroundBrush" Color="#F0F0F0"/>
     <SolidColorBrush x:Key="DataGridHeaderForegroundBrush" Color="Black"/>
-    <SolidColorBrush x:Key="DataGridCellBorderBrush" Color="#E0E0E0"/>
-    <SolidColorBrush x:Key="DataGridCellSelectedBrush" Color="#D4E7F7"/>
-    <SolidColorBrush x:Key="DataGridCellSelectedBorderBrush" Color="#4A90E2"/>
+    <SolidColorBrush x:Key="DataGridCellBorderBrush" Color="#EBEBEB"/>
+    <SolidColorBrush x:Key="DataGridCellSelectedBrush" Color="#E8F4FC"/>
+    <SolidColorBrush x:Key="DataGridCellSelectedBorderBrush" Color="#A0C8E8"/>
     <SolidColorBrush x:Key="DataGridRowBackgroundBrush" Color="White"/>
     <SolidColorBrush x:Key="DataGridCurrentRowHeaderBrush" Color="#BFDDF5"/>
     <SolidColorBrush x:Key="DataGridCurrentColumnHeaderBrush" Color="#BFDDF5"/>

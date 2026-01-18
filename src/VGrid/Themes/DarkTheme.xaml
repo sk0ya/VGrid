@@ -45,6 +45,9 @@
     <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#3C3C3C"/>
     <SolidColorBrush x:Key="ButtonForegroundBrush" Color="#E0E0E0"/>
     <SolidColorBrush x:Key="ButtonBorderBrush" Color="#3F3F3F"/>
+    <SolidColorBrush x:Key="ButtonDisabledBackgroundBrush" Color="#2D2D2D"/>
+    <SolidColorBrush x:Key="ButtonDisabledForegroundBrush" Color="#6F6F6F"/>
+    <SolidColorBrush x:Key="ButtonDisabledBorderBrush" Color="#3F3F3F"/>
 
     <!-- ListBox -->
     <SolidColorBrush x:Key="ListBoxBackgroundBrush" Color="#2D2D2D"/>

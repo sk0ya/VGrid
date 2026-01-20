@@ -253,6 +253,14 @@ public class DataGridManager
             var columnIndex = i;
             var cellStyle = CreateVisualModeCellStyle(columnIndex);
 
+            // Create editing style for TextBox with theme-aware colors
+            var editingStyle = new Style(typeof(TextBox));
+            editingStyle.Setters.Add(new Setter(TextBox.BackgroundProperty, new DynamicResourceExtension("DataGridBackgroundBrush")));
+            editingStyle.Setters.Add(new Setter(TextBox.ForegroundProperty, new DynamicResourceExtension("DataGridForegroundBrush")));
+            editingStyle.Setters.Add(new Setter(TextBox.CaretBrushProperty, new DynamicResourceExtension("DataGridForegroundBrush")));
+            editingStyle.Setters.Add(new Setter(TextBox.BorderThicknessProperty, new Thickness(0)));
+            editingStyle.Setters.Add(new Setter(TextBox.PaddingProperty, new Thickness(2, 0, 2, 0)));
+
             var column = new DataGridTextColumn
             {
                 Header = GetExcelColumnName(i),
@@ -265,7 +273,8 @@ public class DataGridManager
                     ? new DataGridLength(tab.ColumnWidths[i], DataGridLengthUnitType.Pixel)
                     : new DataGridLength(100, DataGridLengthUnitType.Pixel),
                 MinWidth = 60,
-                CellStyle = cellStyle
+                CellStyle = cellStyle,
+                EditingElementStyle = editingStyle
             };
 
             grid.Columns.Add(column);

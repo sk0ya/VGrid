@@ -719,6 +719,10 @@ public class NormalMode : IVimMode
 
         // Clear pending keys
         state.PendingKeys.Clear();
+
+        // Force cursor position refresh to trigger scroll into view
+        state.RefreshCursorPositionBinding();
+
         return true;
     }
 

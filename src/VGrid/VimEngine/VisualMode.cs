@@ -475,6 +475,9 @@ public class VisualMode : IVimMode
             BulkEditRange = new SelectionRange(selection.Type, selection.Start, selection.End)
         };
 
+        // Force cursor position refresh to trigger scroll into view
+        state.RefreshCursorPositionBinding();
+
         // Return to normal mode after delete
         state.SwitchMode(VimMode.Normal);
         return true;

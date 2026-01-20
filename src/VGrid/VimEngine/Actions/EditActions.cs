@@ -65,6 +65,9 @@ public static class EditActions
                 Count = context.Count
             };
 
+            // Force cursor position refresh to trigger scroll into view
+            state.RefreshCursorPositionBinding();
+
             return true;
         }
     }

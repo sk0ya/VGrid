@@ -121,23 +121,30 @@ public class TemplateService : ITemplateService
     /// <summary>
     /// テンプレートから新規ファイルを作成
     /// </summary>
-    /// <param name="templateFileName">テンプレートファイル名</param>
+    /// <param name="templateFileName">テンプレートファイル名（サブフォルダからの相対パス可）</param>
     /// <param name="targetDirectory">作成先ディレクトリ</param>
     /// <returns>作成されたファイルのフルパス</returns>
     public string CreateFileFromTemplate(string templateFileName, string targetDirectory)
     {
         var templateDir = GetTemplateDirectory();
-        var templatePath = Path.Combine(templateDir, templateFileName);
+        // パスを正規化して結合
+        var templatePath = Path.GetFullPath(Path.Combine(templateDir, templateFileName));
 
         if (!File.Exists(templatePath))
             throw new FileNotFoundException($"Template not found: {templateFileName}");
 
+        // ターゲットディレクトリも正規化
+        targetDirectory = Path.GetFullPath(targetDirectory);
+
         if (!Directory.Exists(targetDirectory))
             throw new DirectoryNotFoundException($"Target directory not found: {targetDirectory}");
 
-        // ベースファイル名を生成（例: "CustomerTemplate.tsv" → "CustomerTemplate"）
-        var baseFileName = Path.GetFileNameWithoutExtension(templateFileName);
-        var extension = Path.GetExtension(templateFileName);
+        // ベースファイル名を生成
+        // サブフォルダパスが含まれている場合も正しくファイル名のみを取得
+        // 例: "日本語フォルダ\CustomerTemplate.tsv" → "CustomerTemplate"
+        var templateFileNameOnly = Path.GetFileName(templateFileName);
+        var baseFileName = Path.GetFileNameWithoutExtension(templateFileNameOnly);
+        var extension = Path.GetExtension(templateFileNameOnly);
 
         // 一意なファイル名を生成（既存のCreateNewFileパターンを踏襲）
         string newFileName = $"{baseFileName}{extension}";

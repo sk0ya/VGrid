@@ -1532,8 +1532,10 @@ public class FolderTreeManager
                     Tag = template
                 };
 
+                // クリック時に parentItem.Tag から最新のパスを取得
+                // （フォルダ名変更後も正しいパスを使用するため）
                 templateItem.Click += (sender, args) =>
-                    CreateFileFromTemplateMenuItem_Click(sender, args, parentItem, folderPath);
+                    CreateFileFromTemplateMenuItem_Click(sender, args, parentItem);
 
                 templateMenuItem.Items.Add(templateItem);
             }
@@ -1552,11 +1554,23 @@ public class FolderTreeManager
     private void CreateFileFromTemplateMenuItem_Click(
         object sender,
         RoutedEventArgs e,
-        TreeViewItem parentItem,
-        string folderPath)
+        TreeViewItem parentItem)
     {
         if (sender is not MenuItem menuItem || menuItem.Tag is not TemplateInfo template)
             return;
+
+        // parentItem.Tag から最新のフォルダパスを取得
+        // （フォルダ名変更後も正しいパスを使用するため）
+        var folderPath = parentItem.Tag as string;
+        if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+        {
+            MessageBox.Show(
+                "フォルダが見つかりません。ツリーを更新してください。",
+                "エラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
 
         try
         {

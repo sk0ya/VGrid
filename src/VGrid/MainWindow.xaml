@@ -726,11 +726,13 @@
                         </Border>
 
                         <!-- Uncommitted Files List (Fill remaining space) -->
-                        <ListBox ItemsSource="{Binding GitChangesViewModel.UncommittedFiles}"
+                        <ListBox x:Name="GitChangesListBox"
+                                 ItemsSource="{Binding GitChangesViewModel.UncommittedFiles}"
                                  Background="{DynamicResource ListBoxBackgroundBrush}"
                                  Foreground="{DynamicResource ListBoxForegroundBrush}"
                                  BorderBrush="{DynamicResource ListBoxBorderBrush}" BorderThickness="1"
-                                 Margin="5">
+                                 Margin="5"
+                                 MouseDoubleClick="GitChangesListBox_MouseDoubleClick">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" Margin="2">

@@ -295,6 +295,17 @@ public partial class MainWindow : Window
         _dataGridManager?.CleanupTab(tab);
     }
 
+    /// <summary>
+    /// Show diff when double-clicking a file in Git Changes list
+    /// </summary>
+    private void GitChangesListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (GitChangesListBox.SelectedItem is Models.UncommittedFile file)
+        {
+            _viewModel?.GitChangesViewModel.ShowDiffCommand.Execute(file);
+        }
+    }
+
     private DataGrid? FindDataGridForTab(TabItemViewModel tab)
     {
         System.Diagnostics.Debug.WriteLine("[MainWindow] FindDataGridForTab called");

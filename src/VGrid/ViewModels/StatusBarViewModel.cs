@@ -13,6 +13,10 @@ public class StatusBarViewModel : ViewModelBase
     private string _positionText = "0:0";
     private string _messageText = string.Empty;
     private System.Windows.Media.Brush _modeBrush = new SolidColorBrush(Colors.CornflowerBlue);
+    private string _currentBranch = string.Empty;
+    private int _aheadCount;
+    private int _behindCount;
+    private bool _isInGitRepo;
 
     public string ModeText
     {
@@ -80,5 +84,75 @@ public class StatusBarViewModel : ViewModelBase
     public void ClearMessage()
     {
         MessageText = string.Empty;
+    }
+
+    public string CurrentBranch
+    {
+        get => _currentBranch;
+        set
+        {
+            if (SetProperty(ref _currentBranch, value))
+            {
+                OnPropertyChanged(nameof(BranchDisplay));
+            }
+        }
+    }
+
+    public int AheadCount
+    {
+        get => _aheadCount;
+        set
+        {
+            if (SetProperty(ref _aheadCount, value))
+            {
+                OnPropertyChanged(nameof(TrackingStatus));
+            }
+        }
+    }
+
+    public int BehindCount
+    {
+        get => _behindCount;
+        set
+        {
+            if (SetProperty(ref _behindCount, value))
+            {
+                OnPropertyChanged(nameof(TrackingStatus));
+            }
+        }
+    }
+
+    public bool IsInGitRepo
+    {
+        get => _isInGitRepo;
+        set => SetProperty(ref _isInGitRepo, value);
+    }
+
+    public string BranchDisplay => string.IsNullOrEmpty(CurrentBranch) ? string.Empty : $"\ue0a0 {CurrentBranch}";
+
+    public string TrackingStatus
+    {
+        get
+        {
+            if (AheadCount == 0 && BehindCount == 0)
+                return string.Empty;
+            return $" \u2191{AheadCount} \u2193{BehindCount}";
+        }
+    }
+
+    public void UpdateGitInfo(string? branch, int ahead, int behind)
+    {
+        IsInGitRepo = !string.IsNullOrEmpty(branch);
+        CurrentBranch = branch ?? string.Empty;
+        AheadCount = ahead;
+        BehindCount = behind;
+    }
+
+    public void ClearGitInfo()
+    {
+        IsInGitRepo = false;
+        CurrentBranch = string.Empty;
+        AheadCount = 0;
+        BehindCount = 0;
     }
 }

@@ -561,6 +561,288 @@ public class GitService : IGitService
     }
 
     /// <summary>
+    /// Gets the current branch name
+    /// </summary>
+    public async Task<string?> GetCurrentBranchAsync(string repoRoot)
+    {
+        try
+        {
+            var (exitCode, output, _) = await RunGitCommandAsync("rev-parse --abbrev-ref HEAD", repoRoot);
+            if (exitCode == 0 && !string.IsNullOrWhiteSpace(output))
+            {
+                return output.Trim();
+            }
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Gets list of local branches
+    /// </summary>
+    public async Task<List<string>> GetLocalBranchesAsync(string repoRoot)
+    {
+        var branches = new List<string>();
+        try
+        {
+            var (exitCode, output, _) = await RunGitCommandAsync("branch --format=%(refname:short)", repoRoot);
+            if (exitCode == 0 && !string.IsNullOrWhiteSpace(output))
+            {
+                var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                branches.AddRange(lines.Select(l => l.Trim()));
+            }
+        }
+        catch
+        {
+            // Return empty list on error
+        }
+        return branches;
+    }
+
+    /// <summary>
+    /// Gets list of remote branches
+    /// </summary>
+    public async Task<List<string>> GetRemoteBranchesAsync(string repoRoot)
+    {
+        var branches = new List<string>();
+        try
+        {
+            var (exitCode, output, _) = await RunGitCommandAsync("branch -r --format=%(refname:short)", repoRoot);
+            if (exitCode == 0 && !string.IsNullOrWhiteSpace(output))
+            {
+                var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    var branch = line.Trim();
+                    // Skip HEAD pointer
+                    if (!branch.Contains("HEAD"))
+                    {
+                        branches.Add(branch);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Return empty list on error
+        }
+        return branches;
+    }
+
+    /// <summary>
+    /// Checks out a branch
+    /// </summary>
+    public async Task<(bool success, string message)> CheckoutBranchAsync(string repoRoot, string branchName)
+    {
+        try
+        {
+            var (exitCode, output, error) = await RunGitCommandAsync($"checkout \"{branchName}\"", repoRoot);
+            if (exitCode == 0)
+            {
+                return (true, $"Switched to branch '{branchName}'");
+            }
+            return (false, error.Trim());
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new branch
+    /// </summary>
+    public async Task<(bool success, string message)> CreateBranchAsync(string repoRoot, string branchName, bool checkout = false)
+    {
+        try
+        {
+            var command = checkout ? $"checkout -b \"{branchName}\"" : $"branch \"{branchName}\"";
+            var (exitCode, output, error) = await RunGitCommandAsync(command, repoRoot);
+            if (exitCode == 0)
+            {
+                var msg = checkout
+                    ? $"Switched to a new branch '{branchName}'"
+                    : $"Created branch '{branchName}'";
+                return (true, msg);
+            }
+            return (false, error.Trim());
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a branch
+    /// </summary>
+    public async Task<(bool success, string message)> DeleteBranchAsync(string repoRoot, string branchName, bool force = false)
+    {
+        try
+        {
+            var flag = force ? "-D" : "-d";
+            var (exitCode, output, error) = await RunGitCommandAsync($"branch {flag} \"{branchName}\"", repoRoot);
+            if (exitCode == 0)
+            {
+                return (true, $"Deleted branch '{branchName}'");
+            }
+            return (false, error.Trim());
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Fetches from remote
+    /// </summary>
+    public async Task<(bool success, string message)> FetchAsync(string repoRoot, string? remoteName = null)
+    {
+        try
+        {
+            var command = string.IsNullOrEmpty(remoteName) ? "fetch --all --prune" : $"fetch \"{remoteName}\" --prune";
+            var (exitCode, output, error) = await RunGitCommandAsync(command, repoRoot);
+            if (exitCode == 0)
+            {
+                return (true, "Fetch completed successfully");
+            }
+            return (false, error.Trim());
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Pulls from remote
+    /// </summary>
+    public async Task<(bool success, string message)> PullAsync(string repoRoot, string? remoteName = null, string? branchName = null)
+    {
+        try
+        {
+            string command;
+            if (!string.IsNullOrEmpty(remoteName) && !string.IsNullOrEmpty(branchName))
+            {
+                command = $"pull \"{remoteName}\" \"{branchName}\"";
+            }
+            else if (!string.IsNullOrEmpty(remoteName))
+            {
+                command = $"pull \"{remoteName}\"";
+            }
+            else
+            {
+                command = "pull";
+            }
+
+            var (exitCode, output, error) = await RunGitCommandAsync(command, repoRoot);
+            if (exitCode == 0)
+            {
+                if (output.Contains("Already up to date"))
+                {
+                    return (true, "Already up to date");
+                }
+                return (true, "Pull completed successfully");
+            }
+            return (false, error.Trim());
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Pushes to remote
+    /// </summary>
+    public async Task<(bool success, string message)> PushAsync(string repoRoot, string? remoteName = null, string? branchName = null)
+    {
+        try
+        {
+            string command;
+            if (!string.IsNullOrEmpty(remoteName) && !string.IsNullOrEmpty(branchName))
+            {
+                command = $"push \"{remoteName}\" \"{branchName}\"";
+            }
+            else if (!string.IsNullOrEmpty(remoteName))
+            {
+                command = $"push \"{remoteName}\"";
+            }
+            else
+            {
+                command = "push";
+            }
+
+            var (exitCode, output, error) = await RunGitCommandAsync(command, repoRoot);
+            if (exitCode == 0)
+            {
+                if (output.Contains("Everything up-to-date") || error.Contains("Everything up-to-date"))
+                {
+                    return (true, "Everything up-to-date");
+                }
+                return (true, "Push completed successfully");
+            }
+            return (false, error.Trim());
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Gets list of remotes
+    /// </summary>
+    public async Task<List<string>> GetRemotesAsync(string repoRoot)
+    {
+        var remotes = new List<string>();
+        try
+        {
+            var (exitCode, output, _) = await RunGitCommandAsync("remote", repoRoot);
+            if (exitCode == 0 && !string.IsNullOrWhiteSpace(output))
+            {
+                var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                remotes.AddRange(lines.Select(l => l.Trim()));
+            }
+        }
+        catch
+        {
+            // Return empty list on error
+        }
+        return remotes;
+    }
+
+    /// <summary>
+    /// Gets tracking status (ahead/behind) for current branch
+    /// </summary>
+    public async Task<(int ahead, int behind)> GetTrackingStatusAsync(string repoRoot)
+    {
+        try
+        {
+            var (exitCode, output, _) = await RunGitCommandAsync("rev-list --left-right --count HEAD...@{upstream}", repoRoot);
+            if (exitCode == 0 && !string.IsNullOrWhiteSpace(output))
+            {
+                var parts = output.Trim().Split('\t');
+                if (parts.Length >= 2)
+                {
+                    int.TryParse(parts[0], out int ahead);
+                    int.TryParse(parts[1], out int behind);
+                    return (ahead, behind);
+                }
+            }
+        }
+        catch
+        {
+            // Return 0,0 if no upstream or error
+        }
+        return (0, 0);
+    }
+
+    /// <summary>
     /// Tries to parse a git date string in ISO format
     /// </summary>
     private DateTime TryParseGitDate(string dateString)

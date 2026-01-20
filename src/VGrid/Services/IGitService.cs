@@ -66,4 +66,59 @@ public interface IGitService
     /// Creates a commit with staged files
     /// </summary>
     Task<bool> CommitAsync(string repoPath, string message);
+
+    /// <summary>
+    /// Gets the current branch name
+    /// </summary>
+    Task<string?> GetCurrentBranchAsync(string repoRoot);
+
+    /// <summary>
+    /// Gets list of local branches
+    /// </summary>
+    Task<List<string>> GetLocalBranchesAsync(string repoRoot);
+
+    /// <summary>
+    /// Gets list of remote branches
+    /// </summary>
+    Task<List<string>> GetRemoteBranchesAsync(string repoRoot);
+
+    /// <summary>
+    /// Checks out a branch
+    /// </summary>
+    Task<(bool success, string message)> CheckoutBranchAsync(string repoRoot, string branchName);
+
+    /// <summary>
+    /// Creates a new branch
+    /// </summary>
+    Task<(bool success, string message)> CreateBranchAsync(string repoRoot, string branchName, bool checkout = false);
+
+    /// <summary>
+    /// Deletes a branch
+    /// </summary>
+    Task<(bool success, string message)> DeleteBranchAsync(string repoRoot, string branchName, bool force = false);
+
+    /// <summary>
+    /// Fetches from remote
+    /// </summary>
+    Task<(bool success, string message)> FetchAsync(string repoRoot, string? remoteName = null);
+
+    /// <summary>
+    /// Pulls from remote
+    /// </summary>
+    Task<(bool success, string message)> PullAsync(string repoRoot, string? remoteName = null, string? branchName = null);
+
+    /// <summary>
+    /// Pushes to remote
+    /// </summary>
+    Task<(bool success, string message)> PushAsync(string repoRoot, string? remoteName = null, string? branchName = null);
+
+    /// <summary>
+    /// Gets list of remotes
+    /// </summary>
+    Task<List<string>> GetRemotesAsync(string repoRoot);
+
+    /// <summary>
+    /// Gets tracking status (ahead/behind) for current branch
+    /// </summary>
+    Task<(int ahead, int behind)> GetTrackingStatusAsync(string repoRoot);
 }

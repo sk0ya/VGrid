@@ -282,33 +282,54 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Menu in Title Bar -->
-            <Menu Grid.Column="0" Background="Transparent" VerticalAlignment="Center"
-                  WindowChrome.IsHitTestVisibleInChrome="True" Margin="8,0,0,0">
-                    <MenuItem Header="_File"
+            <!-- Menu and Repository Info (Left) -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Menu Background="Transparent"
+                      WindowChrome.IsHitTestVisibleInChrome="True" Margin="8,0,0,0">
+                        <MenuItem Header="_File"
+                                  Foreground="{DynamicResource TitleBarForegroundBrush}">
+                            <MenuItem Header="_New" Command="{Binding NewFileCommand}" InputGestureText="Ctrl+N"/>
+                            <MenuItem Header="_Open File..." Command="{Binding OpenFileCommand}" InputGestureText="Ctrl+O"/>
+                            <MenuItem Header="Open _Folder..." Command="{Binding OpenFolderCommand}" InputGestureText="Ctrl+K Ctrl+O"/>
+                            <Separator/>
+                            <MenuItem Header="_Save" Command="{Binding SaveFileCommand}" InputGestureText="Ctrl+S"/>
+                            <MenuItem Header="Save _As..." Command="{Binding SaveAsFileCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
+                        </MenuItem>
+                    <MenuItem Header="_Git"
                               Foreground="{DynamicResource TitleBarForegroundBrush}">
-                        <MenuItem Header="_New" Command="{Binding NewFileCommand}" InputGestureText="Ctrl+N"/>
-                        <MenuItem Header="_Open File..." Command="{Binding OpenFileCommand}" InputGestureText="Ctrl+O"/>
-                        <MenuItem Header="Open _Folder..." Command="{Binding OpenFolderCommand}" InputGestureText="Ctrl+K Ctrl+O"/>
+                        <MenuItem Header="_Fetch"
+                                  Command="{Binding GitFetchCommand}"
+                                  InputGestureText="Ctrl+Shift+F"/>
+                        <MenuItem Header="_Pull"
+                                  Command="{Binding GitPullCommand}"
+                                  InputGestureText="Ctrl+Shift+P"/>
+                        <MenuItem Header="Pu_sh"
+                                  Command="{Binding GitPushCommand}"
+                                  InputGestureText="Ctrl+Shift+U"/>
                         <Separator/>
-                        <MenuItem Header="_Save" Command="{Binding SaveFileCommand}" InputGestureText="Ctrl+S"/>
-                        <MenuItem Header="Save _As..." Command="{Binding SaveAsFileCommand}"/>
-                        <Separator/>
-                        <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
+                        <MenuItem Header="_Branches..."
+                                  Command="{Binding ViewGitBranchesCommand}"
+                                  InputGestureText="Ctrl+B"/>
+                        <MenuItem Header="View _History..."
+                                  Command="{Binding ViewGitHistoryCommand}"
+                                  InputGestureText="Ctrl+G"/>
                     </MenuItem>
-                <MenuItem Header="_Git"
-                          Foreground="{DynamicResource TitleBarForegroundBrush}">
-                    <MenuItem Header="_View Git History..."
-                              Command="{Binding ViewGitHistoryCommand}"
-                              InputGestureText="Ctrl+G"/>
-                </MenuItem>
-            </Menu>
+                </Menu>
 
-            <!-- Title (Center) -->
+                <!-- Repository Info (Left side) -->
+                <TextBlock Text="{Binding RepositoryInfo}" FontSize="12"
+                           Foreground="{DynamicResource TitleBarForegroundBrush}"
+                           VerticalAlignment="Center" Margin="12,0,0,0"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+
+            <!-- App Title (Center) -->
             <TextBlock Grid.Column="1" Text="{Binding WindowTitle}" FontSize="12"
                        Foreground="{DynamicResource TitleBarForegroundBrush}"
                        VerticalAlignment="Center" HorizontalAlignment="Center"
-                       Opacity="0.7" TextTrimming="CharacterEllipsis"/>
+                       Opacity="0.7"/>
 
             <!-- Window Control Buttons -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">

@@ -34,6 +34,7 @@ public class MainViewModel : ViewModelBase
     private bool _isSidebarOpen = true;
     private string _selectedColorTheme = "Light";
     private readonly List<string> _colorThemes = new() { "Light", "Dark" };
+    private string _repositoryInfo = string.Empty;
 
     public MainViewModel()
     {
@@ -69,6 +70,10 @@ public class MainViewModel : ViewModelBase
         ToggleVimModeCommand = new RelayCommand(ToggleVimMode);
         ToggleThemeCommand = new RelayCommand(ToggleTheme);
         ViewGitHistoryCommand = new RelayCommand(async () => await ViewGitHistoryAsync(), CanViewGitHistory);
+        ViewGitBranchesCommand = new RelayCommand(async () => await ViewGitBranchesAsync(), CanViewGitHistory);
+        GitFetchCommand = new RelayCommand(async () => await GitFetchAsync(), CanViewGitHistory);
+        GitPullCommand = new RelayCommand(async () => await GitPullAsync(), CanViewGitHistory);
+        GitPushCommand = new RelayCommand(async () => await GitPushAsync(), CanViewGitHistory);
         OpenFileInExplorerCommand = new RelayCommand(OpenFileInExplorer, CanOpenFileInExplorer);
         OpenTemplateCommand = new RelayCommand<TemplateInfo>(OpenTemplate, CanOpenTemplate);
         NewTemplateCommand = new RelayCommand(NewTemplate);
@@ -77,11 +82,12 @@ public class MainViewModel : ViewModelBase
         OpenTemplateFolderCommand = new RelayCommand(OpenTemplateFolder);
 
         // Subscribe to SelectedFolderPath changes to update GitChangesViewModel
-        PropertyChanged += (s, e) =>
+        PropertyChanged += async (s, e) =>
         {
             if (e.PropertyName == nameof(SelectedFolderPath))
             {
                 GitChangesViewModel.SetRepositoryPath(SelectedFolderPath);
+                await UpdateGitStatusAsync();
             }
         };
 
@@ -215,6 +221,10 @@ public class MainViewModel : ViewModelBase
     public WpfCommand ToggleVimModeCommand { get; }
     public WpfCommand ToggleThemeCommand { get; }
     public WpfCommand ViewGitHistoryCommand { get; }
+    public WpfCommand ViewGitBranchesCommand { get; }
+    public WpfCommand GitFetchCommand { get; }
+    public WpfCommand GitPullCommand { get; }
+    public WpfCommand GitPushCommand { get; }
     public WpfCommand OpenFileInExplorerCommand { get; }
     public WpfCommand OpenTemplateCommand { get; }
     public WpfCommand NewTemplateCommand { get; }
@@ -222,7 +232,13 @@ public class MainViewModel : ViewModelBase
     public WpfCommand RefreshTemplatesCommand { get; }
     public WpfCommand OpenTemplateFolderCommand { get; }
 
-    public string WindowTitle => "VGrid - TSV Editor with Vim Keybindings";
+    public string WindowTitle => "VGrid";
+
+    public string RepositoryInfo
+    {
+        get => _repositoryInfo;
+        set => SetProperty(ref _repositoryInfo, value);
+    }
 
     /// <summary>
     /// Handles file open request from GitChangesViewModel
@@ -959,6 +975,189 @@ public class MainViewModel : ViewModelBase
                 "Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
+        }
+    }
+
+    private async System.Threading.Tasks.Task ViewGitBranchesAsync()
+    {
+        if (string.IsNullOrEmpty(SelectedFolderPath))
+            return;
+
+        // Check if git is available
+        if (!await _gitService.IsGitAvailableAsync())
+        {
+            System.Windows.MessageBox.Show(
+                "Git is not available. Please install Git and ensure it's in your PATH.",
+                "Git Not Found",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        // Check if folder is in a git repository
+        if (!await _gitService.IsInGitRepositoryAsync(SelectedFolderPath))
+        {
+            System.Windows.MessageBox.Show(
+                "This folder is not in a Git repository.",
+                "Not in Git Repository",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var repoRoot = await _gitService.GetRepositoryRootAsync(SelectedFolderPath);
+            if (string.IsNullOrEmpty(repoRoot))
+            {
+                System.Windows.MessageBox.Show(
+                    "Could not determine Git repository root.",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
+            var viewModel = new GitBranchViewModel(repoRoot, _gitService);
+            viewModel.BranchChanged += async (s, branch) =>
+            {
+                await UpdateGitStatusAsync();
+            };
+
+            var window = new Views.GitBranchWindow(viewModel)
+            {
+                Owner = System.Windows.Application.Current.MainWindow
+            };
+
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Error opening Git branches: {ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private async System.Threading.Tasks.Task GitFetchAsync()
+    {
+        if (string.IsNullOrEmpty(SelectedFolderPath))
+            return;
+
+        var repoRoot = await _gitService.GetRepositoryRootAsync(SelectedFolderPath);
+        if (string.IsNullOrEmpty(repoRoot))
+            return;
+
+        StatusBarViewModel.ShowMessage("Fetching...");
+        var (success, message) = await _gitService.FetchAsync(repoRoot);
+        StatusBarViewModel.ShowMessage(message);
+
+        if (success)
+        {
+            await UpdateGitStatusAsync();
+        }
+    }
+
+    private async System.Threading.Tasks.Task GitPullAsync()
+    {
+        if (string.IsNullOrEmpty(SelectedFolderPath))
+            return;
+
+        var repoRoot = await _gitService.GetRepositoryRootAsync(SelectedFolderPath);
+        if (string.IsNullOrEmpty(repoRoot))
+            return;
+
+        StatusBarViewModel.ShowMessage("Pulling...");
+        var (success, message) = await _gitService.PullAsync(repoRoot);
+        StatusBarViewModel.ShowMessage(message);
+
+        if (success)
+        {
+            await UpdateGitStatusAsync();
+        }
+    }
+
+    private async System.Threading.Tasks.Task GitPushAsync()
+    {
+        if (string.IsNullOrEmpty(SelectedFolderPath))
+            return;
+
+        var repoRoot = await _gitService.GetRepositoryRootAsync(SelectedFolderPath);
+        if (string.IsNullOrEmpty(repoRoot))
+            return;
+
+        StatusBarViewModel.ShowMessage("Pushing...");
+        var (success, message) = await _gitService.PushAsync(repoRoot);
+        StatusBarViewModel.ShowMessage(message);
+
+        if (success)
+        {
+            await UpdateGitStatusAsync();
+        }
+    }
+
+    private async System.Threading.Tasks.Task UpdateGitStatusAsync()
+    {
+        if (string.IsNullOrEmpty(SelectedFolderPath))
+        {
+            StatusBarViewModel.ClearGitInfo();
+            UpdateWindowTitle(null, null);
+            return;
+        }
+
+        try
+        {
+            if (!await _gitService.IsInGitRepositoryAsync(SelectedFolderPath))
+            {
+                StatusBarViewModel.ClearGitInfo();
+                UpdateWindowTitle(SelectedFolderPath, null);
+                return;
+            }
+
+            var repoRoot = await _gitService.GetRepositoryRootAsync(SelectedFolderPath);
+            if (string.IsNullOrEmpty(repoRoot))
+            {
+                StatusBarViewModel.ClearGitInfo();
+                UpdateWindowTitle(SelectedFolderPath, null);
+                return;
+            }
+
+            var branch = await _gitService.GetCurrentBranchAsync(repoRoot);
+            var (ahead, behind) = await _gitService.GetTrackingStatusAsync(repoRoot);
+
+            StatusBarViewModel.UpdateGitInfo(branch, ahead, behind);
+            UpdateWindowTitle(repoRoot, branch);
+        }
+        catch
+        {
+            StatusBarViewModel.ClearGitInfo();
+            UpdateWindowTitle(SelectedFolderPath, null);
+        }
+    }
+
+    private void UpdateWindowTitle(string? folderPath, string? branch)
+    {
+        if (string.IsNullOrEmpty(folderPath))
+        {
+            RepositoryInfo = string.Empty;
+            return;
+        }
+
+        var folderName = Path.GetFileName(folderPath);
+        if (string.IsNullOrEmpty(folderName))
+        {
+            folderName = folderPath;
+        }
+
+        if (!string.IsNullOrEmpty(branch))
+        {
+            RepositoryInfo = $"{folderName} [{branch}]";
+        }
+        else
+        {
+            RepositoryInfo = folderName;
         }
     }
 

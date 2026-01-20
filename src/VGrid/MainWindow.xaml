@@ -214,6 +214,45 @@
             </ControlTemplate.Triggers>
         </ControlTemplate>
 
+        <!-- Submenu Header Template (for items with submenus in context menus) -->
+        <ControlTemplate x:Key="MenuItemSubmenuHeaderTemplate" TargetType="MenuItem">
+            <Border x:Name="Border" Background="Transparent" BorderThickness="0" Padding="8,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="Icon"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter x:Name="Icon" ContentSource="Icon" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                    <Path Grid.Column="2" Data="M0,0 L4,4 L0,8"
+                          Fill="{DynamicResource MenuForegroundBrush}"
+                          Margin="16,0,0,0" VerticalAlignment="Center" Width="4" Height="8"/>
+                    <Popup x:Name="PART_Popup"
+                           AllowsTransparency="True"
+                           Focusable="False"
+                           IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                           Placement="Right"
+                           HorizontalOffset="-2"
+                           PopupAnimation="Fade">
+                        <Border Background="{DynamicResource MenuBackgroundBrush}"
+                                BorderBrush="{DynamicResource MenuBorderBrush}"
+                                BorderThickness="1">
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </Border>
+                    </Popup>
+                </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource MenuBorderBrush}"/>
+                </Trigger>
+                <Trigger Property="Icon" Value="{x:Null}">
+                    <Setter TargetName="Icon" Property="Visibility" Value="Collapsed"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
         <!-- Menu Item Style for Dark Theme -->
         <Style TargetType="MenuItem">
             <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
@@ -226,6 +265,9 @@
                 <Trigger Property="Role" Value="SubmenuItem">
                     <Setter Property="Template" Value="{StaticResource MenuItemItemTemplate}"/>
                 </Trigger>
+                <Trigger Property="Role" Value="SubmenuHeader">
+                    <Setter Property="Template" Value="{StaticResource MenuItemSubmenuHeaderTemplate}"/>
+                </Trigger>
             </Style.Triggers>
         </Style>
 
@@ -234,6 +276,115 @@
             <Setter Property="Background" Value="{DynamicResource MenuBorderBrush}"/>
             <Setter Property="Margin" Value="4,2"/>
             <Setter Property="Height" Value="1"/>
+        </Style>
+
+        <!-- TreeViewItem Expander Button Style -->
+        <Style x:Key="TreeViewItemExpanderStyle" TargetType="ToggleButton">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="Transparent" Width="16" Height="16">
+                            <Path x:Name="ExpandPath"
+                                  Data="M0,0 L0,6 L6,0 z"
+                                  Fill="Transparent"
+                                  Stroke="{DynamicResource TreeViewForegroundBrush}"
+                                  StrokeThickness="1"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  RenderTransformOrigin="0.5,0.5">
+                                <Path.RenderTransform>
+                                    <RotateTransform Angle="135"/>
+                                </Path.RenderTransform>
+                            </Path>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ExpandPath" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <RotateTransform Angle="180"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="ExpandPath" Property="Fill" Value="{DynamicResource TreeViewForegroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ExpandPath" Property="Stroke" Value="{DynamicResource ActivityBarActiveForegroundBrush}"/>
+                                <Setter TargetName="ExpandPath" Property="Fill" Value="{DynamicResource ActivityBarActiveForegroundBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- TreeViewItem Style with proper selection highlighting -->
+        <Style TargetType="TreeViewItem">
+            <Setter Property="Foreground" Value="{DynamicResource TreeViewForegroundBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="Margin" Value="0,1,0,1"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TreeViewItem">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}"
+                                    SnapsToDevicePixels="True">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" MinWidth="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ToggleButton x:Name="Expander"
+                                                  ClickMode="Press"
+                                                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  Style="{StaticResource TreeViewItemExpanderStyle}"/>
+                                    <ContentPresenter x:Name="PART_Header"
+                                                      Grid.Column="1"
+                                                      ContentSource="Header"
+                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      VerticalAlignment="Center"
+                                                      SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                </Grid>
+                            </Border>
+                            <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Margin="16,0,0,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="False">
+                                <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True" SourceName="Bd">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SidebarItemHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SidebarItemSelectedBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TreeViewForegroundBrush}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                    <Condition Property="IsSelectionActive" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SidebarItemSelectedBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TreeViewForegroundBrush}"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Activity Bar Button Style -->
@@ -487,15 +638,15 @@
                         </Border>
 
                         <!-- Filter Box -->
-                        <Border DockPanel.Dock="Top" Background="{DynamicResource TextBoxBackgroundBrush}"
-                                BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="0,0,0,1" Padding="8">
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource SidebarBackgroundBrush}"
+                                BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="0,0,0,1" Padding="6,4">
                             <Border Background="{DynamicResource TextBoxBackgroundBrush}"
                                     BorderBrush="{DynamicResource TextBoxBorderBrush}" BorderThickness="1"
-                                    CornerRadius="3" Padding="0">
+                                    CornerRadius="3">
                                 <Grid>
                                     <TextBlock Text="Filter files..."
                                                Foreground="{DynamicResource TextBoxPlaceholderBrush}"
-                                               Margin="8,4,8,4"
+                                               Margin="8,0"
                                                IsHitTestVisible="False"
                                                VerticalAlignment="Center">
                                         <TextBlock.Style>
@@ -513,10 +664,11 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                     <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                                             Height="28"
-                                             Padding="8,4,8,4"
+                                             Height="24"
+                                             Padding="8,2"
                                              Background="Transparent"
                                              Foreground="{DynamicResource TextBoxForegroundBrush}"
+                                             CaretBrush="{DynamicResource TextBoxForegroundBrush}"
                                              BorderThickness="0"
                                              VerticalContentAlignment="Center"
                                              FontSize="12"/>
@@ -534,21 +686,6 @@
                                   KeyDown="FolderTreeView_KeyDown"
                                   MouseRightButtonUp="FolderTreeView_MouseRightButtonUp"
                                   FontSize="12">
-                            <TreeView.Resources>
-                                <Style TargetType="TreeViewItem">
-                                    <Setter Property="Foreground" Value="{DynamicResource TreeViewForegroundBrush}"/>
-                                    <Setter Property="Padding" Value="2"/>
-                                    <Setter Property="Margin" Value="0,1,0,1"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource SidebarItemHoverBrush}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource SidebarItemSelectedBrush}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TreeView.Resources>
                         </TreeView>
                     </DockPanel>
 
@@ -676,21 +813,6 @@
                                   KeyDown="TemplateTreeView_KeyDown"
                                   MouseRightButtonUp="TemplateTreeView_MouseRightButtonUp"
                                   FontSize="12">
-                            <TreeView.Resources>
-                                <Style TargetType="TreeViewItem">
-                                    <Setter Property="Foreground" Value="{DynamicResource TreeViewForegroundBrush}"/>
-                                    <Setter Property="Padding" Value="2"/>
-                                    <Setter Property="Margin" Value="0,1,0,1"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource SidebarItemHoverBrush}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource SidebarItemSelectedBrush}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TreeView.Resources>
                         </TreeView>
                     </DockPanel>
 

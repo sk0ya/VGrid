@@ -316,6 +316,7 @@ public class FolderTreeManager
             var matchRun = new Run(text.Substring(matchIndex, filterText.Length))
             {
                 Background = new SolidColorBrush(Color.FromRgb(255, 255, 0)), // Yellow
+                Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0)), // Black text for visibility
                 FontWeight = FontWeights.Bold
             };
             textBlock.Inlines.Add(matchRun);

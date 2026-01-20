@@ -301,6 +301,34 @@ public class VimState : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Sets a range of row selections from the specified start row to the specified end row
+    /// </summary>
+    public void SetRowRangeSelectionFromTo(int startRowIndex, int endRowIndex)
+    {
+        _selectedRows.Clear();
+        for (int i = startRowIndex; i <= endRowIndex; i++)
+        {
+            _selectedRows.Add(i);
+        }
+        _lastSelectedRowIndex = endRowIndex;
+        OnPropertyChanged(nameof(SelectedRows));
+    }
+
+    /// <summary>
+    /// Sets a range of column selections from the specified start column to the specified end column
+    /// </summary>
+    public void SetColumnRangeSelectionFromTo(int startColumnIndex, int endColumnIndex)
+    {
+        _selectedColumns.Clear();
+        for (int i = startColumnIndex; i <= endColumnIndex; i++)
+        {
+            _selectedColumns.Add(i);
+        }
+        _lastSelectedColumnIndex = endColumnIndex;
+        OnPropertyChanged(nameof(SelectedColumns));
+    }
+
+    /// <summary>
     /// The current search pattern
     /// </summary>
     public string SearchPattern

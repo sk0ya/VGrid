@@ -118,6 +118,28 @@ public class TsvGridViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Deletes a row at the specified index
+    /// </summary>
+    public void DeleteRow(int rowIndex)
+    {
+        var command = new DeleteRowCommand(_document, rowIndex);
+        _commandHistory.Execute(command);
+        OnPropertyChanged(nameof(Rows));
+        OnPropertyChanged(nameof(RowCount));
+    }
+
+    /// <summary>
+    /// Deletes a column at the specified index
+    /// </summary>
+    public void DeleteColumn(int columnIndex)
+    {
+        var command = new DeleteColumnCommand(_document, columnIndex);
+        _commandHistory.Execute(command);
+        OnPropertyChanged(nameof(Rows));
+        OnPropertyChanged(nameof(ColumnCount));
+    }
+
+    /// <summary>
     /// Sorts the grid by the specified column
     /// </summary>
     public void Sort(int columnIndex, bool ascending = true)

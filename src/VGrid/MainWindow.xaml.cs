@@ -162,7 +162,11 @@ public partial class MainWindow : Window
 
     // Selection Event Handlers - Delegate to SelectionManager
     private void RowHeader_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _selectionManager?.RowHeader_PreviewMouseLeftButtonDown(sender, e);
+    private void RowHeader_PreviewMouseMove(object sender, MouseEventArgs e) => _selectionManager?.RowHeader_PreviewMouseMove(sender, e);
+    private void RowHeader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.RowHeader_PreviewMouseLeftButtonUp(sender, e);
     private void ColumnHeader_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _selectionManager?.ColumnHeader_PreviewMouseLeftButtonDown(sender, e);
+    private void ColumnHeader_PreviewMouseMove(object sender, MouseEventArgs e) => _selectionManager?.ColumnHeader_PreviewMouseMove(sender, e);
+    private void ColumnHeader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.ColumnHeader_PreviewMouseLeftButtonUp(sender, e);
     private void RowHeader_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.RowHeader_MouseRightButtonUp(sender, e);
     private void ColumnHeader_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.ColumnHeader_MouseRightButtonUp(sender, e);
 

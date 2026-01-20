@@ -67,6 +67,8 @@ public class MainViewModel : ViewModelBase
         InsertRowBelowCommand = new RelayCommand<int>(InsertRowBelow);
         InsertColumnLeftCommand = new RelayCommand<int>(InsertColumnLeft);
         InsertColumnRightCommand = new RelayCommand<int>(InsertColumnRight);
+        DeleteRowCommand = new RelayCommand<int>(DeleteRow);
+        DeleteColumnCommand = new RelayCommand<int>(DeleteColumn);
         ToggleVimModeCommand = new RelayCommand(ToggleVimMode);
         ToggleThemeCommand = new RelayCommand(ToggleTheme);
         ViewGitHistoryCommand = new RelayCommand(async () => await ViewGitHistoryAsync(), CanViewGitHistory);
@@ -218,6 +220,8 @@ public class MainViewModel : ViewModelBase
     public WpfCommand InsertRowBelowCommand { get; }
     public WpfCommand InsertColumnLeftCommand { get; }
     public WpfCommand InsertColumnRightCommand { get; }
+    public WpfCommand DeleteRowCommand { get; }
+    public WpfCommand DeleteColumnCommand { get; }
     public WpfCommand ToggleVimModeCommand { get; }
     public WpfCommand ToggleThemeCommand { get; }
     public WpfCommand ViewGitHistoryCommand { get; }
@@ -789,6 +793,108 @@ public class MainViewModel : ViewModelBase
         SelectedTab.GridViewModel.InsertColumn(insertIndex);
         SelectedTab.VimState.CursorPosition = new Models.GridPosition(0, insertIndex);
         StatusBarViewModel.ShowMessage($"Inserted column at {insertIndex}");
+    }
+
+    private void DeleteRow(int rowIndex)
+    {
+        if (SelectedTab == null)
+            return;
+
+        if (SelectedTab.Document.RowCount <= 1)
+        {
+            StatusBarViewModel.ShowMessage("Cannot delete the last row");
+            return;
+        }
+
+        SelectedTab.GridViewModel.DeleteRow(rowIndex);
+
+        // Adjust cursor position if needed
+        int newRowIndex = Math.Min(rowIndex, SelectedTab.Document.RowCount - 1);
+        SelectedTab.VimState.CursorPosition = new Models.GridPosition(newRowIndex, SelectedTab.VimState.CursorPosition.Column);
+        StatusBarViewModel.ShowMessage($"Deleted row {rowIndex}");
+    }
+
+    private void DeleteColumn(int columnIndex)
+    {
+        if (SelectedTab == null)
+            return;
+
+        if (SelectedTab.Document.ColumnCount <= 1)
+        {
+            StatusBarViewModel.ShowMessage("Cannot delete the last column");
+            return;
+        }
+
+        SelectedTab.GridViewModel.DeleteColumn(columnIndex);
+
+        // Adjust cursor position if needed
+        int newColumnIndex = Math.Min(columnIndex, SelectedTab.Document.ColumnCount - 1);
+        SelectedTab.VimState.CursorPosition = new Models.GridPosition(SelectedTab.VimState.CursorPosition.Row, newColumnIndex);
+        StatusBarViewModel.ShowMessage($"Deleted column {columnIndex}");
+    }
+
+    /// <summary>
+    /// Deletes multiple selected rows
+    /// </summary>
+    public void DeleteSelectedRows(IEnumerable<int> rowIndices)
+    {
+        if (SelectedTab == null)
+            return;
+
+        var sortedIndices = rowIndices.OrderByDescending(i => i).ToList();
+
+        if (SelectedTab.Document.RowCount - sortedIndices.Count < 1)
+        {
+            StatusBarViewModel.ShowMessage("Cannot delete all rows");
+            return;
+        }
+
+        foreach (var rowIndex in sortedIndices)
+        {
+            if (rowIndex >= 0 && rowIndex < SelectedTab.Document.RowCount)
+            {
+                SelectedTab.GridViewModel.DeleteRow(rowIndex);
+            }
+        }
+
+        // Clear selection and adjust cursor
+        SelectedTab.VimState.ClearRowSelections();
+        SelectedTab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+        int newRowIndex = Math.Min(sortedIndices.Min(), SelectedTab.Document.RowCount - 1);
+        SelectedTab.VimState.CursorPosition = new Models.GridPosition(newRowIndex, SelectedTab.VimState.CursorPosition.Column);
+        StatusBarViewModel.ShowMessage($"Deleted {sortedIndices.Count} row(s)");
+    }
+
+    /// <summary>
+    /// Deletes multiple selected columns
+    /// </summary>
+    public void DeleteSelectedColumns(IEnumerable<int> columnIndices)
+    {
+        if (SelectedTab == null)
+            return;
+
+        var sortedIndices = columnIndices.OrderByDescending(i => i).ToList();
+
+        if (SelectedTab.Document.ColumnCount - sortedIndices.Count < 1)
+        {
+            StatusBarViewModel.ShowMessage("Cannot delete all columns");
+            return;
+        }
+
+        foreach (var columnIndex in sortedIndices)
+        {
+            if (columnIndex >= 0 && columnIndex < SelectedTab.Document.ColumnCount)
+            {
+                SelectedTab.GridViewModel.DeleteColumn(columnIndex);
+            }
+        }
+
+        // Clear selection and adjust cursor
+        SelectedTab.VimState.ClearColumnSelections();
+        SelectedTab.VimState.SwitchMode(VimEngine.VimMode.Normal);
+        int newColumnIndex = Math.Min(sortedIndices.Min(), SelectedTab.Document.ColumnCount - 1);
+        SelectedTab.VimState.CursorPosition = new Models.GridPosition(SelectedTab.VimState.CursorPosition.Row, newColumnIndex);
+        StatusBarViewModel.ShowMessage($"Deleted {sortedIndices.Count} column(s)");
     }
 
     private void ToggleVimMode()

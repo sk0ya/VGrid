@@ -20,6 +20,34 @@
                 <Setter Property="Foreground" Value="{DynamicResource MenuForegroundBrush}"/>
             </Style>
 
+            <!-- Global ContextMenu Style -->
+            <Style TargetType="ContextMenu">
+                <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource MenuForegroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="HasDropShadow" Value="False"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ContextMenu">
+                            <Border Background="{DynamicResource MenuBackgroundBrush}"
+                                    BorderBrush="{DynamicResource MenuBorderBrush}"
+                                    BorderThickness="1"
+                                    Padding="0">
+                                <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Global Separator Style for Menus -->
+            <Style TargetType="Separator">
+                <Setter Property="Background" Value="{DynamicResource MenuBorderBrush}"/>
+                <Setter Property="Margin" Value="4,2"/>
+                <Setter Property="Height" Value="1"/>
+            </Style>
+
             <!-- Global StatusBar Style -->
             <Style TargetType="StatusBar">
                 <Setter Property="Background" Value="{DynamicResource StatusBarBackgroundBrush}"/>

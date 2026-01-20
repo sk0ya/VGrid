@@ -16,6 +16,14 @@ public class SelectionManager
 {
     private readonly MainViewModel _viewModel;
 
+    // Drag selection state
+    private bool _isDraggingRow;
+    private bool _isDraggingColumn;
+    private int _dragStartRowIndex = -1;
+    private int _dragStartColumnIndex = -1;
+    private DataGridRowHeader? _capturedRowHeader;
+    private DataGridColumnHeader? _capturedColumnHeader;
+
     public SelectionManager(MainViewModel viewModel)
     {
         _viewModel = viewModel;
@@ -44,6 +52,12 @@ public class SelectionManager
         bool isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShiftPressed = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
 
+        // Start drag selection
+        _isDraggingRow = true;
+        _dragStartRowIndex = rowIndex;
+        _capturedRowHeader = header;
+        Mouse.Capture(header);
+
         HandleRowSelection(tab, rowIndex, isCtrlPressed, isShiftPressed);
         e.Handled = true;
     }
@@ -66,6 +80,12 @@ public class SelectionManager
 
         bool isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShiftPressed = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+
+        // Start drag selection
+        _isDraggingColumn = true;
+        _dragStartColumnIndex = columnIndex;
+        _capturedColumnHeader = header;
+        Mouse.Capture(header);
 
         HandleColumnSelection(tab, columnIndex, isCtrlPressed, isShiftPressed);
         e.Handled = true;
@@ -186,6 +206,112 @@ public class SelectionManager
         }
     }
 
+    public void RowHeader_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isDraggingRow || _dragStartRowIndex < 0 || _capturedRowHeader == null)
+            return;
+
+        var tab = _viewModel.SelectedTab;
+        if (tab == null)
+            return;
+
+        var grid = FindVisualParent<DataGrid>(_capturedRowHeader);
+        if (grid == null)
+            return;
+
+        // Get the row under the mouse cursor
+        var point = e.GetPosition(grid);
+        var hitResult = VisualTreeHelper.HitTest(grid, point);
+        if (hitResult?.VisualHit == null)
+            return;
+
+        var row = FindVisualParent<DataGridRow>(hitResult.VisualHit);
+        if (row == null)
+            return;
+
+        int currentRowIndex = row.GetIndex();
+        if (currentRowIndex < 0 || currentRowIndex >= tab.Document.RowCount)
+            return;
+
+        // Update selection range
+        int startRow = Math.Min(_dragStartRowIndex, currentRowIndex);
+        int endRow = Math.Max(_dragStartRowIndex, currentRowIndex);
+
+        tab.VimState.SetRowRangeSelectionFromTo(startRow, endRow);
+        tab.VimState.CursorPosition = new GridPosition(currentRowIndex, 0);
+
+        tab.VimState.CurrentSelection = new SelectionRange(
+            VisualType.Line,
+            new GridPosition(startRow, 0),
+            new GridPosition(endRow, tab.Document.ColumnCount - 1));
+
+        UpdateHeaderSelectionHighlighting(tab);
+    }
+
+    public void RowHeader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isDraggingRow)
+        {
+            _isDraggingRow = false;
+            _dragStartRowIndex = -1;
+            Mouse.Capture(null);
+            _capturedRowHeader = null;
+        }
+    }
+
+    public void ColumnHeader_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isDraggingColumn || _dragStartColumnIndex < 0 || _capturedColumnHeader == null)
+            return;
+
+        var tab = _viewModel.SelectedTab;
+        if (tab == null)
+            return;
+
+        var grid = FindVisualParent<DataGrid>(_capturedColumnHeader);
+        if (grid == null)
+            return;
+
+        // Get the column under the mouse cursor
+        var point = e.GetPosition(grid);
+        var hitResult = VisualTreeHelper.HitTest(grid, point);
+        if (hitResult?.VisualHit == null)
+            return;
+
+        var columnHeader = FindVisualParent<DataGridColumnHeader>(hitResult.VisualHit);
+        if (columnHeader?.Column == null)
+            return;
+
+        int currentColumnIndex = columnHeader.Column.DisplayIndex;
+        if (currentColumnIndex < 0 || currentColumnIndex >= tab.Document.ColumnCount)
+            return;
+
+        // Update selection range
+        int startCol = Math.Min(_dragStartColumnIndex, currentColumnIndex);
+        int endCol = Math.Max(_dragStartColumnIndex, currentColumnIndex);
+
+        tab.VimState.SetColumnRangeSelectionFromTo(startCol, endCol);
+        tab.VimState.CursorPosition = new GridPosition(0, currentColumnIndex);
+
+        tab.VimState.CurrentSelection = new SelectionRange(
+            VisualType.Block,
+            new GridPosition(0, startCol),
+            new GridPosition(tab.Document.RowCount - 1, endCol));
+
+        UpdateHeaderSelectionHighlighting(tab);
+    }
+
+    public void ColumnHeader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isDraggingColumn)
+        {
+            _isDraggingColumn = false;
+            _dragStartColumnIndex = -1;
+            Mouse.Capture(null);
+            _capturedColumnHeader = null;
+        }
+    }
+
     public void RowHeader_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         var header = sender as DataGridRowHeader;
@@ -197,6 +323,7 @@ public class SelectionManager
             return;
 
         int rowIndex = row.GetIndex();
+        var tab = _viewModel.SelectedTab;
 
         var contextMenu = new ContextMenu();
 
@@ -207,6 +334,23 @@ public class SelectionManager
         var insertBelowMenuItem = new MenuItem { Header = "Insert Row Below" };
         insertBelowMenuItem.Click += (s, args) => _viewModel.InsertRowBelowCommand.Execute(rowIndex);
         contextMenu.Items.Add(insertBelowMenuItem);
+
+        contextMenu.Items.Add(new Separator());
+
+        // Check if multiple rows are selected
+        var selectedRows = tab?.VimState.SelectedRows;
+        if (selectedRows != null && selectedRows.Count > 1)
+        {
+            var deleteRowsMenuItem = new MenuItem { Header = $"Delete {selectedRows.Count} Rows" };
+            deleteRowsMenuItem.Click += (s, args) => _viewModel.DeleteSelectedRows(selectedRows.ToList());
+            contextMenu.Items.Add(deleteRowsMenuItem);
+        }
+        else
+        {
+            var deleteRowMenuItem = new MenuItem { Header = "Delete Row" };
+            deleteRowMenuItem.Click += (s, args) => _viewModel.DeleteRowCommand.Execute(rowIndex);
+            contextMenu.Items.Add(deleteRowMenuItem);
+        }
 
         header.ContextMenu = contextMenu;
         contextMenu.IsOpen = true;
@@ -219,6 +363,7 @@ public class SelectionManager
             return;
 
         int columnIndex = header.Column.DisplayIndex;
+        var tab = _viewModel.SelectedTab;
 
         var contextMenu = new ContextMenu();
 
@@ -229,6 +374,23 @@ public class SelectionManager
         var insertRightMenuItem = new MenuItem { Header = "Insert Column Right" };
         insertRightMenuItem.Click += (s, args) => _viewModel.InsertColumnRightCommand.Execute(columnIndex);
         contextMenu.Items.Add(insertRightMenuItem);
+
+        contextMenu.Items.Add(new Separator());
+
+        // Check if multiple columns are selected
+        var selectedColumns = tab?.VimState.SelectedColumns;
+        if (selectedColumns != null && selectedColumns.Count > 1)
+        {
+            var deleteColumnsMenuItem = new MenuItem { Header = $"Delete {selectedColumns.Count} Columns" };
+            deleteColumnsMenuItem.Click += (s, args) => _viewModel.DeleteSelectedColumns(selectedColumns.ToList());
+            contextMenu.Items.Add(deleteColumnsMenuItem);
+        }
+        else
+        {
+            var deleteColumnMenuItem = new MenuItem { Header = "Delete Column" };
+            deleteColumnMenuItem.Click += (s, args) => _viewModel.DeleteColumnCommand.Execute(columnIndex);
+            contextMenu.Items.Add(deleteColumnMenuItem);
+        }
 
         header.ContextMenu = contextMenu;
         contextMenu.IsOpen = true;

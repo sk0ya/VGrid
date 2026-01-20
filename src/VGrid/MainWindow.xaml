@@ -77,6 +77,8 @@
             <Setter Property="Padding" Value="5,3"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ColumnHeader_PreviewMouseLeftButtonDown"/>
+            <EventSetter Event="PreviewMouseMove" Handler="ColumnHeader_PreviewMouseMove"/>
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="ColumnHeader_PreviewMouseLeftButtonUp"/>
             <EventSetter Event="MouseRightButtonUp" Handler="ColumnHeader_MouseRightButtonUp"/>
         </Style>
 
@@ -97,6 +99,8 @@
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="Width" Value="40"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="RowHeader_PreviewMouseLeftButtonDown"/>
+            <EventSetter Event="PreviewMouseMove" Handler="RowHeader_PreviewMouseMove"/>
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="RowHeader_PreviewMouseLeftButtonUp"/>
             <EventSetter Event="MouseRightButtonUp" Handler="RowHeader_MouseRightButtonUp"/>
         </Style>
 
@@ -150,12 +154,14 @@
             <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource MenuForegroundBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+            <Setter Property="HasDropShadow" Value="False"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
                         <Border Background="{DynamicResource MenuBackgroundBrush}"
                                 BorderBrush="{DynamicResource MenuBorderBrush}"
-                                BorderThickness="1">
+                                BorderThickness="1"
+                                Padding="0">
                             <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
                         </Border>
                     </ControlTemplate>
@@ -943,6 +949,8 @@
                                           CanUserDeleteRows="False"
                                           CanUserReorderColumns="False"
                                           CanUserSortColumns="False"
+                                          CanUserResizeColumns="False"
+                                          CanUserResizeRows="False"
                                           IsReadOnly="False"
                                           SelectionMode="Extended"
                                           SelectionUnit="Cell"

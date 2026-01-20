@@ -434,6 +434,9 @@ public class TemplateTreeManager
             BorderBrush = new SolidColorBrush(Colors.CornflowerBlue),
             Focusable = true
         };
+        // テーマ対応のため、リソースから色を取得
+        textBox.SetResourceReference(TextBox.BackgroundProperty, "TextBoxBackgroundBrush");
+        textBox.SetResourceReference(TextBox.ForegroundProperty, "TextBoxForegroundBrush");
 
         textBox.KeyDown += (s, e) =>
         {
@@ -552,6 +555,9 @@ public class TemplateTreeManager
             BorderBrush = new SolidColorBrush(Colors.CornflowerBlue),
             Focusable = true
         };
+        // テーマ対応のため、リソースから色を取得
+        textBox.SetResourceReference(TextBox.BackgroundProperty, "TextBoxBackgroundBrush");
+        textBox.SetResourceReference(TextBox.ForegroundProperty, "TextBoxForegroundBrush");
 
         textBox.KeyDown += (s, e) =>
         {

@@ -695,6 +695,9 @@ public class FolderTreeManager
             Tag = itemPath, // Store original path
             Focusable = true
         };
+        // テーマ対応のため、リソースから色を取得
+        textBox.SetResourceReference(TextBox.BackgroundProperty, "TextBoxBackgroundBrush");
+        textBox.SetResourceReference(TextBox.ForegroundProperty, "TextBoxForegroundBrush");
 
         // Handle Enter key to commit rename
         textBox.KeyDown += (s, e) =>

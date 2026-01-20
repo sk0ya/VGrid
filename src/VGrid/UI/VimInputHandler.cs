@@ -85,7 +85,7 @@ public class VimInputHandler
             return;
         }
 
-        // Handle Ctrl+Shift+; for Insert Line Below (works regardless of Vim mode)
+        // Handle Ctrl+Shift+; for Insert Line Above (works regardless of Vim mode)
         if (e.Key == Key.OemPlus && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
         {
             var tab = _viewModel.SelectedTab;
@@ -94,16 +94,17 @@ public class VimInputHandler
                 var document = tab.GridViewModel.Document;
                 var vimState = tab.VimState;
 
-                // Insert a new row below the current row
-                int insertRow = vimState.CursorPosition.Row + 1;
+                // Insert a new row above the current row
+                int insertRow = vimState.CursorPosition.Row;
                 int currentColumn = vimState.CursorPosition.Column;
                 var command = new InsertRowCommand(document, insertRow);
 
                 // Execute through command history
                 vimState.CommandHistory?.Execute(command);
 
-                // Move cursor to the new row
+                // Move cursor to the new row (force refresh since row number may be same)
                 vimState.CursorPosition = new Models.GridPosition(insertRow, currentColumn);
+                vimState.RefreshCursorPositionBinding();
 
                 e.Handled = true;
                 return;

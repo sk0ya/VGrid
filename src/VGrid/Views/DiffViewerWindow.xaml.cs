@@ -1,7 +1,10 @@
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using VGrid.ViewModels;
 
@@ -13,6 +16,14 @@ namespace VGrid.Views;
 public partial class DiffViewerWindow : Window
 {
     private readonly DiffViewerViewModel _viewModel;
+    private HwndSource? _hwndSource;
+    private ScrollViewer? _leftScrollViewer;
+    private ScrollViewer? _rightScrollViewer;
+    private bool _isScrollSyncing;
+    private bool _isSelectionSyncing;
+
+    // Win32 API for horizontal scroll
+    private const int WM_MOUSEHWHEEL = 0x020E;
 
     public DiffViewerWindow(DiffViewerViewModel viewModel)
     {
@@ -39,6 +50,14 @@ public partial class DiffViewerWindow : Window
             if (e.Row.Item is Models.DiffRow row)
                 e.Row.Header = row.RightLineNumber?.ToString() ?? string.Empty;
         };
+
+        // Set up scroll synchronization and horizontal scroll support
+        Loaded += DiffViewerWindow_Loaded;
+        Closing += DiffViewerWindow_Closing;
+
+        // Set up selection synchronization
+        LeftDataGrid.SelectedCellsChanged += LeftDataGrid_SelectedCellsChanged;
+        RightDataGrid.SelectedCellsChanged += RightDataGrid_SelectedCellsChanged;
     }
 
     // Window Control Button Handlers
@@ -143,5 +162,153 @@ public partial class DiffViewerWindow : Window
             index = (index / 26) - 1;
         }
         return result;
+    }
+
+    // Window lifecycle handlers for scroll setup
+    private void DiffViewerWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Set up horizontal scroll support via WndProc hook
+        var windowHelper = new WindowInteropHelper(this);
+        _hwndSource = HwndSource.FromHwnd(windowHelper.Handle);
+        if (_hwndSource != null)
+        {
+            _hwndSource.AddHook(WndProc);
+        }
+
+        // Set up scroll synchronization after DataGrids are loaded
+        SetupScrollSynchronization();
+    }
+
+    private void DiffViewerWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        // Clean up WndProc hook
+        if (_hwndSource != null)
+        {
+            _hwndSource.RemoveHook(WndProc);
+            _hwndSource = null;
+        }
+    }
+
+    private void SetupScrollSynchronization()
+    {
+        // Find ScrollViewers inside DataGrids
+        _leftScrollViewer = FindVisualChild<ScrollViewer>(LeftDataGrid);
+        _rightScrollViewer = FindVisualChild<ScrollViewer>(RightDataGrid);
+
+        if (_leftScrollViewer != null && _rightScrollViewer != null)
+        {
+            _leftScrollViewer.ScrollChanged += LeftScrollViewer_ScrollChanged;
+            _rightScrollViewer.ScrollChanged += RightScrollViewer_ScrollChanged;
+        }
+    }
+
+    private void LeftScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (_isScrollSyncing || _rightScrollViewer == null) return;
+
+        _isScrollSyncing = true;
+        _rightScrollViewer.ScrollToVerticalOffset(e.VerticalOffset);
+        _rightScrollViewer.ScrollToHorizontalOffset(e.HorizontalOffset);
+        _isScrollSyncing = false;
+    }
+
+    private void RightScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (_isScrollSyncing || _leftScrollViewer == null) return;
+
+        _isScrollSyncing = true;
+        _leftScrollViewer.ScrollToVerticalOffset(e.VerticalOffset);
+        _leftScrollViewer.ScrollToHorizontalOffset(e.HorizontalOffset);
+        _isScrollSyncing = false;
+    }
+
+    // Selection synchronization
+    private void LeftDataGrid_SelectedCellsChanged(object sender, SelectedCellsChangedEventArgs e)
+    {
+        if (_isSelectionSyncing) return;
+        SyncSelection(LeftDataGrid, RightDataGrid);
+    }
+
+    private void RightDataGrid_SelectedCellsChanged(object sender, SelectedCellsChangedEventArgs e)
+    {
+        if (_isSelectionSyncing) return;
+        SyncSelection(RightDataGrid, LeftDataGrid);
+    }
+
+    private void SyncSelection(DataGrid source, DataGrid target)
+    {
+        if (source.SelectedCells.Count == 0) return;
+
+        _isSelectionSyncing = true;
+        try
+        {
+            // Get the first selected cell's row and column index
+            var selectedCell = source.SelectedCells[0];
+            int rowIndex = source.Items.IndexOf(selectedCell.Item);
+            int columnIndex = source.Columns.IndexOf(selectedCell.Column);
+
+            if (rowIndex >= 0 && rowIndex < target.Items.Count &&
+                columnIndex >= 0 && columnIndex < target.Columns.Count)
+            {
+                // Clear target selection and select the corresponding cell
+                target.SelectedCells.Clear();
+                var targetCell = new DataGridCellInfo(target.Items[rowIndex], target.Columns[columnIndex]);
+                target.SelectedCells.Add(targetCell);
+            }
+        }
+        finally
+        {
+            _isSelectionSyncing = false;
+        }
+    }
+
+    // Horizontal mouse wheel (tilt wheel) support
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_MOUSEHWHEEL)
+        {
+            int delta = (short)((wParam.ToInt64() >> 16) & 0xFFFF);
+
+            // Find ScrollViewer under mouse and scroll it
+            var element = Mouse.DirectlyOver as DependencyObject;
+            var scrollViewer = FindVisualParent<ScrollViewer>(element);
+            if (scrollViewer != null)
+            {
+                double scrollAmount = delta > 0 ? -50 : 50;
+                scrollViewer.ScrollToHorizontalOffset(scrollViewer.HorizontalOffset + scrollAmount);
+                handled = true;
+            }
+        }
+        return IntPtr.Zero;
+    }
+
+    // Helper method to find visual child of type T
+    private static T? FindVisualChild<T>(DependencyObject? parent) where T : DependencyObject
+    {
+        if (parent == null) return null;
+
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T found)
+                return found;
+
+            var result = FindVisualChild<T>(child);
+            if (result != null)
+                return result;
+        }
+        return null;
+    }
+
+    // Helper method to find visual parent of type T
+    private static T? FindVisualParent<T>(DependencyObject? element) where T : DependencyObject
+    {
+        while (element != null)
+        {
+            if (element is T found)
+                return found;
+            element = VisualTreeHelper.GetParent(element);
+        }
+        return null;
     }
 }

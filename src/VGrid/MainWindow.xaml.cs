@@ -35,6 +35,50 @@ public partial class MainWindow : Window
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
 
+    // Win32 API for proper window maximization with taskbar
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MINMAXINFO
+    {
+        public POINT ptReserved;
+        public POINT ptMaxSize;
+        public POINT ptMaxPosition;
+        public POINT ptMinTrackSize;
+        public POINT ptMaxTrackSize;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+    private const int WM_GETMINMAXINFO = 0x0024;
     private const int WM_CLIPBOARDUPDATE = 0x031D;
     private const int WM_MOUSEHWHEEL = 0x020E;
 
@@ -247,11 +291,17 @@ public partial class MainWindow : Window
         }
     }
 
-    // Clipboard Monitoring and Horizontal Scroll
+    // Clipboard Monitoring, Horizontal Scroll, and Window Maximization
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        // Handle window maximization to respect taskbar
+        if (msg == WM_GETMINMAXINFO)
+        {
+            WmGetMinMaxInfo(hwnd, lParam);
+            handled = true;
+        }
         // Handle clipboard update notification
-        if (msg == WM_CLIPBOARDUPDATE)
+        else if (msg == WM_CLIPBOARDUPDATE)
         {
             OnClipboardChanged();
         }
@@ -271,6 +321,36 @@ public partial class MainWindow : Window
             }
         }
         return IntPtr.Zero;
+    }
+
+    private void WmGetMinMaxInfo(IntPtr hwnd, IntPtr lParam)
+    {
+        var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+
+        // Get the monitor that the window is on
+        IntPtr monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+
+        if (monitor != IntPtr.Zero)
+        {
+            var monitorInfo = new MONITORINFO();
+            monitorInfo.cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+            GetMonitorInfo(monitor, ref monitorInfo);
+
+            // rcWork is the work area (excludes taskbar)
+            // rcMonitor is the full monitor area
+            RECT rcWorkArea = monitorInfo.rcWork;
+            RECT rcMonitorArea = monitorInfo.rcMonitor;
+
+            // Set the maximized position relative to the monitor
+            mmi.ptMaxPosition.X = Math.Abs(rcWorkArea.Left - rcMonitorArea.Left);
+            mmi.ptMaxPosition.Y = Math.Abs(rcWorkArea.Top - rcMonitorArea.Top);
+
+            // Set the maximized size to the work area size
+            mmi.ptMaxSize.X = Math.Abs(rcWorkArea.Right - rcWorkArea.Left);
+            mmi.ptMaxSize.Y = Math.Abs(rcWorkArea.Bottom - rcWorkArea.Top);
+        }
+
+        Marshal.StructureToPtr(mmi, lParam, true);
     }
 
     private void OnClipboardChanged()

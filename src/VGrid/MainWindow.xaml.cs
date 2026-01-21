@@ -404,4 +404,150 @@ public partial class MainWindow : Window
         }
         return null;
     }
+
+    // Context Menu Event Handlers
+    private void ContextMenu_Cut_Click(object sender, RoutedEventArgs e)
+    {
+        // Copy first, then delete
+        ContextMenu_Copy_Click(sender, e);
+        ContextMenu_Delete_Click(sender, e);
+    }
+
+    private void ContextMenu_Copy_Click(object sender, RoutedEventArgs e)
+    {
+        var tab = _viewModel?.SelectedTab;
+        if (tab == null) return;
+
+        var state = tab.VimState;
+        var document = tab.GridViewModel.Document;
+
+        // Check if there's a visual selection
+        if (state.CurrentSelection != null)
+        {
+            var selection = state.CurrentSelection;
+            int rows = selection.RowCount;
+            int cols = selection.ColumnCount;
+            string[,] values = new string[rows, cols];
+
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    int docRow = selection.StartRow + r;
+                    int docCol = selection.StartColumn + c;
+
+                    if (docRow < document.RowCount && docCol < document.Rows[docRow].Cells.Count)
+                    {
+                        values[r, c] = document.Rows[docRow].Cells[docCol].Value;
+                    }
+                    else
+                    {
+                        values[r, c] = string.Empty;
+                    }
+                }
+            }
+
+            state.LastYank = new VimEngine.YankedContent
+            {
+                Values = values,
+                SourceType = selection.Type,
+                Rows = rows,
+                Columns = cols
+            };
+        }
+        else
+        {
+            // Copy single cell at cursor
+            if (state.CursorPosition.Row >= document.RowCount) return;
+
+            var cell = document.GetCell(state.CursorPosition);
+            if (cell == null) return;
+
+            string[,] values = new string[1, 1];
+            values[0, 0] = cell.Value;
+
+            state.LastYank = new VimEngine.YankedContent
+            {
+                Values = values,
+                SourceType = VimEngine.VisualType.Character,
+                Rows = 1,
+                Columns = 1
+            };
+        }
+
+        VimEngine.ClipboardHelper.CopyToClipboard(state.LastYank);
+        state.OnYankPerformed();
+    }
+
+    private void ContextMenu_Paste_Click(object sender, RoutedEventArgs e)
+    {
+        var tab = _viewModel?.SelectedTab;
+        if (tab == null) return;
+
+        var state = tab.VimState;
+        var document = tab.GridViewModel.Document;
+
+        var yank = state.LastYank ?? VimEngine.ClipboardHelper.ReadFromClipboard();
+        if (yank == null) return;
+
+        var startPos = state.CursorPosition;
+
+        var command = new Commands.PasteCommand(document, startPos, yank, pasteBefore: false);
+        if (state.CommandHistory != null)
+        {
+            state.CommandHistory.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        if (command.AffectedColumns.Any())
+        {
+            state.OnColumnWidthUpdateRequested(command.AffectedColumns);
+        }
+    }
+
+    private void ContextMenu_Delete_Click(object sender, RoutedEventArgs e)
+    {
+        var tab = _viewModel?.SelectedTab;
+        if (tab == null) return;
+
+        var state = tab.VimState;
+        var document = tab.GridViewModel.Document;
+
+        // Check if there's a visual selection
+        if (state.CurrentSelection != null)
+        {
+            var selection = state.CurrentSelection;
+
+            var command = new Commands.DeleteSelectionCommand(document, selection);
+            if (state.CommandHistory != null)
+            {
+                state.CommandHistory.Execute(command);
+            }
+            else
+            {
+                command.Execute();
+            }
+
+            // Exit visual mode after delete
+            state.SwitchMode(VimEngine.VimMode.Normal);
+        }
+        else
+        {
+            // Delete single cell at cursor
+            if (state.CursorPosition.Row >= document.RowCount) return;
+
+            var command = new Commands.EditCellCommand(document, state.CursorPosition, string.Empty);
+            if (state.CommandHistory != null)
+            {
+                state.CommandHistory.Execute(command);
+            }
+            else
+            {
+                command.Execute();
+            }
+        }
+    }
 }

@@ -221,13 +221,19 @@
                                       HeadersVisibility="All"
                                       CanUserResizeRows="False"
                                       CanUserReorderColumns="False"
-                                      SelectionMode="Single"
+                                      SelectionMode="Extended"
                                       SelectionUnit="Cell"
                                       Style="{StaticResource ExcelDataGridStyle}"
                                       ColumnHeaderStyle="{StaticResource ExcelColumnHeaderStyle}"
                                       RowHeaderStyle="{StaticResource ExcelRowHeaderStyle}"
                                       RowStyle="{StaticResource ExcelRowStyle}"
-                                      CellStyle="{StaticResource ExcelCellStyle}"/>
+                                      CellStyle="{StaticResource ExcelCellStyle}">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Copy" InputGestureText="Ctrl+C" Click="ContextMenu_Copy_Click"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
+                            </DataGrid>
                         </DockPanel>
                     </Border>
 
@@ -247,13 +253,19 @@
                                       HeadersVisibility="All"
                                       CanUserResizeRows="False"
                                       CanUserReorderColumns="False"
-                                      SelectionMode="Single"
+                                      SelectionMode="Extended"
                                       SelectionUnit="Cell"
                                       Style="{StaticResource ExcelDataGridStyle}"
                                       ColumnHeaderStyle="{StaticResource ExcelColumnHeaderStyle}"
                                       RowHeaderStyle="{StaticResource ExcelRowHeaderStyle}"
                                       RowStyle="{StaticResource ExcelRowStyle}"
-                                      CellStyle="{StaticResource ExcelCellStyle}"/>
+                                      CellStyle="{StaticResource ExcelCellStyle}">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Copy" InputGestureText="Ctrl+C" Click="ContextMenu_Copy_Click"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
+                            </DataGrid>
                         </DockPanel>
                     </Border>
             </Grid>

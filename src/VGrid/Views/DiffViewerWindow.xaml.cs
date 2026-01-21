@@ -242,18 +242,21 @@ public partial class DiffViewerWindow : Window
         _isSelectionSyncing = true;
         try
         {
-            // Get the first selected cell's row and column index
-            var selectedCell = source.SelectedCells[0];
-            int rowIndex = source.Items.IndexOf(selectedCell.Item);
-            int columnIndex = source.Columns.IndexOf(selectedCell.Column);
+            // Clear target selection
+            target.SelectedCells.Clear();
 
-            if (rowIndex >= 0 && rowIndex < target.Items.Count &&
-                columnIndex >= 0 && columnIndex < target.Columns.Count)
+            // Sync all selected cells
+            foreach (var selectedCell in source.SelectedCells)
             {
-                // Clear target selection and select the corresponding cell
-                target.SelectedCells.Clear();
-                var targetCell = new DataGridCellInfo(target.Items[rowIndex], target.Columns[columnIndex]);
-                target.SelectedCells.Add(targetCell);
+                int rowIndex = source.Items.IndexOf(selectedCell.Item);
+                int columnIndex = source.Columns.IndexOf(selectedCell.Column);
+
+                if (rowIndex >= 0 && rowIndex < target.Items.Count &&
+                    columnIndex >= 0 && columnIndex < target.Columns.Count)
+                {
+                    var targetCell = new DataGridCellInfo(target.Items[rowIndex], target.Columns[columnIndex]);
+                    target.SelectedCells.Add(targetCell);
+                }
             }
         }
         finally
@@ -310,5 +313,72 @@ public partial class DiffViewerWindow : Window
             element = VisualTreeHelper.GetParent(element);
         }
         return null;
+    }
+
+    // Context Menu Copy Handler
+    private void ContextMenu_Copy_Click(object sender, RoutedEventArgs e)
+    {
+        // Determine which DataGrid triggered the context menu
+        DataGrid? sourceGrid = null;
+        if (sender is MenuItem menuItem && menuItem.Parent is ContextMenu contextMenu)
+        {
+            sourceGrid = contextMenu.PlacementTarget as DataGrid;
+        }
+
+        if (sourceGrid == null) return;
+
+        var selectedCells = sourceGrid.SelectedCells;
+        if (selectedCells.Count == 0) return;
+
+        // Find the bounds of the selection
+        int minRow = int.MaxValue, maxRow = int.MinValue;
+        int minCol = int.MaxValue, maxCol = int.MinValue;
+
+        var cellData = new Dictionary<(int row, int col), string>();
+
+        foreach (var cellInfo in selectedCells)
+        {
+            int rowIndex = sourceGrid.Items.IndexOf(cellInfo.Item);
+            int colIndex = sourceGrid.Columns.IndexOf(cellInfo.Column);
+
+            if (rowIndex < 0 || colIndex < 0) continue;
+
+            minRow = Math.Min(minRow, rowIndex);
+            maxRow = Math.Max(maxRow, rowIndex);
+            minCol = Math.Min(minCol, colIndex);
+            maxCol = Math.Max(maxCol, colIndex);
+
+            // Get the cell value
+            if (cellInfo.Item is Models.DiffRow diffRow && colIndex < diffRow.Cells.Count)
+            {
+                cellData[(rowIndex, colIndex)] = diffRow.Cells[colIndex].Value ?? string.Empty;
+            }
+        }
+
+        if (minRow == int.MaxValue) return;
+
+        // Build TSV string
+        var sb = new System.Text.StringBuilder();
+        for (int r = minRow; r <= maxRow; r++)
+        {
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                if (c > minCol) sb.Append('\t');
+                if (cellData.TryGetValue((r, c), out var value))
+                {
+                    sb.Append(value);
+                }
+            }
+            if (r < maxRow) sb.AppendLine();
+        }
+
+        try
+        {
+            Clipboard.SetText(sb.ToString());
+        }
+        catch
+        {
+            // Ignore clipboard errors
+        }
     }
 }

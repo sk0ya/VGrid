@@ -972,6 +972,15 @@
                                           FontSize="11"
                                           Loaded="TsvGrid_Loaded"
                                           Margin="0">
+                                    <DataGrid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Cut" InputGestureText="Ctrl+X" Click="ContextMenu_Cut_Click" Template="{StaticResource MenuItemItemTemplate}"/>
+                                            <MenuItem Header="Copy" InputGestureText="Ctrl+C" Click="ContextMenu_Copy_Click" Template="{StaticResource MenuItemItemTemplate}"/>
+                                            <MenuItem Header="Paste" InputGestureText="Ctrl+V" Click="ContextMenu_Paste_Click" Template="{StaticResource MenuItemItemTemplate}"/>
+                                            <Separator/>
+                                            <MenuItem Header="Delete" InputGestureText="Del" Click="ContextMenu_Delete_Click" Template="{StaticResource MenuItemItemTemplate}"/>
+                                        </ContextMenu>
+                                    </DataGrid.ContextMenu>
                                     <!-- Columns will be generated dynamically in code-behind -->
                                 </DataGrid>
                             </Border>

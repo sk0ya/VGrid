@@ -184,6 +184,9 @@ public class DataGridManager
             grid.PreviewTextInput -= TsvGrid_PreviewTextInput;
             grid.PreviewTextInput += TsvGrid_PreviewTextInput;
 
+            grid.PreviewMouseWheel -= TsvGrid_PreviewMouseWheel;
+            grid.PreviewMouseWheel += TsvGrid_PreviewMouseWheel;
+
             grid.LoadingRow += (s, evt) => { evt.Row.Header = (evt.Row.GetIndex() + 1).ToString(); };
 
             grid.ItemContainerGenerator.StatusChanged += (s, evt) =>
@@ -586,6 +589,51 @@ public class DataGridManager
         }
 
         return null;
+    }
+
+    private void TsvGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not DataGrid grid)
+            return;
+
+        // Check if Shift is held for horizontal scrolling
+        bool isShiftPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+
+        if (isShiftPressed)
+        {
+            // Find the ScrollViewer inside the DataGrid
+            var scrollViewer = FindVisualChild<ScrollViewer>(grid);
+            if (scrollViewer != null)
+            {
+                // Scroll horizontally: negative delta = scroll right, positive = scroll left
+                double scrollAmount = e.Delta > 0 ? -50 : 50;
+                scrollViewer.ScrollToHorizontalOffset(scrollViewer.HorizontalOffset + scrollAmount);
+                e.Handled = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handles horizontal scroll from mouse tilt wheel (WM_MOUSEHWHEEL)
+    /// </summary>
+    /// <param name="delta">The wheel delta (positive = scroll right, negative = scroll left)</param>
+    public void HandleHorizontalScroll(int delta)
+    {
+        // Get the DataGrid for the currently selected tab
+        if (_viewModel?.SelectedTab == null)
+            return;
+
+        if (!_tabToDataGrid.TryGetValue(_viewModel.SelectedTab, out var grid))
+            return;
+
+        var scrollViewer = FindVisualChild<ScrollViewer>(grid);
+        if (scrollViewer != null)
+        {
+            // Horizontal wheel: positive delta = tilt right = scroll right (increase offset)
+            // negative delta = tilt left = scroll left (decrease offset)
+            double scrollAmount = delta > 0 ? -50 : 50;
+            scrollViewer.ScrollToHorizontalOffset(scrollViewer.HorizontalOffset + scrollAmount);
+        }
     }
 
     private void TsvGrid_PreviewTextInput(object sender, TextCompositionEventArgs e)

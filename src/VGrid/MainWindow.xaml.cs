@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
 
     private const int WM_CLIPBOARDUPDATE = 0x031D;
+    private const int WM_MOUSEHWHEEL = 0x020E;
 
     public MainWindow()
     {
@@ -246,13 +247,21 @@ public partial class MainWindow : Window
         }
     }
 
-    // Clipboard Monitoring
+    // Clipboard Monitoring and Horizontal Scroll
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         // Handle clipboard update notification
         if (msg == WM_CLIPBOARDUPDATE)
         {
             OnClipboardChanged();
+        }
+        // Handle horizontal mouse wheel (tilt wheel)
+        else if (msg == WM_MOUSEHWHEEL)
+        {
+            // High-order word of wParam contains the wheel delta
+            int delta = (short)((wParam.ToInt64() >> 16) & 0xFFFF);
+            _dataGridManager?.HandleHorizontalScroll(delta);
+            handled = true;
         }
         return IntPtr.Zero;
     }

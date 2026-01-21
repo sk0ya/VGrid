@@ -732,7 +732,7 @@ public class FolderTreeManager
                 isProcessed = true;
                 // Cancel rename - restore original header with highlighting
                 var filterText = _viewModel.FilterText ?? string.Empty;
-                item.Header = CreateHighlightedHeader(itemName, filterText);
+                item.Header = CreateHeaderWithIcon(itemName, filterText, isFolder);
                 // Return focus to TreeView
                 _treeView.Focus();
                 e.Handled = true;
@@ -758,7 +758,7 @@ public class FolderTreeManager
             {
                 // Restore original header with highlighting
                 var filterText = _viewModel.FilterText ?? string.Empty;
-                item.Header = CreateHighlightedHeader(itemName, filterText);
+                item.Header = CreateHeaderWithIcon(itemName, filterText, isFolder);
             }
         };
 

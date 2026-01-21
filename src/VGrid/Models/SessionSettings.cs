@@ -21,6 +21,12 @@ public class SessionSettings
     public string? SelectedFolderPath { get; set; }
 
     /// <summary>
+    /// List of recently opened folder paths for the Windows Jump List.
+    /// Maximum 10 folders, most recent first.
+    /// </summary>
+    public List<string> RecentFolders { get; set; } = new();
+
+    /// <summary>
     /// Whether Vim keybindings are enabled. Default is true.
     /// </summary>
     public bool IsVimModeEnabled { get; set; } = true;

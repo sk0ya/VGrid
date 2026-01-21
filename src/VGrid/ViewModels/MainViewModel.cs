@@ -550,8 +550,21 @@ public class MainViewModel : ViewModelBase
 
         if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
         {
-            SelectedFolderPath = dialog.FileName;
+            OpenFolderByPath(dialog.FileName);
         }
+    }
+
+    /// <summary>
+    /// Opens a folder by path and adds it to the recent folders list.
+    /// </summary>
+    /// <param name="folderPath">The folder path to open.</param>
+    public void OpenFolderByPath(string folderPath)
+    {
+        if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+            return;
+
+        SelectedFolderPath = folderPath;
+        _settingsService.AddRecentFolder(folderPath);
     }
 
     private bool CanSaveFile()

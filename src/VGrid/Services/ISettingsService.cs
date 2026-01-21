@@ -18,4 +18,16 @@ public interface ISettingsService
     /// </summary>
     /// <param name="settings">The session settings to save.</param>
     void SaveSession(SessionSettings settings);
+
+    /// <summary>
+    /// Adds a folder to the recent folders list and updates the Jump List.
+    /// </summary>
+    /// <param name="folderPath">The folder path to add.</param>
+    void AddRecentFolder(string folderPath);
+
+    /// <summary>
+    /// Gets the list of recent folders.
+    /// </summary>
+    /// <returns>List of recently opened folder paths.</returns>
+    List<string> GetRecentFolders();
 }

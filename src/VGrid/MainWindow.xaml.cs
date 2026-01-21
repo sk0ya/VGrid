@@ -260,6 +260,13 @@ public partial class MainWindow : Window
         if (_viewModel != null)
         {
             await _viewModel.RestoreSessionAsync();
+
+            // Check for command line folder argument
+            if (System.Windows.Application.Current is App app &&
+                !string.IsNullOrEmpty(app.StartupFolderPath))
+            {
+                _viewModel.OpenFolderByPath(app.StartupFolderPath);
+            }
         }
     }
 

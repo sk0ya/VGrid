@@ -258,10 +258,17 @@ public partial class MainWindow : Window
         // Handle horizontal mouse wheel (tilt wheel)
         else if (msg == WM_MOUSEHWHEEL)
         {
-            // High-order word of wParam contains the wheel delta
             int delta = (short)((wParam.ToInt64() >> 16) & 0xFFFF);
-            _dataGridManager?.HandleHorizontalScroll(delta);
-            handled = true;
+
+            // Find ScrollViewer under mouse and scroll it
+            var element = Mouse.DirectlyOver as DependencyObject;
+            var scrollViewer = FindVisualParent<ScrollViewer>(element);
+            if (scrollViewer != null)
+            {
+                double scrollAmount = delta > 0 ? -50 : 50;
+                scrollViewer.ScrollToHorizontalOffset(scrollViewer.HorizontalOffset + scrollAmount);
+                handled = true;
+            }
         }
         return IntPtr.Zero;
     }
@@ -384,6 +391,17 @@ public partial class MainWindow : Window
                 return result;
         }
 
+        return null;
+    }
+
+    private T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        while (child != null)
+        {
+            if (child is T parent)
+                return parent;
+            child = VisualTreeHelper.GetParent(child);
+        }
         return null;
     }
 }

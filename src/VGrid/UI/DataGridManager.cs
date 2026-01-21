@@ -613,29 +613,6 @@ public class DataGridManager
         }
     }
 
-    /// <summary>
-    /// Handles horizontal scroll from mouse tilt wheel (WM_MOUSEHWHEEL)
-    /// </summary>
-    /// <param name="delta">The wheel delta (positive = scroll right, negative = scroll left)</param>
-    public void HandleHorizontalScroll(int delta)
-    {
-        // Get the DataGrid for the currently selected tab
-        if (_viewModel?.SelectedTab == null)
-            return;
-
-        if (!_tabToDataGrid.TryGetValue(_viewModel.SelectedTab, out var grid))
-            return;
-
-        var scrollViewer = FindVisualChild<ScrollViewer>(grid);
-        if (scrollViewer != null)
-        {
-            // Horizontal wheel: positive delta = tilt right = scroll right (increase offset)
-            // negative delta = tilt left = scroll left (decrease offset)
-            double scrollAmount = delta > 0 ? -50 : 50;
-            scrollViewer.ScrollToHorizontalOffset(scrollViewer.HorizontalOffset + scrollAmount);
-        }
-    }
-
     private void TsvGrid_PreviewTextInput(object sender, TextCompositionEventArgs e)
     {
         // Only handle when Vim mode is disabled - enable Excel-like typing to edit

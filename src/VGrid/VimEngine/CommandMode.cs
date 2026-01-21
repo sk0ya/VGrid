@@ -38,12 +38,13 @@ public class CommandMode : IVimMode
             return true;
         }
 
-        // Enter - execute command, return to Normal
+        // Enter - finalize search/command, return to Normal
         if (key == Key.Enter)
         {
             if (state.CurrentCommandType == CommandType.Search)
             {
-                ExecuteSearch(state, document);
+                // Search already done incrementally, just notify and switch mode
+                state.OnVimSearchActivated();
             }
             else
             {
@@ -61,6 +62,12 @@ public class CommandMode : IVimMode
                 _inputBuffer.Length--;
                 string prefix = state.CurrentCommandType == CommandType.Search ? "/" : ":";
                 state.SearchPattern = prefix + _inputBuffer.ToString();
+
+                // Incremental search on backspace
+                if (state.CurrentCommandType == CommandType.Search)
+                {
+                    ExecuteIncrementalSearch(state, document);
+                }
             }
             return true;
         }
@@ -72,6 +79,12 @@ public class CommandMode : IVimMode
             _inputBuffer.Append(charInput);
             string prefix = state.CurrentCommandType == CommandType.Search ? "/" : ":";
             state.SearchPattern = prefix + _inputBuffer.ToString();
+
+            // Incremental search on each character input
+            if (state.CurrentCommandType == CommandType.Search)
+            {
+                ExecuteIncrementalSearch(state, document);
+            }
             return true;
         }
 
@@ -79,9 +92,9 @@ public class CommandMode : IVimMode
     }
 
     /// <summary>
-    /// Executes the search with the current input buffer
+    /// Executes incremental search (highlights matches without moving cursor)
     /// </summary>
-    private void ExecuteSearch(VimState state, TsvDocument document)
+    private void ExecuteIncrementalSearch(VimState state, TsvDocument document)
     {
         string pattern = _inputBuffer.ToString();
         if (string.IsNullOrEmpty(pattern))
@@ -110,9 +123,6 @@ public class CommandMode : IVimMode
         {
             state.CursorPosition = results[0];
         }
-
-        // Notify that Vim search is active (to close FindReplace panel)
-        state.OnVimSearchActivated();
     }
 
     /// <summary>

@@ -97,4 +97,16 @@
     <SolidColorBrush x:Key="DiffDeletedBrush" Color="#FFE6E6"/>
     <SolidColorBrush x:Key="DiffForegroundBrush" Color="Black"/>
 
+    <!-- Search/Find Replace -->
+    <SolidColorBrush x:Key="SearchPanelBackgroundBrush" Color="White"/>
+    <SolidColorBrush x:Key="SearchPanelBorderBrush" Color="#CCCCCC"/>
+    <SolidColorBrush x:Key="SearchPanelForegroundBrush" Color="Black"/>
+    <SolidColorBrush x:Key="SearchHighlightBackgroundBrush" Color="#FFFFCC"/>
+    <SolidColorBrush x:Key="SearchHighlightBorderBrush" Color="#CCCC00"/>
+    <SolidColorBrush x:Key="CurrentSearchHighlightBackgroundBrush" Color="#FFCC00"/>
+    <SolidColorBrush x:Key="CurrentSearchHighlightBorderBrush" Color="#FF8800"/>
+    <SolidColorBrush x:Key="SearchMatchCountForegroundBrush" Color="Gray"/>
+    <SolidColorBrush x:Key="CloseButtonForegroundBrush" Color="#666666"/>
+    <SolidColorBrush x:Key="CloseButtonHoverForegroundBrush" Color="#333333"/>
+
 </ResourceDictionary>

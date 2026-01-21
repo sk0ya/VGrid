@@ -12,6 +12,7 @@ public class Cell : INotifyPropertyChanged
     private bool _isSelected;
     private bool _isEditing;
     private bool _isSearchMatch;
+    private bool _isCurrentSearchMatch;
 
     /// <summary>
     /// The text content of the cell
@@ -62,7 +63,7 @@ public class Cell : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Indicates whether this cell is the current search match
+    /// Indicates whether this cell matches the search pattern
     /// </summary>
     public bool IsSearchMatch
     {
@@ -72,6 +73,22 @@ public class Cell : INotifyPropertyChanged
             if (_isSearchMatch != value)
             {
                 _isSearchMatch = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Indicates whether this cell is the current (focused) search match
+    /// </summary>
+    public bool IsCurrentSearchMatch
+    {
+        get => _isCurrentSearchMatch;
+        set
+        {
+            if (_isCurrentSearchMatch != value)
+            {
+                _isCurrentSearchMatch = value;
                 OnPropertyChanged();
             }
         }

@@ -601,6 +601,13 @@ public class NormalMode : IVimMode
 
     private bool ClearState(VimState state)
     {
+        // If state is already clear and search is active, clear search (Esc twice)
+        if (state.PendingKeys.Keys.Count == 0 && state.CountPrefix == null && state.IsSearchActive)
+        {
+            state.ClearSearch();
+            return true;
+        }
+
         state.ResetState();
         return true;
     }

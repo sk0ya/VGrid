@@ -9,8 +9,8 @@
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </UserControl.Resources>
 
-    <Border Background="White"
-            BorderBrush="#CCCCCC"
+    <Border Background="{DynamicResource SearchPanelBackgroundBrush}"
+            BorderBrush="{DynamicResource SearchPanelBorderBrush}"
             BorderThickness="1"
             CornerRadius="3"
             Padding="6"
@@ -42,8 +42,11 @@
                          Padding="5,3"
                          FontSize="12"
                          VerticalContentAlignment="Center"
-                         BorderBrush="#CCCCCC"
-                         BorderThickness="1"/>
+                         Background="{DynamicResource TextBoxBackgroundBrush}"
+                         Foreground="{DynamicResource TextBoxForegroundBrush}"
+                         BorderBrush="{DynamicResource TextBoxBorderBrush}"
+                         BorderThickness="1"
+                         CaretBrush="{DynamicResource TextBoxForegroundBrush}"/>
 
                 <Button Grid.Column="1"
                         Content="×"
@@ -58,10 +61,10 @@
                         Cursor="Hand">
                     <Button.Style>
                         <Style TargetType="Button">
-                            <Setter Property="Foreground" Value="#666666"/>
+                            <Setter Property="Foreground" Value="{DynamicResource CloseButtonForegroundBrush}"/>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Foreground" Value="#333333"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CloseButtonHoverForegroundBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -76,8 +79,11 @@
                      Padding="5,3"
                      FontSize="12"
                      VerticalContentAlignment="Center"
-                     BorderBrush="#CCCCCC"
-                     BorderThickness="1"/>
+                     Background="{DynamicResource TextBoxBackgroundBrush}"
+                     Foreground="{DynamicResource TextBoxForegroundBrush}"
+                     BorderBrush="{DynamicResource TextBoxBorderBrush}"
+                     BorderThickness="1"
+                     CaretBrush="{DynamicResource TextBoxForegroundBrush}"/>
 
             <!-- Options Row -->
             <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,4">
@@ -86,14 +92,16 @@
                           Margin="0,0,10,0"
                           VerticalAlignment="Center"
                           ToolTip="Match Case"
-                          FontSize="11"/>
+                          FontSize="11"
+                          Foreground="{DynamicResource SearchPanelForegroundBrush}"/>
                 <CheckBox Content=".*"
                           IsChecked="{Binding UseRegex}"
                           VerticalAlignment="Center"
                           ToolTip="Use Regex"
-                          FontSize="11"/>
+                          FontSize="11"
+                          Foreground="{DynamicResource SearchPanelForegroundBrush}"/>
                 <TextBlock Text="{Binding MatchCountText}"
-                           Foreground="Gray"
+                           Foreground="{DynamicResource SearchMatchCountForegroundBrush}"
                            FontSize="10"
                            Margin="10,0,0,0"
                            VerticalAlignment="Center"/>
@@ -107,25 +115,37 @@
                         Padding="6,2"
                         MinWidth="35"
                         FontSize="10"
-                        ToolTip="Find Previous"/>
+                        ToolTip="Find Previous"
+                        Background="{DynamicResource ButtonBackgroundBrush}"
+                        Foreground="{DynamicResource ButtonForegroundBrush}"
+                        BorderBrush="{DynamicResource ButtonBorderBrush}"/>
                 <Button Content="▼"
                         Command="{Binding FindNextCommand}"
                         Margin="0,0,3,0"
                         Padding="6,2"
                         MinWidth="35"
                         FontSize="10"
-                        ToolTip="Find Next"/>
+                        ToolTip="Find Next"
+                        Background="{DynamicResource ButtonBackgroundBrush}"
+                        Foreground="{DynamicResource ButtonForegroundBrush}"
+                        BorderBrush="{DynamicResource ButtonBorderBrush}"/>
                 <Button Content="Replace"
                         Command="{Binding ReplaceCommand}"
                         Margin="0,0,3,0"
                         Padding="6,2"
                         MinWidth="60"
-                        FontSize="11"/>
+                        FontSize="11"
+                        Background="{DynamicResource ButtonBackgroundBrush}"
+                        Foreground="{DynamicResource ButtonForegroundBrush}"
+                        BorderBrush="{DynamicResource ButtonBorderBrush}"/>
                 <Button Content="Replace All"
                         Command="{Binding ReplaceAllCommand}"
                         Padding="6,2"
                         MinWidth="60"
-                        FontSize="11"/>
+                        FontSize="11"
+                        Background="{DynamicResource ButtonBackgroundBrush}"
+                        Foreground="{DynamicResource ButtonForegroundBrush}"
+                        BorderBrush="{DynamicResource ButtonBorderBrush}"/>
             </StackPanel>
         </Grid>
     </Border>

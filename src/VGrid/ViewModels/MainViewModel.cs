@@ -932,6 +932,7 @@ public class MainViewModel : ViewModelBase
             foreach (var cell in row.Cells)
             {
                 cell.IsSearchMatch = false;
+                cell.IsCurrentSearchMatch = false;
             }
         }
     }
@@ -941,13 +942,22 @@ public class MainViewModel : ViewModelBase
         // Clear all previous highlighting
         ClearSearchHighlighting(tab.Document);
 
-        // Highlight current match only
-        if (tab.VimState.CurrentMatchIndex >= 0 &&
-            tab.VimState.CurrentMatchIndex < tab.VimState.SearchResults.Count)
+        // Highlight all matches
+        for (int i = 0; i < tab.VimState.SearchResults.Count; i++)
         {
-            var matchPos = tab.VimState.SearchResults[tab.VimState.CurrentMatchIndex];
-            var cell = tab.Document.Rows[matchPos.Row].Cells[matchPos.Column];
-            cell.IsSearchMatch = true;
+            var matchPos = tab.VimState.SearchResults[i];
+            if (matchPos.Row < tab.Document.Rows.Count &&
+                matchPos.Column < tab.Document.Rows[matchPos.Row].Cells.Count)
+            {
+                var cell = tab.Document.Rows[matchPos.Row].Cells[matchPos.Column];
+                cell.IsSearchMatch = true;
+
+                // Mark current match with distinct highlight
+                if (i == tab.VimState.CurrentMatchIndex)
+                {
+                    cell.IsCurrentSearchMatch = true;
+                }
+            }
         }
     }
 

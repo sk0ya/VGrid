@@ -427,14 +427,6 @@ public class DataGridManager
         selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new DynamicResourceExtension("DataGridCellSelectedBorderBrush")));
         selectionTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
 
-        var searchTrigger = new DataTrigger();
-        searchTrigger.Binding = new Binding($"Cells[{columnIndex}].IsSearchMatch");
-        searchTrigger.Value = true;
-        searchTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new SolidColorBrush(Color.FromRgb(255, 255, 153))));
-        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(255, 215, 0))));
-        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
-        style.Triggers.Add(searchTrigger);
-
         var visualTrigger = new DataTrigger();
         visualTrigger.Binding = new Binding($"Cells[{columnIndex}].IsSelected");
         visualTrigger.Value = true;
@@ -444,6 +436,24 @@ public class DataGridManager
         style.Triggers.Add(visualTrigger);
 
         style.Triggers.Add(selectionTrigger);
+
+        // Search highlight for all matches
+        var searchTrigger = new DataTrigger();
+        searchTrigger.Binding = new Binding($"Cells[{columnIndex}].IsSearchMatch");
+        searchTrigger.Value = true;
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new DynamicResourceExtension("SearchHighlightBackgroundBrush")));
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new DynamicResourceExtension("SearchHighlightBorderBrush")));
+        searchTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
+        style.Triggers.Add(searchTrigger);
+
+        // Current search match highlight (highest priority)
+        var currentSearchTrigger = new DataTrigger();
+        currentSearchTrigger.Binding = new Binding($"Cells[{columnIndex}].IsCurrentSearchMatch");
+        currentSearchTrigger.Value = true;
+        currentSearchTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, new DynamicResourceExtension("CurrentSearchHighlightBackgroundBrush")));
+        currentSearchTrigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, new DynamicResourceExtension("CurrentSearchHighlightBorderBrush")));
+        currentSearchTrigger.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(2)));
+        style.Triggers.Add(currentSearchTrigger);
 
         return style;
     }

@@ -138,17 +138,20 @@ public class FindReplaceViewModel : ViewModelBase
         }
     }
 
-    public void Close()
+    public void Close(bool clearHighlighting = true)
     {
         // Hide panel
         IsVisible = false;
 
-        // Clear highlighting
-        ClearHighlighting();
+        if (clearHighlighting)
+        {
+            // Clear highlighting
+            ClearHighlighting();
 
-        // Clear search results
-        _searchResults.Clear();
-        CurrentMatchIndex = -1;
+            // Clear search results
+            _searchResults.Clear();
+            CurrentMatchIndex = -1;
+        }
     }
 
     private void ExecuteSearch()

@@ -28,8 +28,8 @@ public class TabItemViewModel : ViewModelBase
         {
             FindReplaceViewModel = new FindReplaceViewModel(document, vimState, vimState.CommandHistory);
 
-            // Subscribe to VimSearchActivated event to close FindReplace panel
-            vimState.VimSearchActivated += (s, e) => FindReplaceViewModel.Close();
+            // Subscribe to VimSearchActivated event to close FindReplace panel (without clearing Vim search highlight)
+            vimState.VimSearchActivated += (s, e) => FindReplaceViewModel.Close(clearHighlighting: false);
         }
         else
         {

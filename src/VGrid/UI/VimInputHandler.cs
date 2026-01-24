@@ -78,6 +78,27 @@ public class VimInputHandler
             return;
         }
 
+        // Handle Ctrl+P for Command Palette (works regardless of Vim mode)
+        if (e.Key == Key.P && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            var commandPaletteVM = _viewModel.SelectedTab.CommandPaletteViewModel;
+            if (commandPaletteVM != null)
+            {
+                if (commandPaletteVM.IsVisible)
+                {
+                    // If already open, cycle modes
+                    commandPaletteVM.CycleMode();
+                }
+                else
+                {
+                    // Open the palette
+                    commandPaletteVM.Open();
+                }
+                e.Handled = true;
+                return;
+            }
+        }
+
         // Handle Ctrl+Shift+E for Select in Folder Tree (works regardless of Vim mode)
         if (e.Key == Key.E && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
         {

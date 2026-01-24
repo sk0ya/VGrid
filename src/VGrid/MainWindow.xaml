@@ -1057,6 +1057,14 @@
                                                    VerticalAlignment="Top"
                                                    Margin="20,10,20,0"
                                                    Panel.ZIndex="100"/>
+
+                            <!-- Command Palette Panel Overlay -->
+                            <views:CommandPalettePanel Grid.Row="0"
+                                                       DataContext="{Binding CommandPaletteViewModel}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Top"
+                                                       Margin="0,10,0,0"
+                                                       Panel.ZIndex="101"/>
                         </Grid>
                     </DataTemplate>
                 </TabControl.ContentTemplate>

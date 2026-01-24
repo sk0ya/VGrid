@@ -150,6 +150,14 @@ public class ActionRegistry
     }
 
     /// <summary>
+    /// Gets all registered actions
+    /// </summary>
+    public IEnumerable<IVimAction> GetAllActions()
+    {
+        return _actions.Values.OrderBy(a => a.Name);
+    }
+
+    /// <summary>
     /// Gets the count of registered actions
     /// </summary>
     public int Count => _actions.Count;

@@ -276,6 +276,14 @@ public class MainViewModel : ViewModelBase
         await OpenFileAsync(filePath);
     }
 
+    /// <summary>
+    /// Opens a file by path (fire-and-forget wrapper for async method)
+    /// </summary>
+    private void OpenFileByPath(string filePath)
+    {
+        _ = OpenFileAsync(filePath);
+    }
+
     private void NewFile()
     {
         var commandHistory = new CommandHistory();
@@ -289,7 +297,13 @@ public class MainViewModel : ViewModelBase
             KeyBindingConfig = _vimrcService.Config
         };
 
-        var tab = new TabItemViewModel($"Untitled{Tabs.Count + 1}.tsv", document, vimState, gridViewModel);
+        var tab = new TabItemViewModel(
+            $"Untitled{Tabs.Count + 1}.tsv",
+            document,
+            vimState,
+            gridViewModel,
+            () => SelectedFolderPath,
+            OpenFileByPath);
 
         // Subscribe to Vim state changes
         vimState.PropertyChanged += (s, e) =>
@@ -444,7 +458,13 @@ public class MainViewModel : ViewModelBase
                 KeyBindingConfig = _vimrcService.Config
             };
 
-            var tab = new TabItemViewModel(filePath, document, vimState, gridViewModel);
+            var tab = new TabItemViewModel(
+                filePath,
+                document,
+                vimState,
+                gridViewModel,
+                () => SelectedFolderPath,
+                OpenFileByPath);
 
             // Subscribe to Vim state changes
             vimState.PropertyChanged += (s, e) =>

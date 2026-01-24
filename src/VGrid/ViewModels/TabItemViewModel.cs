@@ -18,7 +18,8 @@ public class TabItemViewModel : ViewModelBase
     private string _selectedCellContent = string.Empty;
     private string _positionText = "1:1";
 
-    public TabItemViewModel(string filePath, TsvDocument document, VimState vimState, TsvGridViewModel gridViewModel)
+    public TabItemViewModel(string filePath, TsvDocument document, VimState vimState, TsvGridViewModel gridViewModel,
+        Func<string?>? getFolderPath = null, Action<string>? openFileAction = null)
     {
         FilePath = filePath;
         Document = document;
@@ -38,6 +39,27 @@ public class TabItemViewModel : ViewModelBase
         {
             throw new ArgumentException("VimState must have CommandHistory initialized", nameof(vimState));
         }
+
+        // Initialize CommandPaletteViewModel
+        // Use folder path or fall back to current file's directory
+        Func<string?> effectiveGetFolderPath = () =>
+        {
+            var folderPath = getFolderPath?.Invoke();
+            if (!string.IsNullOrEmpty(folderPath))
+                return folderPath;
+
+            // Fall back to current file's directory
+            if (!string.IsNullOrEmpty(FilePath) && System.IO.File.Exists(FilePath))
+                return System.IO.Path.GetDirectoryName(FilePath);
+
+            return null;
+        };
+
+        CommandPaletteViewModel = new CommandPaletteViewModel(
+            document,
+            vimState,
+            effectiveGetFolderPath,
+            openFileAction);
 
         // Subscribe to document changes
         document.PropertyChanged += (s, e) =>
@@ -109,6 +131,7 @@ public class TabItemViewModel : ViewModelBase
     public VimState VimState { get; }
     public TsvGridViewModel GridViewModel { get; }
     public FindReplaceViewModel FindReplaceViewModel { get; }
+    public CommandPaletteViewModel CommandPaletteViewModel { get; }
 
     public string Header
     {

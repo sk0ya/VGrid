@@ -179,4 +179,75 @@ public static class DefaultKeyBindings
         // Not a known key binding, return as-is (assuming it's an action name)
         return input;
     }
+
+    /// <summary>
+    /// Gets the key binding string for a given action name in Normal mode
+    /// </summary>
+    /// <param name="actionName">The action name to look up</param>
+    /// <returns>The key binding string if found, empty string otherwise</returns>
+    public static string GetKeyBindingForAction(string actionName)
+    {
+        foreach (var kvp in NormalModeDefaults)
+        {
+            if (kvp.Value == actionName)
+            {
+                return KeyBindingToString(kvp.Key);
+            }
+        }
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Converts a KeyBinding to a display string
+    /// </summary>
+    private static string KeyBindingToString(KeyBinding binding)
+    {
+        var parts = new System.Collections.Generic.List<string>();
+
+        if (binding.Modifiers.HasFlag(ModifierKeys.Control))
+            parts.Add("Ctrl");
+        if (binding.Modifiers.HasFlag(ModifierKeys.Shift))
+            parts.Add("Shift");
+        if (binding.Modifiers.HasFlag(ModifierKeys.Alt))
+            parts.Add("Alt");
+
+        string keyStr = binding.Key switch
+        {
+            Key.H => "h",
+            Key.J => "j",
+            Key.K => "k",
+            Key.L => "l",
+            Key.W => "w",
+            Key.B => "b",
+            Key.D => "d",
+            Key.Y => "y",
+            Key.P => "p",
+            Key.U => "u",
+            Key.R => "r",
+            Key.I => "i",
+            Key.A => "a",
+            Key.O => "o",
+            Key.V => "v",
+            Key.N => "n",
+            Key.G => "G",
+            Key.X => "x",
+            Key.C => "c",
+            Key.S => "s",
+            Key.D0 => "0",
+            Key.D4 => "$",
+            Key.Escape => "Esc",
+            Key.Delete => "Del",
+            Key.OemComma => "<",
+            Key.OemPeriod => ">",
+            Key.OemPlus => "=",
+            Key.OemQuestion => "/",
+            Key.Oem1 => ":",
+            Key.OemOpenBrackets => "{",
+            Key.OemCloseBrackets => "}",
+            _ => binding.Key.ToString()
+        };
+
+        parts.Add(keyStr);
+        return string.Join("+", parts);
+    }
 }

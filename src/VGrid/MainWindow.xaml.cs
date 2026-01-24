@@ -124,6 +124,9 @@ public partial class MainWindow : Window
         // Set focus to the window and restore session asynchronously
         Loaded += MainWindow_Loaded;
 
+        // Set up WndProc hook early to catch WM_GETMINMAXINFO before first maximize
+        SourceInitialized += MainWindow_SourceInitialized;
+
         // Save session on window closing
         Closing += MainWindow_Closing;
     }
@@ -243,11 +246,9 @@ public partial class MainWindow : Window
     }
 
     // Window Lifecycle Methods
-    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    private void MainWindow_SourceInitialized(object? sender, EventArgs e)
     {
-        Focus();
-
-        // Set up clipboard monitoring
+        // Set up WndProc hook early to catch WM_GETMINMAXINFO before first maximize
         var windowHelper = new WindowInteropHelper(this);
         _hwndSource = HwndSource.FromHwnd(windowHelper.Handle);
         if (_hwndSource != null)
@@ -255,6 +256,11 @@ public partial class MainWindow : Window
             _hwndSource.AddHook(WndProc);
             AddClipboardFormatListener(windowHelper.Handle);
         }
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        Focus();
 
         // Restore session asynchronously on background thread
         if (_viewModel != null)

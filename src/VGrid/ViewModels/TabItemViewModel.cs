@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.ComponentModel;
 using VGrid.Helpers;
 using VGrid.Models;
 using VGrid.VimEngine;
@@ -14,6 +15,8 @@ public class TabItemViewModel : ViewModelBase
     private bool _isDirty;
     private Dictionary<int, double> _columnWidths = new Dictionary<int, double>();
     private HashSet<int> _manuallyResizedColumns = new HashSet<int>();
+    private string _selectedCellContent = string.Empty;
+    private string _positionText = "1:1";
 
     public TabItemViewModel(string filePath, TsvDocument document, VimState vimState, TsvGridViewModel gridViewModel)
     {
@@ -44,6 +47,61 @@ public class TabItemViewModel : ViewModelBase
                 IsDirty = document.IsDirty;
             }
         };
+
+        // Subscribe to cursor position changes to update selected cell content
+        vimState.PropertyChanged += VimState_PropertyChanged;
+
+        // Initialize selected cell content
+        UpdateSelectedCellContent();
+    }
+
+    private void VimState_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(VimState.CursorPosition))
+        {
+            UpdateSelectedCellContent();
+        }
+    }
+
+    private void UpdateSelectedCellContent()
+    {
+        var pos = VimState.CursorPosition;
+        PositionText = $"{pos.Row + 1}:{pos.Column + 1}";
+        if (pos.Row >= 0 && pos.Row < Document.RowCount &&
+            pos.Column >= 0 && pos.Column < Document.ColumnCount)
+        {
+            SelectedCellContent = Document.Rows[pos.Row].Cells[pos.Column].Value;
+        }
+        else
+        {
+            SelectedCellContent = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// The content of the currently selected cell
+    /// </summary>
+    public string SelectedCellContent
+    {
+        get => _selectedCellContent;
+        set => SetProperty(ref _selectedCellContent, value);
+    }
+
+    /// <summary>
+    /// The position text (row:column) of the currently selected cell
+    /// </summary>
+    public string PositionText
+    {
+        get => _positionText;
+        private set => SetProperty(ref _positionText, value);
+    }
+
+    /// <summary>
+    /// Refreshes the selected cell content (call when cell value changes)
+    /// </summary>
+    public void RefreshSelectedCellContent()
+    {
+        UpdateSelectedCellContent();
     }
 
     public string FilePath { get; set; }

@@ -548,9 +548,6 @@
                         <TextBlock Text="{Binding StatusBarViewModel.ModeText}"
                                    Foreground="White" FontWeight="Bold"/>
                     </Border>
-                    <TextBlock Text="{Binding StatusBarViewModel.PositionText}"
-                               Foreground="{DynamicResource StatusBarForegroundBrush}"
-                               Margin="10,0" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding StatusBarViewModel.MessageText}"
                                Foreground="{DynamicResource StatusBarForegroundBrush}"
                                Margin="20,0" VerticalAlignment="Center" FontStyle="Italic"/>
@@ -939,8 +936,13 @@
                 <TabControl.ContentTemplate>
                     <DataTemplate>
                         <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
                             <!-- DataGrid Layer -->
-                            <Border BorderBrush="Gray" BorderThickness="0" Margin="0">
+                            <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="0" Margin="0">
                                 <DataGrid x:Name="TsvGrid"
                                           ItemsSource="{Binding GridViewModel.Rows}"
                                           AlternationCount="999999"
@@ -985,8 +987,48 @@
                                 </DataGrid>
                             </Border>
 
+                            <!-- Selected Cell Content Preview -->
+                            <Border Grid.Row="1"
+                                    Background="{DynamicResource DataGridBackgroundBrush}"
+                                    BorderBrush="{DynamicResource DataGridBorderBrush}"
+                                    BorderThickness="0,1,0,0"
+                                    MaxHeight="80"
+                                    MinHeight="24">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding PositionText}"
+                                               Foreground="{DynamicResource DataGridHeaderForegroundBrush}"
+                                               Background="{DynamicResource DataGridHeaderBackgroundBrush}"
+                                               Padding="8,4"
+                                               MinWidth="60"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Stretch"
+                                               FontFamily="Segoe UI"
+                                               FontSize="12"/>
+                                    <ScrollViewer Grid.Column="1"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Auto">
+                                        <TextBox Text="{Binding SelectedCellContent, Mode=OneWay}"
+                                                 IsReadOnly="True"
+                                                 Background="Transparent"
+                                                 Foreground="{DynamicResource DataGridForegroundBrush}"
+                                                 BorderThickness="0"
+                                                 Padding="8,4"
+                                                 TextWrapping="Wrap"
+                                                 FontFamily="Segoe UI"
+                                                 FontSize="12"
+                                                 VerticalAlignment="Top"/>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+
                             <!-- Find/Replace Panel Overlay -->
-                            <views:FindReplacePanel DataContext="{Binding FindReplaceViewModel}"
+                            <views:FindReplacePanel Grid.Row="0"
+                                                    DataContext="{Binding FindReplaceViewModel}"
                                                    HorizontalAlignment="Right"
                                                    VerticalAlignment="Top"
                                                    Margin="20,10,20,0"

@@ -42,6 +42,20 @@ public class DataGridManager
     // Store pending text input for non-Vim mode editing (Excel-like behavior)
     private string? _pendingTextInput = null;
 
+    // Track current editing TextBox for real-time cell content preview
+    private TextBox? _currentEditingTextBox = null;
+    private TextChangedEventHandler? _currentTextChangedHandler = null;
+
+    private void UnsubscribeFromCurrentEditingTextBox()
+    {
+        if (_currentEditingTextBox != null && _currentTextChangedHandler != null)
+        {
+            _currentEditingTextBox.TextChanged -= _currentTextChangedHandler;
+        }
+        _currentEditingTextBox = null;
+        _currentTextChangedHandler = null;
+    }
+
     public DataGridManager(MainViewModel viewModel)
     {
         _viewModel = viewModel;
@@ -357,6 +371,9 @@ public class DataGridManager
 
     public void TsvGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
     {
+        // Unsubscribe from TextChanged event
+        UnsubscribeFromCurrentEditingTextBox();
+
         if (_viewModel?.SelectedTab == null || e.Cancel)
             return;
 
@@ -409,6 +426,8 @@ public class DataGridManager
         grid.Dispatcher.BeginInvoke(new Action(() =>
         {
             AutoFitColumn(grid, tab, columnIndex);
+            // Refresh selected cell content preview
+            tab.RefreshSelectedCellContent();
         }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
@@ -868,6 +887,18 @@ public class DataGridManager
         if (e.EditingElement is TextBox textBox && _viewModel?.SelectedTab != null)
         {
             var tab = _viewModel.SelectedTab;
+
+            // Subscribe to TextChanged for real-time cell content preview
+            UnsubscribeFromCurrentEditingTextBox();
+            _currentEditingTextBox = textBox;
+            _currentTextChangedHandler = (s, evt) =>
+            {
+                if (_viewModel?.SelectedTab != null && textBox != null)
+                {
+                    _viewModel.SelectedTab.SelectedCellContent = textBox.Text;
+                }
+            };
+            textBox.TextChanged += _currentTextChangedHandler;
 
             textBox.Loaded += (s, evt) =>
             {

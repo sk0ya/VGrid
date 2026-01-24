@@ -35,4 +35,9 @@ public class SessionSettings
     /// Color theme name. Values: "Light" or "Dark". Default is "Light".
     /// </summary>
     public string ColorTheme { get; set; } = "Light";
+
+    /// <summary>
+    /// Maximum column width in pixels for auto-sizing. Default is 600.
+    /// </summary>
+    public double MaxColumnWidth { get; set; } = 600;
 }

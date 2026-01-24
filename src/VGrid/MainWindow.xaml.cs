@@ -121,6 +121,9 @@ public partial class MainWindow : Window
         // Phase 2 optimization: Subscribe to TabClosed event for cleanup
         _viewModel.TabClosed += OnTabClosed;
 
+        // Subscribe to MaxColumnWidthChanged event for realtime column width updates
+        _viewModel.MaxColumnWidthChanged += OnMaxColumnWidthChanged;
+
         // Set focus to the window and restore session asynchronously
         Loaded += MainWindow_Loaded;
 
@@ -406,6 +409,14 @@ public partial class MainWindow : Window
     private void OnTabClosed(object? sender, TabItemViewModel tab)
     {
         _dataGridManager?.CleanupTab(tab);
+    }
+
+    /// <summary>
+    /// Recalculate column widths when MaxColumnWidth setting is changed
+    /// </summary>
+    private void OnMaxColumnWidthChanged(object? sender, EventArgs e)
+    {
+        _dataGridManager?.RecalculateAllColumnWidths();
     }
 
     /// <summary>

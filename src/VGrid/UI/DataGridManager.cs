@@ -1416,6 +1416,29 @@ public class DataGridManager
     }
 
     /// <summary>
+    /// Recalculates and applies column widths for all open tabs
+    /// Called when MaxColumnWidth setting is changed
+    /// </summary>
+    public void RecalculateAllColumnWidths()
+    {
+        foreach (var kvp in _tabToDataGrid)
+        {
+            var tab = kvp.Key;
+            var grid = kvp.Value;
+
+            if (grid != null && tab != null)
+            {
+                // Reset manual resize tracking so all columns can be resized
+                tab.ResetManualResizeTracking();
+                tab.ColumnWidths.Clear();
+
+                // Recalculate all column widths
+                AutoFitAllColumns(grid, tab);
+            }
+        }
+    }
+
+    /// <summary>
     /// Cleans up cached event handlers for a tab (called when tab is closed)
     /// Phase 2 optimization: Prevents memory leaks from cached handlers
     /// </summary>

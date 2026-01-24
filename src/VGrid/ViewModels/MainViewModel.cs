@@ -35,6 +35,7 @@ public class MainViewModel : ViewModelBase
     private string _selectedColorTheme = "Light";
     private readonly List<string> _colorThemes = new() { "Light", "Dark" };
     private string _repositoryInfo = string.Empty;
+    private double _maxColumnWidth = 600;
 
     public MainViewModel()
     {
@@ -114,6 +115,11 @@ public class MainViewModel : ViewModelBase
     /// </summary>
     public event EventHandler<TabItemViewModel>? TabClosed;
 
+    /// <summary>
+    /// Event raised when max column width setting is changed
+    /// </summary>
+    public event EventHandler? MaxColumnWidthChanged;
+
     public IColumnWidthService ColumnWidthService => _columnWidthService;
     public ITemplateService TemplateService => _templateService;
 
@@ -166,6 +172,24 @@ public class MainViewModel : ViewModelBase
     }
 
     public List<string> ColorThemes => _colorThemes;
+
+    public double MaxColumnWidth
+    {
+        get => _maxColumnWidth;
+        set
+        {
+            // Clamp value between 100 and 2000
+            var clampedValue = Math.Max(100, Math.Min(2000, value));
+            if (SetProperty(ref _maxColumnWidth, clampedValue))
+            {
+                // Update the service
+                _columnWidthService.MaxColumnWidth = clampedValue;
+
+                // Raise event to trigger column width recalculation
+                MaxColumnWidthChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
 
     public string SelectedColorTheme
     {
@@ -990,6 +1014,9 @@ public class MainViewModel : ViewModelBase
         // Restore theme setting
         SelectedColorTheme = session.ColorTheme ?? "Light";
 
+        // Restore max column width setting
+        MaxColumnWidth = session.MaxColumnWidth > 0 ? session.MaxColumnWidth : 600;
+
         // Restore folder path first (updates folder tree once)
         if (!string.IsNullOrEmpty(session.SelectedFolderPath) &&
             Directory.Exists(session.SelectedFolderPath))
@@ -1034,7 +1061,8 @@ public class MainViewModel : ViewModelBase
             SelectedTabIndex = SelectedTab != null ? Tabs.IndexOf(SelectedTab) : 0,
             SelectedFolderPath = SelectedFolderPath,
             IsVimModeEnabled = IsVimModeEnabled,
-            ColorTheme = SelectedColorTheme
+            ColorTheme = SelectedColorTheme,
+            MaxColumnWidth = MaxColumnWidth
         };
 
         _settingsService.SaveSession(session);

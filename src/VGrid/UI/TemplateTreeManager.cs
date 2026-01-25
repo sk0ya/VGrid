@@ -4,8 +4,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using VGrid.Models;
 using VGrid.Services;
 using VGrid.ViewModels;
+using VGrid.Views;
 
 namespace VGrid.UI;
 
@@ -64,7 +66,7 @@ public class TemplateTreeManager
             var folderName = Path.GetFileName(subdir);
             var folderItem = new TreeViewItem
             {
-                Header = CreateHeaderWithIcon(folderName, true),
+                Header = CreateHeaderWithIcon(folderName, IconType.Folder),
                 Tag = subdir
             };
 
@@ -81,13 +83,32 @@ public class TemplateTreeManager
                 parentItem.Items.Add(folderItem);
         }
 
+        // Add template sets (JSON files)
+        var templateSets = _templateService.GetTemplateSetsInDirectory(directoryPath);
+        foreach (var templateSet in templateSets)
+        {
+            var setItem = new TreeViewItem
+            {
+                Header = CreateHeaderWithIcon(templateSet.Name, IconType.TemplateSet),
+                Tag = templateSet
+            };
+
+            // Add context menu for template set
+            setItem.ContextMenu = CreateTemplateSetContextMenu();
+
+            if (parentItem == null)
+                _treeView.Items.Add(setItem);
+            else
+                parentItem.Items.Add(setItem);
+        }
+
         // Add templates
         var templates = _templateService.GetTemplatesInDirectory(directoryPath);
         foreach (var template in templates)
         {
             var templateItem = new TreeViewItem
             {
-                Header = CreateHeaderWithIcon(template.DisplayName, false),
+                Header = CreateHeaderWithIcon(template.DisplayName, IconType.Template),
                 Tag = template
             };
 
@@ -99,6 +120,16 @@ public class TemplateTreeManager
             else
                 parentItem.Items.Add(templateItem);
         }
+    }
+
+    /// <summary>
+    /// アイコンの種類
+    /// </summary>
+    private enum IconType
+    {
+        Folder,
+        Template,
+        TemplateSet
     }
 
     private void TreeViewItem_Expanded(object sender, RoutedEventArgs e)
@@ -150,6 +181,10 @@ public class TemplateTreeManager
         newTemplateMenuItem.Click += NewTemplateInFolderMenuItem_Click;
         contextMenu.Items.Add(newTemplateMenuItem);
 
+        var newTemplateSetMenuItem = new MenuItem { Header = "新規テンプレートセット(_S)" };
+        newTemplateSetMenuItem.Click += NewTemplateSetInFolderMenuItem_Click;
+        contextMenu.Items.Add(newTemplateSetMenuItem);
+
         var newFolderMenuItem = new MenuItem { Header = "新規フォルダ(_N)" };
         newFolderMenuItem.Click += NewFolderMenuItem_Click;
         contextMenu.Items.Add(newFolderMenuItem);
@@ -173,7 +208,38 @@ public class TemplateTreeManager
         return contextMenu;
     }
 
-    private object CreateHeaderWithIcon(string text, bool isFolder)
+    private ContextMenu CreateTemplateSetContextMenu()
+    {
+        var contextMenu = new ContextMenu();
+
+        var editMenuItem = new MenuItem { Header = "編集(_E)" };
+        editMenuItem.Click += EditTemplateSetMenuItem_Click;
+        contextMenu.Items.Add(editMenuItem);
+
+        contextMenu.Items.Add(new Separator());
+
+        var deleteMenuItem = new MenuItem { Header = "削除(_D)" };
+        deleteMenuItem.Click += DeleteTemplateSetMenuItem_Click;
+        contextMenu.Items.Add(deleteMenuItem);
+
+        contextMenu.Items.Add(new Separator());
+
+        var openFolderMenuItem = new MenuItem { Header = "エクスプローラーで開く(_O)" };
+        openFolderMenuItem.Click += OpenTemplateSetInExplorerMenuItem_Click;
+        contextMenu.Items.Add(openFolderMenuItem);
+
+        return contextMenu;
+    }
+
+    private void EditTemplateSetMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetContextItem(sender) is { } item && item.Tag is TemplateSet templateSet)
+        {
+            OpenTemplateSetDialog(templateSet);
+        }
+    }
+
+    private object CreateHeaderWithIcon(string text, IconType iconType)
     {
         var stackPanel = new StackPanel
         {
@@ -188,15 +254,20 @@ public class TemplateTreeManager
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        if (isFolder)
+        switch (iconType)
         {
-            icon.Text = "\U0001F4C1"; // Folder icon
-            icon.Foreground = new SolidColorBrush(Color.FromRgb(255, 193, 7)); // Amber
-        }
-        else
-        {
-            icon.Text = "\U0001F4CB"; // Clipboard icon for templates
-            icon.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Green
+            case IconType.Folder:
+                icon.Text = "\U0001F4C1"; // Folder icon
+                icon.Foreground = new SolidColorBrush(Color.FromRgb(255, 193, 7)); // Amber
+                break;
+            case IconType.Template:
+                icon.Text = "\U0001F4CB"; // Clipboard icon for templates
+                icon.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Green
+                break;
+            case IconType.TemplateSet:
+                icon.Text = "\U0001F4E6"; // Package icon for template sets
+                icon.Foreground = new SolidColorBrush(Color.FromRgb(33, 150, 243)); // Blue
+                break;
         }
 
         stackPanel.Children.Add(icon);
@@ -225,6 +296,11 @@ public class TemplateTreeManager
             await _viewModel.OpenFileAsync(template.FullPath);
             e.Handled = true;
         }
+        else if (treeViewItem.Tag is TemplateSet templateSet)
+        {
+            OpenTemplateSetDialog(templateSet);
+            e.Handled = true;
+        }
         // For folders, don't handle - let TreeView's default behavior expand/collapse
     }
 
@@ -237,6 +313,11 @@ public class TemplateTreeManager
                 if (item.Tag is TemplateInfo template)
                 {
                     await _viewModel.OpenFileAsync(template.FullPath);
+                    e.Handled = true;
+                }
+                else if (item.Tag is TemplateSet templateSet)
+                {
+                    OpenTemplateSetDialog(templateSet);
                     e.Handled = true;
                 }
                 else if (item.Tag is string folderPath && Directory.Exists(folderPath))
@@ -418,6 +499,84 @@ public class TemplateTreeManager
         }
     }
 
+    // Template set menu item handlers
+    private void DeleteTemplateSetMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetContextItem(sender) is { } item && item.Tag is TemplateSet templateSet)
+        {
+            var result = MessageBox.Show(
+                $"テンプレートセット '{templateSet.Name}' を削除してもよろしいですか？",
+                "テンプレートセットの削除",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    File.Delete(templateSet.FilePath);
+
+                    // Remove from tree
+                    if (item.Parent is TreeViewItem parentItem)
+                        parentItem.Items.Remove(item);
+                    else
+                        _treeView.Items.Remove(item);
+
+                    _viewModel.RefreshTemplatesCommand.Execute(null);
+                    _viewModel.StatusBarViewModel.ShowMessage($"テンプレートセット '{templateSet.Name}' を削除しました。");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"削除に失敗しました: {ex.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+    }
+
+    private void OpenTemplateSetInExplorerMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetContextItem(sender) is { } item && item.Tag is TemplateSet templateSet)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{templateSet.FilePath}\"");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"エクスプローラーを開けませんでした: {ex.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    /// <summary>
+    /// テンプレートセット編集ダイアログを開く
+    /// </summary>
+    private void OpenTemplateSetDialog(TemplateSet templateSet)
+    {
+        // テンプレートセットのディレクトリを取得
+        var targetDirectory = !string.IsNullOrEmpty(templateSet.FilePath)
+            ? Path.GetDirectoryName(templateSet.FilePath)
+            : _templateService.GetTemplateDirectoryPath();
+
+        if (string.IsNullOrEmpty(targetDirectory))
+        {
+            targetDirectory = _templateService.GetTemplateDirectoryPath();
+        }
+
+        // 編集ダイアログを開く
+        var dialog = new CreateTemplateSetDialog(_templateService, targetDirectory, templateSet)
+        {
+            Owner = Window.GetWindow(_treeView)
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            // ツリーをリフレッシュ
+            PopulateTemplateTree();
+            _viewModel.StatusBarViewModel.ShowMessage($"テンプレートセット '{templateSet.Name}' を更新しました。");
+        }
+    }
+
     // Rename methods
     private void BeginRenameTemplate(TreeViewItem item, TemplateInfo template)
     {
@@ -452,7 +611,7 @@ public class TemplateTreeManager
                 }
                 else
                 {
-                    item.Header = CreateHeaderWithIcon(template.DisplayName, false);
+                    item.Header = CreateHeaderWithIcon(template.DisplayName, IconType.Template);
                 }
                 _treeView.Focus();
                 e.Handled = true;
@@ -460,7 +619,7 @@ public class TemplateTreeManager
             else if (e.Key == Key.Escape)
             {
                 isProcessed = true;
-                item.Header = CreateHeaderWithIcon(template.DisplayName, false);
+                item.Header = CreateHeaderWithIcon(template.DisplayName, IconType.Template);
                 _treeView.Focus();
                 e.Handled = true;
             }
@@ -477,7 +636,7 @@ public class TemplateTreeManager
             }
             else
             {
-                item.Header = CreateHeaderWithIcon(template.DisplayName, false);
+                item.Header = CreateHeaderWithIcon(template.DisplayName, IconType.Template);
             }
         };
 
@@ -508,7 +667,7 @@ public class TemplateTreeManager
             if (File.Exists(newFilePath) && !template.FullPath.Equals(newFilePath, StringComparison.OrdinalIgnoreCase))
             {
                 MessageBox.Show($"'{newFileName}' は既に存在します。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-                item.Header = CreateHeaderWithIcon(template.DisplayName, false);
+                item.Header = CreateHeaderWithIcon(template.DisplayName, IconType.Template);
                 return;
             }
 
@@ -527,7 +686,7 @@ public class TemplateTreeManager
             template.FileName = newFileName;
             template.FullPath = newFilePath;
             template.DisplayName = newDisplayName;
-            item.Header = CreateHeaderWithIcon(newDisplayName, false);
+            item.Header = CreateHeaderWithIcon(newDisplayName, IconType.Template);
 
             _viewModel.RefreshTemplatesCommand.Execute(null);
             _viewModel.StatusBarViewModel.ShowMessage($"Renamed: {newFileName}");
@@ -536,7 +695,7 @@ public class TemplateTreeManager
         catch (Exception ex)
         {
             MessageBox.Show($"名前変更に失敗しました: {ex.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-            item.Header = CreateHeaderWithIcon(template.DisplayName, false);
+            item.Header = CreateHeaderWithIcon(template.DisplayName, IconType.Template);
             _treeView.Focus();
         }
     }
@@ -573,7 +732,7 @@ public class TemplateTreeManager
                 }
                 else
                 {
-                    item.Header = CreateHeaderWithIcon(folderName, true);
+                    item.Header = CreateHeaderWithIcon(folderName, IconType.Folder);
                 }
                 _treeView.Focus();
                 e.Handled = true;
@@ -581,7 +740,7 @@ public class TemplateTreeManager
             else if (e.Key == Key.Escape)
             {
                 isProcessed = true;
-                item.Header = CreateHeaderWithIcon(folderName, true);
+                item.Header = CreateHeaderWithIcon(folderName, IconType.Folder);
                 _treeView.Focus();
                 e.Handled = true;
             }
@@ -598,7 +757,7 @@ public class TemplateTreeManager
             }
             else
             {
-                item.Header = CreateHeaderWithIcon(folderName, true);
+                item.Header = CreateHeaderWithIcon(folderName, IconType.Folder);
             }
         };
 
@@ -628,7 +787,7 @@ public class TemplateTreeManager
             }
 
             item.Tag = newFolderPath;
-            item.Header = CreateHeaderWithIcon(newFolderName, true);
+            item.Header = CreateHeaderWithIcon(newFolderName, IconType.Folder);
 
             _viewModel.RefreshTemplatesCommand.Execute(null);
             _viewModel.StatusBarViewModel.ShowMessage($"Renamed folder: {newFolderName}");
@@ -637,7 +796,7 @@ public class TemplateTreeManager
         catch (Exception ex)
         {
             MessageBox.Show($"名前変更に失敗しました: {ex.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-            item.Header = CreateHeaderWithIcon(Path.GetFileName(oldFolderPath), true);
+            item.Header = CreateHeaderWithIcon(Path.GetFileName(oldFolderPath), IconType.Folder);
             _treeView.Focus();
         }
     }
@@ -829,6 +988,38 @@ public class TemplateTreeManager
         }
     }
 
+    /// <summary>
+    /// ツールバーから呼び出される新規テンプレートセット作成（ルートに作成）
+    /// </summary>
+    public void CreateNewTemplateSet()
+    {
+        var templateDir = _templateService.GetTemplateDirectoryPath();
+        ShowCreateTemplateSetDialog(templateDir);
+    }
+
+    private void NewTemplateSetInFolderMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetContextItem(sender) is { } item && item.Tag is string folderPath)
+        {
+            ShowCreateTemplateSetDialog(folderPath);
+        }
+    }
+
+    private void ShowCreateTemplateSetDialog(string targetDirectory)
+    {
+        var dialog = new CreateTemplateSetDialog(_templateService, targetDirectory)
+        {
+            Owner = Window.GetWindow(_treeView)
+        };
+
+        if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.CreatedFilePath))
+        {
+            // Refresh tree
+            PopulateTemplateTree();
+            _viewModel.StatusBarViewModel.ShowMessage($"Created: {Path.GetFileName(dialog.CreatedFilePath)}");
+        }
+    }
+
     public void TemplateTreeView_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         var clickedElement = e.OriginalSource as DependencyObject;
@@ -842,6 +1033,10 @@ public class TemplateTreeManager
             var newTemplateMenuItem = new MenuItem { Header = "新規テンプレート(_T)" };
             newTemplateMenuItem.Click += (s, args) => CreateNewTemplate();
             contextMenu.Items.Add(newTemplateMenuItem);
+
+            var newTemplateSetMenuItem = new MenuItem { Header = "新規テンプレートセット(_S)" };
+            newTemplateSetMenuItem.Click += (s, args) => CreateNewTemplateSet();
+            contextMenu.Items.Add(newTemplateSetMenuItem);
 
             var newFolderMenuItem = new MenuItem { Header = "新規フォルダ(_N)" };
             newFolderMenuItem.Click += (s, args) => CreateNewFolder();

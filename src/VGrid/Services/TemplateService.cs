@@ -1,5 +1,7 @@
 using System.IO;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using VGrid.Models;
 
 namespace VGrid.Services;
 
@@ -480,5 +482,320 @@ public class TemplateService : ITemplateService
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// テンプレートセット（JSONファイル）一覧を取得
+    /// </summary>
+    public IEnumerable<TemplateSet> GetTemplateSets()
+    {
+        var templateDir = GetTemplateDirectory();
+        if (!Directory.Exists(templateDir))
+            return Enumerable.Empty<TemplateSet>();
+
+        var result = new List<TemplateSet>();
+        GetTemplateSetsRecursively(templateDir, result);
+        return result;
+    }
+
+    /// <summary>
+    /// テンプレートセットを再帰的に取得
+    /// </summary>
+    private void GetTemplateSetsRecursively(string currentDir, List<TemplateSet> result)
+    {
+        // Get JSON files in current directory
+        var jsonFiles = Directory.GetFiles(currentDir, "*.json");
+        foreach (var path in jsonFiles)
+        {
+            var set = LoadTemplateSet(path);
+            if (set != null)
+            {
+                result.Add(set);
+            }
+        }
+
+        // Recursively process subdirectories
+        var subdirectories = Directory.GetDirectories(currentDir);
+        foreach (var subdir in subdirectories)
+        {
+            GetTemplateSetsRecursively(subdir, result);
+        }
+    }
+
+    /// <summary>
+    /// 指定ディレクトリ内のテンプレートセット一覧を取得
+    /// </summary>
+    public List<TemplateSet> GetTemplateSetsInDirectory(string directoryPath)
+    {
+        if (!Directory.Exists(directoryPath))
+            return new List<TemplateSet>();
+
+        var jsonFiles = Directory.GetFiles(directoryPath, "*.json");
+        var result = new List<TemplateSet>();
+
+        foreach (var path in jsonFiles)
+        {
+            var set = LoadTemplateSet(path);
+            if (set != null)
+            {
+                result.Add(set);
+            }
+        }
+
+        return result.OrderBy(s => s.Name).ToList();
+    }
+
+    /// <summary>
+    /// テンプレートセットを読み込む
+    /// </summary>
+    public TemplateSet? LoadTemplateSet(string jsonPath)
+    {
+        if (!File.Exists(jsonPath))
+            return null;
+
+        try
+        {
+            var json = File.ReadAllText(jsonPath);
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var set = JsonSerializer.Deserialize<TemplateSet>(json, options);
+            if (set != null)
+            {
+                set.FilePath = jsonPath;
+                // 名前が空の場合はファイル名を使用
+                if (string.IsNullOrEmpty(set.Name))
+                {
+                    set.Name = Path.GetFileNameWithoutExtension(jsonPath);
+                }
+            }
+            return set;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// テンプレートセットから複数ファイルを一括作成
+    /// </summary>
+    public List<string> CreateFilesFromSet(TemplateSet set, string targetDirectory, params string[] placeholders)
+    {
+        if (set == null || set.Templates == null || set.Templates.Count == 0)
+            throw new ArgumentException("Template set is empty or invalid.");
+
+        if (!Directory.Exists(targetDirectory))
+            throw new DirectoryNotFoundException($"Target directory not found: {targetDirectory}");
+
+        var createdFiles = new List<string>();
+        var templateDir = GetTemplateDirectory();
+
+        foreach (var item in set.Templates)
+        {
+            // テンプレートファイルのパスを解決（Templateフォルダからの相対パス）
+            var templatePath = Path.GetFullPath(Path.Combine(templateDir, item.File));
+            if (!File.Exists(templatePath))
+            {
+                throw new FileNotFoundException($"Template file not found: {item.File}");
+            }
+
+            // 出力ファイル名を生成（OutputNameが未設定の場合はテンプレートの相対パスをそのまま使用）
+            var outputName = string.IsNullOrEmpty(item.OutputName)
+                ? item.File
+                : item.OutputName;
+            var outputFileName = ApplyPlaceholders(outputName, placeholders);
+
+            // パスに無効な文字が含まれていないかチェック（フォルダパスも許可）
+            var invalidChars = Path.GetInvalidPathChars();
+            if (outputFileName.IndexOfAny(invalidChars) >= 0)
+            {
+                throw new ArgumentException($"Output file name contains invalid characters: {outputFileName}");
+            }
+
+            var targetPath = Path.Combine(targetDirectory, outputFileName);
+
+            // 出力先にフォルダパスが含まれている場合は、フォルダを作成
+            var targetDir = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
+            {
+                Directory.CreateDirectory(targetDir);
+            }
+
+            // ファイルをコピー
+            File.Copy(templatePath, targetPath, overwrite: false);
+            createdFiles.Add(targetPath);
+        }
+
+        return createdFiles;
+    }
+
+    /// <summary>
+    /// テンプレートセットから作成されるファイル名をプレビュー
+    /// </summary>
+    public List<string> PreviewFileNames(TemplateSet set, params string[] placeholders)
+    {
+        if (set == null || set.Templates == null)
+            return new List<string>();
+
+        return set.Templates
+            .Select(item =>
+            {
+                // OutputNameが未設定の場合はテンプレートの相対パスをそのまま使用
+                var outputName = string.IsNullOrEmpty(item.OutputName)
+                    ? item.File
+                    : item.OutputName;
+                return ApplyPlaceholders(outputName, placeholders);
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// プレースホルダー（{0}, {1}, ...）を値で置換
+    /// </summary>
+    private string ApplyPlaceholders(string template, string[] placeholders)
+    {
+        if (string.IsNullOrEmpty(template))
+            return template;
+
+        try
+        {
+            // string.Format を使用してプレースホルダーを置換
+            // placeholders が足りない場合は空文字列を補填
+            var paddedPlaceholders = new string[10]; // 最大10個のプレースホルダーをサポート
+            for (int i = 0; i < paddedPlaceholders.Length; i++)
+            {
+                paddedPlaceholders[i] = i < placeholders.Length ? placeholders[i] : string.Empty;
+            }
+            return string.Format(template, paddedPlaceholders);
+        }
+        catch
+        {
+            // フォーマットに失敗した場合は元のテンプレートを返す
+            return template;
+        }
+    }
+
+    /// <summary>
+    /// テンプレートファイル名からプレースホルダー数を検出
+    /// {{0}} のようなエスケープされたブレースは無視する
+    /// </summary>
+    /// <param name="templateFileName">テンプレートファイル名</param>
+    /// <returns>プレースホルダーの数（0-indexed の最大値 + 1）</returns>
+    public int DetectPlaceholderCount(string templateFileName)
+    {
+        if (string.IsNullOrEmpty(templateFileName))
+            return 0;
+
+        var maxPlaceholder = -1;
+        // エスケープされていないプレースホルダーのみマッチ
+        // {{0}} は {0} にエスケープされるため、{{ や }} の前後をチェック
+        var regex = new Regex(@"(?<!\{)\{(\d+)\}(?!\})");
+
+        var matches = regex.Matches(templateFileName);
+        foreach (Match match in matches)
+        {
+            if (int.TryParse(match.Groups[1].Value, out int index))
+            {
+                maxPlaceholder = Math.Max(maxPlaceholder, index);
+            }
+        }
+
+        return maxPlaceholder + 1; // 0-indexed なので +1
+    }
+
+    /// <summary>
+    /// テンプレートファイル名にプレースホルダーを適用
+    /// </summary>
+    /// <param name="templateFileName">テンプレートファイル名</param>
+    /// <param name="placeholders">プレースホルダー値の配列</param>
+    /// <returns>プレースホルダーが適用されたファイル名</returns>
+    public string ApplyPlaceholdersToFileName(string templateFileName, params string[] placeholders)
+    {
+        return ApplyPlaceholders(templateFileName, placeholders);
+    }
+
+    /// <summary>
+    /// テンプレートセット内のプレースホルダー数を検出
+    /// </summary>
+    /// <param name="set">テンプレートセット</param>
+    /// <returns>プレースホルダーの数（0-indexed の最大値 + 1）</returns>
+    public int DetectPlaceholderCountInSet(TemplateSet set)
+    {
+        if (set == null || set.Templates == null || set.Templates.Count == 0)
+            return 0;
+
+        var maxPlaceholder = -1;
+        var regex = new Regex(@"(?<!\{)\{(\d+)\}(?!\})");
+
+        foreach (var template in set.Templates)
+        {
+            if (string.IsNullOrEmpty(template.OutputName))
+                continue;
+
+            var matches = regex.Matches(template.OutputName);
+            foreach (Match match in matches)
+            {
+                if (int.TryParse(match.Groups[1].Value, out int index))
+                {
+                    maxPlaceholder = Math.Max(maxPlaceholder, index);
+                }
+            }
+        }
+
+        return maxPlaceholder + 1; // 0-indexed なので +1
+    }
+
+    /// <summary>
+    /// テンプレートから新規ファイルを作成（プレースホルダー対応版）
+    /// </summary>
+    /// <param name="templateFileName">テンプレートファイル名（サブフォルダからの相対パス可）</param>
+    /// <param name="targetDirectory">作成先ディレクトリ</param>
+    /// <param name="placeholders">プレースホルダー値の配列</param>
+    /// <returns>作成されたファイルのフルパス</returns>
+    public string CreateFileFromTemplateWithPlaceholders(string templateFileName, string targetDirectory, params string[] placeholders)
+    {
+        var templateDir = GetTemplateDirectory();
+        // パスを正規化して結合
+        var templatePath = Path.GetFullPath(Path.Combine(templateDir, templateFileName));
+
+        if (!File.Exists(templatePath))
+            throw new FileNotFoundException($"Template not found: {templateFileName}");
+
+        // ターゲットディレクトリも正規化
+        targetDirectory = Path.GetFullPath(targetDirectory);
+
+        if (!Directory.Exists(targetDirectory))
+            throw new DirectoryNotFoundException($"Target directory not found: {targetDirectory}");
+
+        // ベースファイル名を生成（プレースホルダー適用）
+        var templateFileNameOnly = Path.GetFileName(templateFileName);
+        var baseFileName = Path.GetFileNameWithoutExtension(templateFileNameOnly);
+        var extension = Path.GetExtension(templateFileNameOnly);
+
+        // プレースホルダーを適用
+        var appliedBaseFileName = ApplyPlaceholders(baseFileName, placeholders);
+
+        // ファイル名に使用できない文字をチェック
+        var invalidChars = Path.GetInvalidFileNameChars();
+        if (appliedBaseFileName.IndexOfAny(invalidChars) >= 0)
+        {
+            throw new ArgumentException($"Output file name contains invalid characters: {appliedBaseFileName}");
+        }
+
+        string newFileName = $"{appliedBaseFileName}{extension}";
+        string newFilePath = Path.Combine(targetDirectory, newFileName);
+
+        // ファイルが既に存在する場合はエラー
+        if (File.Exists(newFilePath))
+        {
+            throw new IOException($"File already exists: {newFileName}");
+        }
+
+        // テンプレートファイルの内容をコピー
+        File.Copy(templatePath, newFilePath);
+
+        return newFilePath;
     }
 }

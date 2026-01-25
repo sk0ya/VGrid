@@ -1,3 +1,5 @@
+using VGrid.Models;
+
 namespace VGrid.Services;
 
 /// <summary>
@@ -106,6 +108,75 @@ public interface ITemplateService
     /// <param name="folderPath">チェックするフォルダパス</param>
     /// <returns>Templateディレクトリ内のフォルダの場合true</returns>
     bool IsTemplateFolder(string folderPath);
+
+    /// <summary>
+    /// テンプレートセット（JSONファイル）一覧を取得
+    /// </summary>
+    /// <returns>テンプレートセットのリスト</returns>
+    IEnumerable<TemplateSet> GetTemplateSets();
+
+    /// <summary>
+    /// 指定ディレクトリ内のテンプレートセット一覧を取得
+    /// </summary>
+    /// <param name="directoryPath">ディレクトリのフルパス</param>
+    /// <returns>テンプレートセットのリスト</returns>
+    List<TemplateSet> GetTemplateSetsInDirectory(string directoryPath);
+
+    /// <summary>
+    /// テンプレートセットを読み込む
+    /// </summary>
+    /// <param name="jsonPath">JSONファイルのパス</param>
+    /// <returns>テンプレートセット（読み込み失敗時はnull）</returns>
+    TemplateSet? LoadTemplateSet(string jsonPath);
+
+    /// <summary>
+    /// テンプレートセットから複数ファイルを一括作成
+    /// </summary>
+    /// <param name="set">テンプレートセット</param>
+    /// <param name="targetDirectory">作成先ディレクトリ</param>
+    /// <param name="placeholders">プレースホルダーの値（{0}, {1}, ...）</param>
+    /// <returns>作成されたファイルのパスリスト</returns>
+    List<string> CreateFilesFromSet(TemplateSet set, string targetDirectory, params string[] placeholders);
+
+    /// <summary>
+    /// テンプレートセットから作成されるファイル名をプレビュー
+    /// </summary>
+    /// <param name="set">テンプレートセット</param>
+    /// <param name="placeholders">プレースホルダーの値</param>
+    /// <returns>ファイル名のリスト</returns>
+    List<string> PreviewFileNames(TemplateSet set, params string[] placeholders);
+
+    /// <summary>
+    /// テンプレートファイル名からプレースホルダー数を検出
+    /// {{0}} のようなエスケープされたブレースは無視する
+    /// </summary>
+    /// <param name="templateFileName">テンプレートファイル名</param>
+    /// <returns>プレースホルダーの数（0-indexed の最大値 + 1）</returns>
+    int DetectPlaceholderCount(string templateFileName);
+
+    /// <summary>
+    /// テンプレートファイル名にプレースホルダーを適用
+    /// </summary>
+    /// <param name="templateFileName">テンプレートファイル名</param>
+    /// <param name="placeholders">プレースホルダー値の配列</param>
+    /// <returns>プレースホルダーが適用されたファイル名</returns>
+    string ApplyPlaceholdersToFileName(string templateFileName, params string[] placeholders);
+
+    /// <summary>
+    /// テンプレートから新規ファイルを作成（プレースホルダー対応版）
+    /// </summary>
+    /// <param name="templateFileName">テンプレートファイル名（サブフォルダからの相対パス可）</param>
+    /// <param name="targetDirectory">作成先ディレクトリ</param>
+    /// <param name="placeholders">プレースホルダー値の配列</param>
+    /// <returns>作成されたファイルのフルパス</returns>
+    string CreateFileFromTemplateWithPlaceholders(string templateFileName, string targetDirectory, params string[] placeholders);
+
+    /// <summary>
+    /// テンプレートセット内のプレースホルダー数を検出
+    /// </summary>
+    /// <param name="set">テンプレートセット</param>
+    /// <returns>プレースホルダーの数（0-indexed の最大値 + 1）</returns>
+    int DetectPlaceholderCountInSet(TemplateSet set);
 }
 
 /// <summary>

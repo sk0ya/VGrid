@@ -1,0 +1,147 @@
+<Window x:Class="VGrid.Views.TemplateSetDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="テンプレートセットから作成"
+        Height="400" Width="500"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        WindowStartupLocation="CenterOwner">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="32"
+                      ResizeBorderThickness="5"
+                      GlassFrameThickness="0"
+                      CornerRadius="0"
+                      UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <Style x:Key="DialogButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="MinWidth" Value="90"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.5"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ListBoxItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource ListBoxForegroundBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title Bar -->
+        <Grid Grid.Row="0" Background="{DynamicResource TitleBarBackgroundBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="テンプレートセットから作成" FontSize="12"
+                       Foreground="{DynamicResource TitleBarForegroundBrush}"
+                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button x:Name="CloseButton" Click="CloseButton_Click"
+                        Width="46" Height="32" BorderThickness="0"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TitleBarForegroundBrush}"
+                        ToolTip="閉じる">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="{TemplateBinding Background}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#E81123"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                    <Path Data="M0,0 L10,10 M10,0 L0,10"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1" Width="10" Height="10"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Content -->
+        <StackPanel Grid.Row="1" Margin="16">
+            <!-- Set Name -->
+            <TextBlock Text="セット名" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBoxForegroundBrush}"
+                       Margin="0,0,0,8"/>
+            <TextBlock x:Name="SetNameText" FontSize="16"
+                       Foreground="{DynamicResource TextBoxForegroundBrush}"
+                       Margin="0,0,0,16"/>
+
+            <!-- Placeholder Inputs -->
+            <StackPanel x:Name="PlaceholderInputsPanel" Margin="0,0,0,16"/>
+
+            <!-- Templates List with Preview -->
+            <TextBlock Text="作成されるファイル" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBoxForegroundBrush}"
+                       Margin="0,0,0,8"/>
+            <Border Background="{DynamicResource ListBoxBackgroundBrush}"
+                    BorderBrush="{DynamicResource ButtonBorderBrush}"
+                    BorderThickness="1" CornerRadius="3"
+                    MaxHeight="180">
+                <ListBox x:Name="TemplatesListBox"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ItemContainerStyle="{StaticResource ListBoxItemStyle}"/>
+            </Border>
+        </StackPanel>
+
+        <!-- Bottom Buttons -->
+        <Border Grid.Row="2" Padding="16"
+                Background="{DynamicResource SidebarBackgroundBrush}"
+                BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="キャンセル" Click="CancelButton_Click"
+                        Style="{StaticResource DialogButtonStyle}" Margin="0,0,8,0"/>
+                <Button x:Name="CreateButton" Content="作成" Click="CreateButton_Click"
+                        Style="{StaticResource DialogButtonStyle}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

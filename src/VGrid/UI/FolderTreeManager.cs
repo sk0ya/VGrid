@@ -7,8 +7,10 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using VGrid.Models;
 using VGrid.Services;
 using VGrid.ViewModels;
+using VGrid.Views;
 
 namespace VGrid.UI;
 
@@ -1549,6 +1551,131 @@ public class FolderTreeManager
 
         // 「新しいファイル」の次に挿入（index 1）
         contextMenu.Items.Insert(1, templateMenuItem);
+
+        // テンプレートセットからの一括作成メニュー
+        var templateSetMenuItem = new MenuItem
+        {
+            Header = "テンプレートセットから一括作成(_S)"
+        };
+
+        // サブメニューを開いた時に動的にテンプレートセット一覧を取得
+        templateSetMenuItem.SubmenuOpened += (s, e) =>
+        {
+            templateSetMenuItem.Items.Clear();
+
+            var templateSets = _templateService.GetTemplateSets().ToList();
+
+            if (templateSets.Count == 0)
+            {
+                var noSetItem = new MenuItem
+                {
+                    Header = "(テンプレートセットがありません)",
+                    IsEnabled = false
+                };
+                templateSetMenuItem.Items.Add(noSetItem);
+                return;
+            }
+
+            // 各テンプレートセットをサブアイテムとして追加
+            foreach (var templateSet in templateSets)
+            {
+                var setItem = new MenuItem
+                {
+                    Header = templateSet.Name,
+                    Tag = templateSet
+                };
+
+                setItem.Click += CreateFilesFromTemplateSetMenuItem_Click;
+
+                templateSetMenuItem.Items.Add(setItem);
+            }
+        };
+
+        // ダミーアイテムを追加（サブメニュー矢印を表示するため）
+        templateSetMenuItem.Items.Add(new MenuItem { Header = "Loading..." });
+
+        // テンプレートメニューの次に挿入（index 2）
+        contextMenu.Items.Insert(2, templateSetMenuItem);
+    }
+
+    private void CreateFilesFromTemplateSetMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem menuItem && menuItem.Tag is TemplateSet templateSet)
+        {
+            // メニュー階層をたどってContextMenuを取得し、PlacementTargetからTreeViewItemを取得
+            var targetItem = GetTreeViewItemFromMenuItem(menuItem);
+            if (targetItem == null)
+            {
+                MessageBox.Show("出力先フォルダが見つかりません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var targetDirectory = targetItem.Tag as string;
+            if (string.IsNullOrEmpty(targetDirectory) || !Directory.Exists(targetDirectory))
+            {
+                MessageBox.Show("出力先フォルダが見つかりません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // プレースホルダーの数を検出
+            var placeholderCount = _templateService.DetectPlaceholderCountInSet(templateSet);
+
+            if (placeholderCount > 0)
+            {
+                // プレースホルダーがある場合はダイアログを表示
+                var dialog = new TemplateSetDialog(templateSet, _templateService, targetDirectory)
+                {
+                    Owner = Window.GetWindow(_treeView)
+                };
+
+                if (dialog.ShowDialog() == true && dialog.CreatedFiles.Count > 0)
+                {
+                    // ツリーをリフレッシュ
+                    RefreshTreeNode(targetItem);
+                }
+            }
+            else
+            {
+                // プレースホルダーがない場合は直接ファイルを作成
+                try
+                {
+                    var createdFiles = _templateService.CreateFilesFromSet(templateSet, targetDirectory);
+
+                    if (createdFiles.Count > 0)
+                    {
+                        // ツリーをリフレッシュ
+                        RefreshTreeNode(targetItem);
+                        _viewModel.StatusBarViewModel.ShowMessage(
+                            $"Created {createdFiles.Count} files from template set: {templateSet.Name}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        $"ファイルの作成に失敗しました:\n{ex.Message}",
+                        "エラー",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// MenuItemからContextMenuのPlacementTarget（TreeViewItem）を取得
+    /// </summary>
+    private TreeViewItem? GetTreeViewItemFromMenuItem(MenuItem menuItem)
+    {
+        DependencyObject? current = menuItem;
+        while (current != null)
+        {
+            if (current is ContextMenu contextMenu)
+            {
+                return contextMenu.PlacementTarget as TreeViewItem;
+            }
+            current = LogicalTreeHelper.GetParent(current);
+        }
+        return null;
     }
 
     /// <summary>
@@ -1577,11 +1704,39 @@ public class FolderTreeManager
 
         try
         {
-            // テンプレートからファイルを作成
-            var newFilePath = _templateService.CreateFileFromTemplate(
-                template.FileName,
-                folderPath
-            );
+            // テンプレートファイル名にプレースホルダーが含まれているかチェック
+            var placeholderCount = _templateService.DetectPlaceholderCount(template.FileName);
+
+            string newFilePath;
+
+            if (placeholderCount > 0)
+            {
+                // プレースホルダーがある場合はダイアログを表示
+                var dialog = new TemplatePlaceholderDialog(
+                    _templateService,
+                    template.FileName,
+                    template.DisplayName,
+                    folderPath,
+                    placeholderCount)
+                {
+                    Owner = Window.GetWindow(_treeView)
+                };
+
+                if (dialog.ShowDialog() != true || string.IsNullOrEmpty(dialog.CreatedFilePath))
+                {
+                    return; // キャンセルされた
+                }
+
+                newFilePath = dialog.CreatedFilePath;
+            }
+            else
+            {
+                // プレースホルダーがない場合は従来通りの処理
+                newFilePath = _templateService.CreateFileFromTemplate(
+                    template.FileName,
+                    folderPath
+                );
+            }
 
             var newFileName = Path.GetFileName(newFilePath);
 
@@ -1594,12 +1749,16 @@ public class FolderTreeManager
             // TreeViewを更新
             RefreshTreeNode(parentItem);
 
-            // 新しく作成されたファイルアイテムを探して選択＋名前変更モードに入る
+            // 新しく作成されたファイルアイテムを探して選択
             var newFileItem = FindTreeItemByPath(parentItem, newFilePath);
             if (newFileItem != null)
             {
                 newFileItem.IsSelected = true;
-                BeginRenameTreeItem(newFileItem, false);
+                // プレースホルダーがなかった場合のみ名前変更モードに入る
+                if (placeholderCount == 0)
+                {
+                    BeginRenameTreeItem(newFileItem, false);
+                }
             }
 
             _viewModel.StatusBarViewModel.ShowMessage(

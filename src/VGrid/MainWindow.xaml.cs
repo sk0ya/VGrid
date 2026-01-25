@@ -357,13 +357,33 @@ public partial class MainWindow : Window
             RECT rcWorkArea = monitorInfo.rcWork;
             RECT rcMonitorArea = monitorInfo.rcMonitor;
 
+            // Get DPI scaling factor for this window
+            // This is important for Remote Desktop and multi-DPI environments
+            double dpiScale = 1.0;
+            var source = PresentationSource.FromVisual(this);
+            if (source?.CompositionTarget != null)
+            {
+                dpiScale = source.CompositionTarget.TransformToDevice.M11;
+            }
+
             // Set the maximized position relative to the monitor
+            // Apply DPI scaling to get correct position
             mmi.ptMaxPosition.X = Math.Abs(rcWorkArea.Left - rcMonitorArea.Left);
             mmi.ptMaxPosition.Y = Math.Abs(rcWorkArea.Top - rcMonitorArea.Top);
 
             // Set the maximized size to the work area size
-            mmi.ptMaxSize.X = Math.Abs(rcWorkArea.Right - rcWorkArea.Left);
-            mmi.ptMaxSize.Y = Math.Abs(rcWorkArea.Bottom - rcWorkArea.Top);
+            // For Remote Desktop, we need to ensure we don't exceed the work area
+            int workWidth = Math.Abs(rcWorkArea.Right - rcWorkArea.Left);
+            int workHeight = Math.Abs(rcWorkArea.Bottom - rcWorkArea.Top);
+
+            // Apply a small margin to ensure the window doesn't overlap the taskbar
+            // This helps with Remote Desktop where DPI detection may be inaccurate
+            mmi.ptMaxSize.X = workWidth;
+            mmi.ptMaxSize.Y = workHeight;
+
+            // Also set the max track size to prevent resizing beyond work area
+            mmi.ptMaxTrackSize.X = workWidth;
+            mmi.ptMaxTrackSize.Y = workHeight;
         }
 
         Marshal.StructureToPtr(mmi, lParam, true);

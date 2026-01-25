@@ -39,6 +39,10 @@ public class DataGridManager
     // Phase 1 optimization: Track column count per DataGrid to avoid unnecessary regeneration
     private readonly Dictionary<DataGrid, int> _dataGridColumnCount = new Dictionary<DataGrid, int>();
 
+    // Cache styles to avoid recreating them for each column
+    private Style? _cachedEditingStyle;
+    private readonly Dictionary<int, Style> _cachedCellStyles = new Dictionary<int, Style>();
+
     // Store pending text input for non-Vim mode editing (Excel-like behavior)
     private string? _pendingTextInput = null;
 
@@ -221,25 +225,18 @@ public class DataGridManager
     }
 
     /// <summary>
-    /// Phase 1 optimization: Update column bindings and widths without recreating columns
+    /// Phase 1 optimization: Update column widths only (bindings auto-update with DataContext)
     /// </summary>
-    private void UpdateColumnBindings(DataGrid grid, TabItemViewModel tab)
+    private void UpdateColumnWidths(DataGrid grid, TabItemViewModel tab)
     {
         if (grid == null || tab == null)
             return;
 
+        // Only update column widths - bindings automatically work with new DataContext
         for (int i = 0; i < grid.Columns.Count; i++)
         {
             if (grid.Columns[i] is DataGridTextColumn textColumn)
             {
-                // Update binding path (in case columns are reused across different documents)
-                textColumn.Binding = new Binding($"Cells[{i}].Value")
-                {
-                    Mode = BindingMode.TwoWay,
-                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-                };
-
-                // Update width from tab's saved column widths
                 textColumn.Width = tab.ColumnWidths.ContainsKey(i)
                     ? new DataGridLength(tab.ColumnWidths[i], DataGridLengthUnitType.Pixel)
                     : new DataGridLength(100, DataGridLengthUnitType.Pixel);
@@ -252,31 +249,32 @@ public class DataGridManager
         if (grid == null || tab == null)
             return;
 
-        var requiredColumnCount = Math.Max(50, tab.GridViewModel.ColumnCount);
+        // Use actual column count with reasonable minimum for new documents
+        // Large minimum values slow down initial display significantly
+        var requiredColumnCount = Math.Max(20, tab.GridViewModel.ColumnCount);
 
         // Phase 1 optimization: Only regenerate if column count changed
         if (_dataGridColumnCount.TryGetValue(grid, out var existingCount) && existingCount == requiredColumnCount)
         {
-            // Column count matches - just update bindings and widths
-            UpdateColumnBindings(grid, tab);
+            // Column count matches - just update widths (bindings auto-work with DataContext)
+            UpdateColumnWidths(grid, tab);
             return;
         }
 
         // Column count changed - need to regenerate
         grid.Columns.Clear();
 
+        // Cache editing style (shared across all columns)
+        _cachedEditingStyle ??= CreateEditingStyle();
+
         for (int i = 0; i < requiredColumnCount; i++)
         {
-            var columnIndex = i;
-            var cellStyle = CreateVisualModeCellStyle(columnIndex);
-
-            // Create editing style for TextBox with theme-aware colors
-            var editingStyle = new Style(typeof(TextBox));
-            editingStyle.Setters.Add(new Setter(TextBox.BackgroundProperty, new DynamicResourceExtension("DataGridBackgroundBrush")));
-            editingStyle.Setters.Add(new Setter(TextBox.ForegroundProperty, new DynamicResourceExtension("DataGridForegroundBrush")));
-            editingStyle.Setters.Add(new Setter(TextBox.CaretBrushProperty, new DynamicResourceExtension("DataGridForegroundBrush")));
-            editingStyle.Setters.Add(new Setter(TextBox.BorderThicknessProperty, new Thickness(0)));
-            editingStyle.Setters.Add(new Setter(TextBox.PaddingProperty, new Thickness(2, 0, 2, 0)));
+            // Use cached cell style or create and cache new one
+            if (!_cachedCellStyles.TryGetValue(i, out var cellStyle))
+            {
+                cellStyle = CreateVisualModeCellStyle(i);
+                _cachedCellStyles[i] = cellStyle;
+            }
 
             var column = new DataGridTextColumn
             {
@@ -291,7 +289,7 @@ public class DataGridManager
                     : new DataGridLength(100, DataGridLengthUnitType.Pixel),
                 MinWidth = 60,
                 CellStyle = cellStyle,
-                EditingElementStyle = editingStyle
+                EditingElementStyle = _cachedEditingStyle
             };
 
             grid.Columns.Add(column);
@@ -429,6 +427,20 @@ public class DataGridManager
             // Refresh selected cell content preview
             tab.RefreshSelectedCellContent();
         }), System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    /// <summary>
+    /// Creates editing style for TextBox (shared across all columns)
+    /// </summary>
+    private Style CreateEditingStyle()
+    {
+        var editingStyle = new Style(typeof(TextBox));
+        editingStyle.Setters.Add(new Setter(TextBox.BackgroundProperty, new DynamicResourceExtension("DataGridBackgroundBrush")));
+        editingStyle.Setters.Add(new Setter(TextBox.ForegroundProperty, new DynamicResourceExtension("DataGridForegroundBrush")));
+        editingStyle.Setters.Add(new Setter(TextBox.CaretBrushProperty, new DynamicResourceExtension("DataGridForegroundBrush")));
+        editingStyle.Setters.Add(new Setter(TextBox.BorderThicknessProperty, new Thickness(0)));
+        editingStyle.Setters.Add(new Setter(TextBox.PaddingProperty, new Thickness(2, 0, 2, 0)));
+        return editingStyle;
     }
 
     private Style CreateVisualModeCellStyle(int columnIndex)
@@ -1088,16 +1100,50 @@ public class DataGridManager
         }
     }
 
+    // Track previously selected cells to avoid full document iteration
+    private HashSet<(int row, int col)>? _previouslySelectedCells;
+
+    private void ClearPreviousSelection(TsvDocument document)
+    {
+        if (document == null || _previouslySelectedCells == null || _previouslySelectedCells.Count == 0)
+            return;
+
+        // Only clear cells that were previously selected
+        foreach (var (row, col) in _previouslySelectedCells)
+        {
+            if (row < document.RowCount && col < document.Rows[row].Cells.Count)
+            {
+                var cell = document.Rows[row].Cells[col];
+                if (cell.IsSelected)
+                {
+                    cell.IsSelected = false;
+                }
+            }
+        }
+        _previouslySelectedCells.Clear();
+    }
+
     private void ClearAllCellSelections(TsvDocument document)
     {
         if (document == null)
             return;
 
+        // If we have tracked cells, only clear those
+        if (_previouslySelectedCells != null && _previouslySelectedCells.Count > 0)
+        {
+            ClearPreviousSelection(document);
+            return;
+        }
+
+        // Fallback: clear all (only needed for initial state or after tab switch)
         foreach (var row in document.Rows)
         {
             foreach (var cell in row.Cells)
             {
-                cell.IsSelected = false;
+                if (cell.IsSelected)
+                {
+                    cell.IsSelected = false;
+                }
             }
         }
     }
@@ -1110,7 +1156,11 @@ public class DataGridManager
         var selection = tab.VimState.CurrentSelection;
         var document = tab.Document;
 
-        ClearAllCellSelections(document);
+        // Clear only previously selected cells
+        ClearPreviousSelection(document);
+
+        // Initialize tracking set
+        _previouslySelectedCells ??= new HashSet<(int, int)>();
 
         switch (selection.Type)
         {
@@ -1125,7 +1175,11 @@ public class DataGridManager
                     var rowObj = document.Rows[row];
                     for (int col = startCol; col <= endCol && col < rowObj.Cells.Count; col++)
                     {
-                        rowObj.Cells[col].IsSelected = true;
+                        if (!rowObj.Cells[col].IsSelected)
+                        {
+                            rowObj.Cells[col].IsSelected = true;
+                        }
+                        _previouslySelectedCells.Add((row, col));
                     }
                 }
                 break;
@@ -1137,9 +1191,13 @@ public class DataGridManager
                 for (int row = lineStartRow; row <= lineEndRow && row < document.RowCount; row++)
                 {
                     var rowObj = document.Rows[row];
-                    foreach (var cell in rowObj.Cells)
+                    for (int col = 0; col < rowObj.Cells.Count; col++)
                     {
-                        cell.IsSelected = true;
+                        if (!rowObj.Cells[col].IsSelected)
+                        {
+                            rowObj.Cells[col].IsSelected = true;
+                        }
+                        _previouslySelectedCells.Add((row, col));
                     }
                 }
                 break;
@@ -1148,11 +1206,16 @@ public class DataGridManager
                 int blockStartCol = Math.Min(selection.Start.Column, selection.End.Column);
                 int blockEndCol = Math.Max(selection.Start.Column, selection.End.Column);
 
-                foreach (var row in document.Rows)
+                for (int rowIdx = 0; rowIdx < document.RowCount; rowIdx++)
                 {
-                    for (int col = blockStartCol; col <= blockEndCol && col < row.Cells.Count; col++)
+                    var rowObj = document.Rows[rowIdx];
+                    for (int col = blockStartCol; col <= blockEndCol && col < rowObj.Cells.Count; col++)
                     {
-                        row.Cells[col].IsSelected = true;
+                        if (!rowObj.Cells[col].IsSelected)
+                        {
+                            rowObj.Cells[col].IsSelected = true;
+                        }
+                        _previouslySelectedCells.Add((rowIdx, col));
                     }
                 }
                 break;
@@ -1177,22 +1240,36 @@ public class DataGridManager
         if (dataGrid == null)
             return;
 
+        // Clear selection tracking when switching tabs
+        var oldTab = e.OldValue as TabItemViewModel;
+        if (oldTab != null)
+        {
+            ClearAllCellSelections(oldTab.Document);
+        }
+        _previouslySelectedCells?.Clear();
+
         var newTab = e.NewValue as TabItemViewModel;
 
         if (newTab != null)
         {
+            // Check if this is a new DataGrid or same DataGrid with different tab
+            bool isNewGrid = dataGrid.Tag as string != "Initialized";
+
             // Initialize DataGrid and setup VimState handlers
             InitializeDataGrid(dataGrid, newTab);
             SetupVimStateHandlers(dataGrid, newTab);
 
-            // Regenerate columns and auto-fit when switching to a new tab
-            // This ensures column widths are properly applied when opening files
-            GenerateColumns(dataGrid, newTab);
-
-            // Only auto-fit if column widths haven't been calculated yet
-            if (newTab.ColumnWidths.Count == 0)
+            // Only regenerate columns if this is not the first initialization
+            // (InitializeDataGrid already handles the first time)
+            if (!isNewGrid)
             {
-                AutoFitAllColumns(dataGrid, newTab);
+                GenerateColumns(dataGrid, newTab);
+
+                // Only auto-fit if column widths haven't been calculated yet
+                if (newTab.ColumnWidths.Count == 0)
+                {
+                    AutoFitAllColumns(dataGrid, newTab);
+                }
             }
 
             // Update DataGrid selection to sync with VimState cursor position

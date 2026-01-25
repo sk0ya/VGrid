@@ -130,6 +130,10 @@ public class MainViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedTab, value))
             {
+                // Clear search highlight tracking when switching tabs
+                _previousSearchHighlights?.Clear();
+                _previousCurrentMatchIndex = -1;
+
                 UpdateStatusBarForTab(value);
             }
         }
@@ -200,11 +204,8 @@ public class MainViewModel : ViewModelBase
             {
                 ThemeService.Instance.CurrentTheme = value == "Dark" ? ThemeType.Dark : ThemeType.Light;
 
-                // Refresh DataGrid header bindings for all tabs
-                foreach (var tab in Tabs)
-                {
-                    tab.VimState.RefreshCursorPositionBinding();
-                }
+                // Only refresh the active tab - other tabs will refresh when selected
+                SelectedTab?.VimState.RefreshCursorPositionBinding();
             }
         }
     }
@@ -982,22 +983,58 @@ public class MainViewModel : ViewModelBase
         StatusBarViewModel.UpdateMode(vimState.CurrentMode, modeText);
     }
 
-    private void ClearSearchHighlighting(TsvDocument document)
+    // Track previously highlighted cells to avoid full document iteration
+    private List<GridPosition>? _previousSearchHighlights;
+    private int _previousCurrentMatchIndex = -1;
+
+    private void ClearSearchHighlighting(TsvDocument document, IReadOnlyList<GridPosition>? previousResults = null)
     {
+        // If we have previous results, only clear those cells
+        if (previousResults != null && previousResults.Count > 0)
+        {
+            foreach (var pos in previousResults)
+            {
+                if (pos.Row < document.Rows.Count && pos.Column < document.Rows[pos.Row].Cells.Count)
+                {
+                    var cell = document.Rows[pos.Row].Cells[pos.Column];
+                    if (cell.IsSearchMatch)
+                    {
+                        cell.IsSearchMatch = false;
+                    }
+                    if (cell.IsCurrentSearchMatch)
+                    {
+                        cell.IsCurrentSearchMatch = false;
+                    }
+                }
+            }
+            return;
+        }
+
+        // Fallback: clear all (only needed for initial state)
         foreach (var row in document.Rows)
         {
             foreach (var cell in row.Cells)
             {
-                cell.IsSearchMatch = false;
-                cell.IsCurrentSearchMatch = false;
+                if (cell.IsSearchMatch)
+                {
+                    cell.IsSearchMatch = false;
+                }
+                if (cell.IsCurrentSearchMatch)
+                {
+                    cell.IsCurrentSearchMatch = false;
+                }
             }
         }
     }
 
     private void UpdateSearchHighlighting(TabItemViewModel tab)
     {
-        // Clear all previous highlighting
-        ClearSearchHighlighting(tab.Document);
+        // Clear only previously highlighted cells
+        ClearSearchHighlighting(tab.Document, _previousSearchHighlights);
+
+        // Track current results for next clear
+        _previousSearchHighlights = tab.VimState.SearchResults.ToList();
+        _previousCurrentMatchIndex = tab.VimState.CurrentMatchIndex;
 
         // Highlight all matches
         for (int i = 0; i < tab.VimState.SearchResults.Count; i++)
@@ -1007,12 +1044,18 @@ public class MainViewModel : ViewModelBase
                 matchPos.Column < tab.Document.Rows[matchPos.Row].Cells.Count)
             {
                 var cell = tab.Document.Rows[matchPos.Row].Cells[matchPos.Column];
-                cell.IsSearchMatch = true;
+                if (!cell.IsSearchMatch)
+                {
+                    cell.IsSearchMatch = true;
+                }
 
                 // Mark current match with distinct highlight
                 if (i == tab.VimState.CurrentMatchIndex)
                 {
-                    cell.IsCurrentSearchMatch = true;
+                    if (!cell.IsCurrentSearchMatch)
+                    {
+                        cell.IsCurrentSearchMatch = true;
+                    }
                 }
             }
         }

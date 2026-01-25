@@ -13,6 +13,7 @@ public class TsvDocument : INotifyPropertyChanged
 {
     private string? _filePath;
     private bool _isDirty;
+    private int _cachedColumnCount = -1; // -1 indicates cache is invalid
 
     /// <summary>
     /// The rows in this document
@@ -58,14 +59,26 @@ public class TsvDocument : INotifyPropertyChanged
 
     /// <summary>
     /// The number of columns (maximum column count across all rows)
+    /// Cached for performance - O(n) calculation only when cache is invalidated
     /// </summary>
     public int ColumnCount
     {
         get
         {
-            if (Rows.Count == 0) return 0;
-            return Rows.Max(r => r.CellCount);
+            if (_cachedColumnCount < 0)
+            {
+                _cachedColumnCount = Rows.Count == 0 ? 0 : Rows.Max(r => r.CellCount);
+            }
+            return _cachedColumnCount;
         }
+    }
+
+    /// <summary>
+    /// Invalidates the column count cache, forcing recalculation on next access
+    /// </summary>
+    private void InvalidateColumnCountCache()
+    {
+        _cachedColumnCount = -1;
     }
 
     public TsvDocument()
@@ -194,6 +207,7 @@ public class TsvDocument : INotifyPropertyChanged
                 row.InsertCell(index);
             }
 
+            InvalidateColumnCountCache();
             IsDirty = true;
             OnPropertyChanged(nameof(ColumnCount));
         }
@@ -211,6 +225,7 @@ public class TsvDocument : INotifyPropertyChanged
                 row.RemoveCell(index);
             }
 
+            InvalidateColumnCountCache();
             IsDirty = true;
             OnPropertyChanged(nameof(ColumnCount));
         }
@@ -243,6 +258,7 @@ public class TsvDocument : INotifyPropertyChanged
     /// </summary>
     public void NormalizeColumnCount()
     {
+        InvalidateColumnCountCache();
         var maxColumns = ColumnCount;
         foreach (var row in Rows)
         {
@@ -251,16 +267,16 @@ public class TsvDocument : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Creates a new empty document with initial dimensions (100 rows x 50 columns)
-    /// Optimized for performance - creates smaller initial grid that grows as needed
+    /// Creates a new empty document with minimal initial dimensions
+    /// The grid will expand as needed when user navigates or types
     /// </summary>
     public static TsvDocument CreateEmpty()
     {
         var doc = new TsvDocument();
-        // Create 100 empty rows with 50 columns - optimized for tab switching performance
-        for (int i = 0; i < 100; i++)
+        // Start with 40 rows, 20 columns - balanced for usability and performance
+        for (int i = 0; i < 40; i++)
         {
-            doc.Rows.Add(new Row(i, 50));
+            doc.Rows.Add(new Row(i, 20));
         }
         return doc;
     }
@@ -270,6 +286,8 @@ public class TsvDocument : INotifyPropertyChanged
     /// </summary>
     public void EnsureSize(int minRows, int minColumns)
     {
+        InvalidateColumnCountCache();
+
         // Ensure minimum columns for all existing rows
         foreach (var row in Rows)
         {
@@ -373,6 +391,9 @@ public class TsvDocument : INotifyPropertyChanged
     /// </summary>
     private void Rows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // Invalidate column count cache when rows change
+        InvalidateColumnCountCache();
+
         // Subscribe to newly added rows
         if (e.NewItems != null)
         {
@@ -388,6 +409,9 @@ public class TsvDocument : INotifyPropertyChanged
     /// </summary>
     private void Cells_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // Invalidate column count cache when cells change
+        InvalidateColumnCountCache();
+
         // Subscribe to newly added cells
         if (e.NewItems != null)
         {

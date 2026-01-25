@@ -87,7 +87,7 @@
             <Setter Property="Background">
                 <Setter.Value>
                     <MultiBinding Converter="{StaticResource RowIndexToBrushConverter}">
-                        <Binding RelativeSource="{RelativeSource AncestorType=DataGridRow}" Path="AlternationIndex"/>
+                        <Binding RelativeSource="{RelativeSource AncestorType=DataGridRow}" Path="Item.Index"/>
                         <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.VimState.CursorPosition.Row"/>
                     </MultiBinding>
                 </Setter.Value>
@@ -969,7 +969,7 @@
                             <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="0" Margin="0">
                                 <DataGrid x:Name="TsvGrid"
                                           ItemsSource="{Binding GridViewModel.Rows}"
-                                          AlternationCount="999999"
+                                          AlternationCount="2"
                                           AutoGenerateColumns="False"
                                           CanUserAddRows="False"
                                           CanUserDeleteRows="False"

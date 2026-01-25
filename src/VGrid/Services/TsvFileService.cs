@@ -39,8 +39,11 @@ public class TsvFileService : ITsvFileService
             IsDirty = false
         };
 
-        // Performance optimization: Start with 200 rows for loaded files (balance between performance and usability)
-        document.EnsureSize(200, 50);
+        // Only ensure minimal extra space beyond actual data
+        // Grid expands on demand when user navigates beyond current bounds
+        int minRows = Math.Max(document.RowCount + 5, 20);
+        int minCols = Math.Max(document.ColumnCount + 3, 15);
+        document.EnsureSize(minRows, minCols);
 
         return document;
     }

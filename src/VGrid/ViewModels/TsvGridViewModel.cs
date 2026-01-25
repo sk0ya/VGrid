@@ -92,7 +92,7 @@ public class TsvGridViewModel : ViewModelBase
     {
         var command = new EditCellCommand(_document, position, value);
         _commandHistory.Execute(command);
-        OnPropertyChanged(nameof(Document));
+        // Note: Cell.PropertyChanged already notifies the UI via data binding
     }
 
     /// <summary>
@@ -102,7 +102,7 @@ public class TsvGridViewModel : ViewModelBase
     {
         var command = new InsertRowCommand(_document, rowIndex);
         _commandHistory.Execute(command);
-        OnPropertyChanged(nameof(Rows));
+        // Note: ObservableCollection already notifies the UI via CollectionChanged
         OnPropertyChanged(nameof(RowCount));
     }
 
@@ -113,7 +113,7 @@ public class TsvGridViewModel : ViewModelBase
     {
         var command = new InsertColumnCommand(_document, columnIndex);
         _commandHistory.Execute(command);
-        OnPropertyChanged(nameof(Rows));
+        // Note: Cell changes are notified via ObservableCollection
         OnPropertyChanged(nameof(ColumnCount));
     }
 
@@ -124,7 +124,7 @@ public class TsvGridViewModel : ViewModelBase
     {
         var command = new DeleteRowCommand(_document, rowIndex);
         _commandHistory.Execute(command);
-        OnPropertyChanged(nameof(Rows));
+        // Note: ObservableCollection already notifies the UI via CollectionChanged
         OnPropertyChanged(nameof(RowCount));
     }
 
@@ -135,7 +135,7 @@ public class TsvGridViewModel : ViewModelBase
     {
         var command = new DeleteColumnCommand(_document, columnIndex);
         _commandHistory.Execute(command);
-        OnPropertyChanged(nameof(Rows));
+        // Note: Cell changes are notified via ObservableCollection
         OnPropertyChanged(nameof(ColumnCount));
     }
 
@@ -146,7 +146,7 @@ public class TsvGridViewModel : ViewModelBase
     {
         var command = new SortCommand(_document, columnIndex, ascending);
         _commandHistory.Execute(command);
-        OnPropertyChanged(nameof(Rows));
+        // Note: ObservableCollection already notifies the UI via CollectionChanged
     }
 
     /// <summary>

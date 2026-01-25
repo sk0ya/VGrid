@@ -1,12 +1,16 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace VGrid.Models;
 
 /// <summary>
 /// Represents a single row in the TSV grid
 /// </summary>
-public class Row
+public class Row : INotifyPropertyChanged
 {
+    private int _index;
+
     /// <summary>
     /// The cells in this row
     /// </summary>
@@ -15,7 +19,18 @@ public class Row
     /// <summary>
     /// The index of this row in the document
     /// </summary>
-    public int Index { get; set; }
+    public int Index
+    {
+        get => _index;
+        set
+        {
+            if (_index != value)
+            {
+                _index = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     /// <summary>
     /// The number of cells in this row
@@ -24,7 +39,7 @@ public class Row
 
     public Row(int index, int columnCount = 0)
     {
-        Index = index;
+        _index = index;
         Cells = new ObservableCollection<Cell>();
 
         // Initialize with empty cells
@@ -36,7 +51,7 @@ public class Row
 
     public Row(int index, IEnumerable<string> values)
     {
-        Index = index;
+        _index = index;
         Cells = new ObservableCollection<Cell>(
             values.Select(v => new Cell { Value = v })
         );
@@ -85,5 +100,12 @@ public class Row
         {
             Cells.Add(new Cell());
         }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

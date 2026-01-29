@@ -732,16 +732,28 @@ public class TemplateService : ITemplateService
         foreach (var template in set.Templates)
         {
             if (string.IsNullOrEmpty(template.OutputName))
-                continue;
-
-            var matches = regex.Matches(template.OutputName);
-            foreach (Match match in matches)
             {
-                if (int.TryParse(match.Groups[1].Value, out int index))
+                var matches = regex.Matches(template.File);
+                foreach (Match match in matches)
                 {
-                    maxPlaceholder = Math.Max(maxPlaceholder, index);
+                    if (int.TryParse(match.Groups[1].Value, out int index))
+                    {
+                        maxPlaceholder = Math.Max(maxPlaceholder, index);
+                    }
                 }
             }
+            else
+            {
+                var matches = regex.Matches(template.OutputName);
+                foreach (Match match in matches)
+                {
+                    if (int.TryParse(match.Groups[1].Value, out int index))
+                    {
+                        maxPlaceholder = Math.Max(maxPlaceholder, index);
+                    }
+                }
+            }
+
         }
 
         return maxPlaceholder + 1; // 0-indexed なので +1

@@ -85,7 +85,11 @@ public partial class DiffViewerWindow : Window
 
     private void LeftRows_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        if (_viewModel.LeftRows.Count > 0 && LeftDataGrid.Columns.Count == 0)
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+        {
+            LeftDataGrid.Columns.Clear();
+        }
+        else if (_viewModel.LeftRows.Count > 0 && LeftDataGrid.Columns.Count == 0)
         {
             GenerateHorizontalDataGridColumns(LeftDataGrid);
         }
@@ -93,7 +97,11 @@ public partial class DiffViewerWindow : Window
 
     private void RightRows_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        if (_viewModel.RightRows.Count > 0 && RightDataGrid.Columns.Count == 0)
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+        {
+            RightDataGrid.Columns.Clear();
+        }
+        else if (_viewModel.RightRows.Count > 0 && RightDataGrid.Columns.Count == 0)
         {
             GenerateHorizontalDataGridColumns(RightDataGrid);
         }

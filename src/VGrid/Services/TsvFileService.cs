@@ -5,14 +5,12 @@ using VGrid.Models;
 namespace VGrid.Services;
 
 /// <summary>
-/// Service for loading and saving TSV (Tab-Separated Values) files
+/// Service for loading and saving delimited text files (TSV, CSV, etc.)
 /// </summary>
 public class TsvFileService : ITsvFileService
 {
-    private const char TabDelimiter = '\t';
-
     /// <summary>
-    /// Loads a TSV document from the specified file path
+    /// Loads a document from the specified file path
     /// </summary>
     public async Task<TsvDocument> LoadAsync(string filePath)
     {
@@ -21,22 +19,24 @@ public class TsvFileService : ITsvFileService
             throw new FileNotFoundException($"File not found: {filePath}");
         }
 
-        var rows = new List<Row>();
-        var lines = await File.ReadAllLinesAsync(filePath, Encoding.UTF8);
+        var format = DelimiterStrategyFactory.DetectFromExtension(filePath);
+        var strategy = DelimiterStrategyFactory.Create(format);
 
-        for (int i = 0; i < lines.Length; i++)
+        var rows = new List<Row>();
+        var content = await File.ReadAllTextAsync(filePath, Encoding.UTF8);
+        var parsedRows = strategy.ParseContent(content);
+
+        for (int i = 0; i < parsedRows.Count; i++)
         {
-            var line = lines[i];
-            // Split by tab delimiter
-            var values = line.Split(TabDelimiter);
-            rows.Add(new Row(i, values));
+            rows.Add(new Row(i, parsedRows[i]));
         }
 
         // Create document
         var document = new TsvDocument(rows)
         {
             FilePath = filePath,
-            IsDirty = false
+            IsDirty = false,
+            DelimiterFormat = format
         };
 
         // Only ensure minimal extra space beyond actual data
@@ -49,10 +49,11 @@ public class TsvFileService : ITsvFileService
     }
 
     /// <summary>
-    /// Saves the TSV document to the specified file path
+    /// Saves the document to the specified file path
     /// </summary>
     public async Task SaveAsync(TsvDocument document, string filePath)
     {
+        var strategy = DelimiterStrategyFactory.Create(document.DelimiterFormat);
         var lines = new List<string>();
 
         // Find the last non-empty row
@@ -86,7 +87,7 @@ public class TsvFileService : ITsvFileService
             if (lastNonEmptyCol >= 0)
             {
                 var cellValues = row.Cells.Take(lastNonEmptyCol + 1).Select(c => c.Value ?? string.Empty);
-                var line = string.Join(TabDelimiter.ToString(), cellValues);
+                var line = strategy.FormatLine(cellValues);
                 lines.Add(line);
             }
             else
@@ -105,7 +106,7 @@ public class TsvFileService : ITsvFileService
     }
 
     /// <summary>
-    /// Validates whether the file at the specified path is a valid TSV file
+    /// Validates whether the file at the specified path is a valid delimited text file
     /// </summary>
     public bool ValidateTsv(string filePath)
     {
@@ -118,7 +119,7 @@ public class TsvFileService : ITsvFileService
         {
             // Check file extension
             var extension = Path.GetExtension(filePath).ToLowerInvariant();
-            if (extension != ".tsv" && extension != ".txt" && extension != ".tab")
+            if (extension != ".tsv" && extension != ".txt" && extension != ".tab" && extension != ".csv")
             {
                 return false;
             }

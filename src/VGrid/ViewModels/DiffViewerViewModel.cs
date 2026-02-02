@@ -151,6 +151,7 @@ public class DiffViewerViewModel : ViewModelBase
         {
             fileToSelect = ChangedFiles.FirstOrDefault(f =>
                 f.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase) ||
+                f.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ||
                 f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
                 f.EndsWith(".tab", StringComparison.OrdinalIgnoreCase));
         }
@@ -187,12 +188,14 @@ public class DiffViewerViewModel : ViewModelBase
             rightContent = await _gitService.GetFileAtCommitAsync(_repoRoot, relativeFilePath, _commit2Hash);
         }
 
-        ComputeAndDisplayDiff(leftContent, rightContent);
+        ComputeAndDisplayDiff(leftContent, rightContent, relativeFilePath);
     }
 
-    private void ComputeAndDisplayDiff(string leftContent, string rightContent)
+    private void ComputeAndDisplayDiff(string leftContent, string rightContent, string filePath = "")
     {
-        // Parse TSV content - keep empty lines
+        var strategy = DelimiterStrategyFactory.Create(DelimiterStrategyFactory.DetectFromExtension(filePath));
+
+        // Parse content - keep empty lines for line-level diff
         var leftLines = leftContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
         var rightLines = rightContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
 
@@ -205,16 +208,18 @@ public class DiffViewerViewModel : ViewModelBase
         // Compute line-level diff using proper algorithm
         var diffLines = DiffAlgorithm.ComputeDiff(leftLines, rightLines);
 
-        // Calculate maximum number of columns needed
+        // Calculate maximum number of columns needed (skip empty lines)
         int maxCols = 1;
         foreach (var line in leftLines)
         {
-            var cells = line.Split('\t');
+            if (string.IsNullOrEmpty(line)) continue;
+            var cells = strategy.ParseLine(line);
             maxCols = Math.Max(maxCols, cells.Length);
         }
         foreach (var line in rightLines)
         {
-            var cells = line.Split('\t');
+            if (string.IsNullOrEmpty(line)) continue;
+            var cells = strategy.ParseLine(line);
             maxCols = Math.Max(maxCols, cells.Length);
         }
 
@@ -230,20 +235,20 @@ public class DiffViewerViewModel : ViewModelBase
             {
                 case DiffOperationType.Unchanged:
                     // Both sides show the same content
-                    leftRow = CreateDiffRow(diffLine.LeftLineNumber, diffLine.LeftContent!, maxCols, DiffStatus.Unchanged);
-                    rightRow = CreateDiffRow(diffLine.RightLineNumber, diffLine.RightContent!, maxCols, DiffStatus.Unchanged);
+                    leftRow = CreateDiffRow(diffLine.LeftLineNumber, diffLine.LeftContent!, maxCols, DiffStatus.Unchanged, strategy);
+                    rightRow = CreateDiffRow(diffLine.RightLineNumber, diffLine.RightContent!, maxCols, DiffStatus.Unchanged, strategy);
                     break;
 
                 case DiffOperationType.Deleted:
                     // Left side shows deleted line, right side is empty
-                    leftRow = CreateDiffRow(diffLine.LeftLineNumber, diffLine.LeftContent!, maxCols, DiffStatus.Deleted);
-                    rightRow = CreateDiffRow(null, string.Empty, maxCols, DiffStatus.Deleted);
+                    leftRow = CreateDiffRow(diffLine.LeftLineNumber, diffLine.LeftContent!, maxCols, DiffStatus.Deleted, strategy);
+                    rightRow = CreateDiffRow(null, string.Empty, maxCols, DiffStatus.Deleted, strategy);
                     break;
 
                 case DiffOperationType.Added:
                     // Right side shows added line, left side is empty
-                    leftRow = CreateDiffRow(null, string.Empty, maxCols, DiffStatus.Added);
-                    rightRow = CreateDiffRow(diffLine.RightLineNumber, diffLine.RightContent!, maxCols, DiffStatus.Added);
+                    leftRow = CreateDiffRow(null, string.Empty, maxCols, DiffStatus.Added, strategy);
+                    rightRow = CreateDiffRow(diffLine.RightLineNumber, diffLine.RightContent!, maxCols, DiffStatus.Added, strategy);
                     break;
 
                 case DiffOperationType.Modified:
@@ -251,8 +256,8 @@ public class DiffViewerViewModel : ViewModelBase
                     leftRow = new DiffRow(diffLine.LeftLineNumber, diffLine.RightLineNumber, maxCols, DiffStatus.Modified);
                     rightRow = new DiffRow(diffLine.LeftLineNumber, diffLine.RightLineNumber, maxCols, DiffStatus.Modified);
 
-                    var leftCells = diffLine.LeftContent!.Split('\t');
-                    var rightCells = diffLine.RightContent!.Split('\t');
+                    var leftCells = strategy.ParseLine(diffLine.LeftContent!);
+                    var rightCells = strategy.ParseLine(diffLine.RightContent!);
 
                     // Compare cells individually
                     for (int j = 0; j < maxCols; j++)
@@ -287,12 +292,12 @@ public class DiffViewerViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Creates a DiffRow from a line of TSV content
+    /// Creates a DiffRow from a line of delimited content
     /// </summary>
-    private DiffRow CreateDiffRow(int? lineNumber, string content, int columnCount, DiffStatus status)
+    private DiffRow CreateDiffRow(int? lineNumber, string content, int columnCount, DiffStatus status, IDelimiterStrategy strategy)
     {
         var row = new DiffRow(lineNumber, lineNumber, columnCount, status);
-        var cells = content.Split('\t');
+        var cells = strategy.ParseLine(content);
 
         for (int i = 0; i < columnCount; i++)
         {

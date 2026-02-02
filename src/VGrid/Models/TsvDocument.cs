@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using VGrid.Services;
 
 namespace VGrid.Models;
 
@@ -14,6 +15,7 @@ public class TsvDocument : INotifyPropertyChanged
     private string? _filePath;
     private bool _isDirty;
     private int _cachedColumnCount = -1; // -1 indicates cache is invalid
+    private DelimiterFormat _delimiterFormat = DelimiterFormat.Tsv;
 
     /// <summary>
     /// The rows in this document
@@ -31,6 +33,22 @@ public class TsvDocument : INotifyPropertyChanged
             if (_filePath != value)
             {
                 _filePath = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The delimiter format used for this document's file I/O
+    /// </summary>
+    public DelimiterFormat DelimiterFormat
+    {
+        get => _delimiterFormat;
+        set
+        {
+            if (_delimiterFormat != value)
+            {
+                _delimiterFormat = value;
                 OnPropertyChanged();
             }
         }

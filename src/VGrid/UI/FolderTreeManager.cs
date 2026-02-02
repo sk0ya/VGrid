@@ -62,7 +62,12 @@ public class FolderTreeManager
             var rootContextMenu = new ContextMenu();
 
             var newFileMenuItem = new MenuItem { Header = "新しいファイル(_F)" };
-            newFileMenuItem.Click += NewFileMenuItem_Click;
+            var newTsvFileMenuItem = new MenuItem { Header = "TSVファイル(_T)" };
+            newTsvFileMenuItem.Click += NewTsvFileMenuItem_Click;
+            newFileMenuItem.Items.Add(newTsvFileMenuItem);
+            var newCsvFileMenuItem = new MenuItem { Header = "CSVファイル(_C)" };
+            newCsvFileMenuItem.Click += NewCsvFileMenuItem_Click;
+            newFileMenuItem.Items.Add(newCsvFileMenuItem);
             rootContextMenu.Items.Add(newFileMenuItem);
 
             AddTemplateMenuItems(rootContextMenu, rootItem, _viewModel.SelectedFolderPath);
@@ -146,7 +151,12 @@ public class FolderTreeManager
                 var contextMenu = new ContextMenu();
 
                 var newFileMenuItem = new MenuItem { Header = "新しいファイル(_F)" };
-                newFileMenuItem.Click += NewFileMenuItem_Click;
+                var newTsvFileMenuItem = new MenuItem { Header = "TSVファイル(_T)" };
+                newTsvFileMenuItem.Click += NewTsvFileMenuItem_Click;
+                newFileMenuItem.Items.Add(newTsvFileMenuItem);
+                var newCsvFileMenuItem = new MenuItem { Header = "CSVファイル(_C)" };
+                newCsvFileMenuItem.Click += NewCsvFileMenuItem_Click;
+                newFileMenuItem.Items.Add(newCsvFileMenuItem);
                 contextMenu.Items.Add(newFileMenuItem);
 
                 AddTemplateMenuItems(contextMenu, dirItem, dir);
@@ -176,8 +186,9 @@ public class FolderTreeManager
                 node.Items.Add(dirItem);
             }
 
-            // Add files (only TSV-related)
+            // Add files (only TSV/CSV-related)
             var files = Directory.GetFiles(path, "*.tsv")
+                .Concat(Directory.GetFiles(path, "*.csv"))
                 .Concat(Directory.GetFiles(path, "*.txt"))
                 .Concat(Directory.GetFiles(path, "*.tab"));
 
@@ -241,6 +252,7 @@ public class FolderTreeManager
         {
             // Check files in current directory
             var files = Directory.GetFiles(path, "*.tsv")
+                .Concat(Directory.GetFiles(path, "*.csv"))
                 .Concat(Directory.GetFiles(path, "*.txt"))
                 .Concat(Directory.GetFiles(path, "*.tab"));
 
@@ -354,7 +366,7 @@ public class FolderTreeManager
         {
             // Determine file icon based on extension
             var ext = Path.GetExtension(text).ToLower();
-            if (ext == ".tsv" || ext == ".tab")
+            if (ext == ".tsv" || ext == ".csv" || ext == ".tab")
             {
                 icon.Text = "📊"; // Chart icon for TSV files
                 icon.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Green
@@ -479,17 +491,46 @@ public class FolderTreeManager
         }
     }
 
-    private void NewFileMenuItem_Click(object sender, RoutedEventArgs e)
+    private TreeViewItem? GetTreeViewItemFromSubMenuItem(MenuItem menuItem)
     {
-        // Get the TreeViewItem from the MenuItem's parent ContextMenu
-        if (sender is MenuItem menuItem &&
-            menuItem.Parent is ContextMenu contextMenu &&
+        // Sub-menu item: MenuItem -> parent MenuItem -> ContextMenu -> TreeViewItem
+        if (menuItem.Parent is MenuItem parentMenuItem &&
+            parentMenuItem.Parent is ContextMenu contextMenu &&
             contextMenu.PlacementTarget is TreeViewItem item)
         {
-            var folderPath = item.Tag as string;
-            if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+            return item;
+        }
+        return null;
+    }
+
+    private void NewTsvFileMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem menuItem)
+        {
+            var item = GetTreeViewItemFromSubMenuItem(menuItem);
+            if (item != null)
             {
-                CreateNewFile(item, folderPath);
+                var folderPath = item.Tag as string;
+                if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+                {
+                    CreateNewFile(item, folderPath, ".tsv");
+                }
+            }
+        }
+    }
+
+    private void NewCsvFileMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem menuItem)
+        {
+            var item = GetTreeViewItemFromSubMenuItem(menuItem);
+            if (item != null)
+            {
+                var folderPath = item.Tag as string;
+                if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+                {
+                    CreateNewFile(item, folderPath, ".csv");
+                }
             }
         }
     }
@@ -800,6 +841,21 @@ public class FolderTreeManager
                 return;
             }
 
+            // If extension changed, convert file content to new delimiter format
+            var oldExt = Path.GetExtension(oldFilePath).ToLowerInvariant();
+            var newExt = Path.GetExtension(newFilePath).ToLowerInvariant();
+            if (oldExt != newExt && File.Exists(oldFilePath))
+            {
+                var oldStrategy = DelimiterStrategyFactory.Create(
+                    DelimiterStrategyFactory.DetectFromExtension(oldFilePath));
+                var newStrategy = DelimiterStrategyFactory.Create(
+                    DelimiterStrategyFactory.DetectFromExtension(newFilePath));
+                var content = File.ReadAllText(oldFilePath);
+                var rows = oldStrategy.ParseContent(content);
+                var lines = rows.Select(r => newStrategy.FormatLine(r));
+                File.WriteAllLines(oldFilePath, lines);
+            }
+
             // Rename the file
             File.Move(oldFilePath, newFilePath);
 
@@ -892,6 +948,7 @@ public class FolderTreeManager
             if (tab.FilePath == oldFilePath)
             {
                 tab.FilePath = newFilePath;
+                tab.Document.DelimiterFormat = DelimiterStrategyFactory.DetectFromExtension(newFilePath);
                 var newFileName = Path.GetFileName(newFilePath);
                 tab.Header = tab.IsDirty ? $"{newFileName}*" : newFileName;
             }
@@ -912,18 +969,18 @@ public class FolderTreeManager
         }
     }
 
-    private void CreateNewFile(TreeViewItem parentItem, string folderPath)
+    private void CreateNewFile(TreeViewItem parentItem, string folderPath, string extension = ".tsv")
     {
         try
         {
             // Generate a unique file name
-            string newFileName = "NewFile.tsv";
+            string newFileName = $"NewFile{extension}";
             string newFilePath = Path.Combine(folderPath, newFileName);
             int counter = 1;
 
             while (File.Exists(newFilePath))
             {
-                newFileName = $"NewFile{counter}.tsv";
+                newFileName = $"NewFile{counter}{extension}";
                 newFilePath = Path.Combine(folderPath, newFileName);
                 counter++;
             }
@@ -1089,14 +1146,24 @@ public class FolderTreeManager
             var contextMenu = new ContextMenu();
 
             var newFileMenuItem = new MenuItem { Header = "新しいファイル(_F)" };
-            newFileMenuItem.Click += (s, args) =>
+            var newTsvFileMenuItem = new MenuItem { Header = "TSVファイル(_T)" };
+            newTsvFileMenuItem.Click += (s, args) =>
             {
-                // Create file in root folder
                 if (_treeView.Items.Count > 0 && _treeView.Items[0] is TreeViewItem rootItem)
                 {
-                    CreateNewFile(rootItem, _viewModel.SelectedFolderPath);
+                    CreateNewFile(rootItem, _viewModel.SelectedFolderPath, ".tsv");
                 }
             };
+            newFileMenuItem.Items.Add(newTsvFileMenuItem);
+            var newCsvFileMenuItem = new MenuItem { Header = "CSVファイル(_C)" };
+            newCsvFileMenuItem.Click += (s, args) =>
+            {
+                if (_treeView.Items.Count > 0 && _treeView.Items[0] is TreeViewItem rootItem)
+                {
+                    CreateNewFile(rootItem, _viewModel.SelectedFolderPath, ".csv");
+                }
+            };
+            newFileMenuItem.Items.Add(newCsvFileMenuItem);
             contextMenu.Items.Add(newFileMenuItem);
 
             if (_treeView.Items.Count > 0 && _treeView.Items[0] is TreeViewItem rootItemForTemplate)

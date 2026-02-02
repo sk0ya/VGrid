@@ -422,8 +422,8 @@ public class MainViewModel : ViewModelBase
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Filter = "TSV Files (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|Tab-separated Files (*.tab)|*.tab|All Files (*.*)|*.*",
-            Title = "Open TSV File",
+            Filter = "TSV Files (*.tsv)|*.tsv|CSV Files (*.csv)|*.csv|Text Files (*.txt)|*.txt|Tab-separated Files (*.tab)|*.tab|All Files (*.*)|*.*",
+            Title = "Open File",
             Multiselect = true
         };
 
@@ -631,6 +631,9 @@ public class MainViewModel : ViewModelBase
 
         try
         {
+            // Sync delimiter format from current file extension
+            SelectedTab.Document.DelimiterFormat = DelimiterStrategyFactory.DetectFromExtension(SelectedTab.FilePath);
+
             await _fileService.SaveAsync(SelectedTab.Document, SelectedTab.FilePath);
 
             // Check if this is a template file
@@ -657,8 +660,8 @@ public class MainViewModel : ViewModelBase
 
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
-            Filter = "TSV Files (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|Tab-separated Files (*.tab)|*.tab|All Files (*.*)|*.*",
-            Title = "Save TSV File",
+            Filter = "TSV Files (*.tsv)|*.tsv|CSV Files (*.csv)|*.csv|Text Files (*.txt)|*.txt|Tab-separated Files (*.tab)|*.tab|All Files (*.*)|*.*",
+            Title = "Save File",
             DefaultExt = ".tsv",
             FileName = Path.GetFileName(SelectedTab.FilePath)
         };
@@ -667,6 +670,10 @@ public class MainViewModel : ViewModelBase
         {
             try
             {
+                // Update delimiter format based on chosen file extension
+                var newFormat = DelimiterStrategyFactory.DetectFromExtension(dialog.FileName);
+                SelectedTab.Document.DelimiterFormat = newFormat;
+
                 await _fileService.SaveAsync(SelectedTab.Document, dialog.FileName);
                 SelectedTab.FilePath = dialog.FileName;
                 SelectedTab.Header = Path.GetFileName(dialog.FileName);

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -178,7 +179,12 @@ public class TemplateTreeManager
         var contextMenu = new ContextMenu();
 
         var newTemplateMenuItem = new MenuItem { Header = "新規テンプレート(_T)" };
-        newTemplateMenuItem.Click += NewTemplateInFolderMenuItem_Click;
+        var newTsvTemplateMenuItem = new MenuItem { Header = "TSVテンプレート(_T)" };
+        newTsvTemplateMenuItem.Click += NewTsvTemplateInFolderMenuItem_Click;
+        newTemplateMenuItem.Items.Add(newTsvTemplateMenuItem);
+        var newCsvTemplateMenuItem = new MenuItem { Header = "CSVテンプレート(_C)" };
+        newCsvTemplateMenuItem.Click += NewCsvTemplateInFolderMenuItem_Click;
+        newTemplateMenuItem.Items.Add(newCsvTemplateMenuItem);
         contextMenu.Items.Add(newTemplateMenuItem);
 
         var newTemplateSetMenuItem = new MenuItem { Header = "新規テンプレートセット(_S)" };
@@ -415,11 +421,29 @@ public class TemplateTreeManager
     }
 
     // Folder menu item handlers
-    private void NewTemplateInFolderMenuItem_Click(object sender, RoutedEventArgs e)
+    private TreeViewItem? GetTreeViewItemFromSubMenuItem(object sender)
     {
-        if (GetContextItem(sender) is { } item && item.Tag is string folderPath)
+        if (sender is MenuItem menuItem &&
+            menuItem.Parent is MenuItem parentMenuItem)
         {
-            CreateNewTemplateInFolder(item, folderPath);
+            return GetContextItem(parentMenuItem);
+        }
+        return null;
+    }
+
+    private void NewTsvTemplateInFolderMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetTreeViewItemFromSubMenuItem(sender) is { } item && item.Tag is string folderPath)
+        {
+            CreateNewTemplateInFolder(item, folderPath, ".tsv");
+        }
+    }
+
+    private void NewCsvTemplateInFolderMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetTreeViewItemFromSubMenuItem(sender) is { } item && item.Tag is string folderPath)
+        {
+            CreateNewTemplateInFolder(item, folderPath, ".csv");
         }
     }
 
@@ -654,7 +678,8 @@ public class TemplateTreeManager
     {
         try
         {
-            if (!newFileName.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase))
+            if (!newFileName.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase) &&
+                !newFileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             {
                 newFileName = newFileName + ".tsv";
             }
@@ -671,6 +696,21 @@ public class TemplateTreeManager
                 return;
             }
 
+            // If extension changed, convert file content to new delimiter format
+            var oldExt = Path.GetExtension(template.FullPath).ToLowerInvariant();
+            var newExt = Path.GetExtension(newFilePath).ToLowerInvariant();
+            if (oldExt != newExt && File.Exists(template.FullPath))
+            {
+                var oldStrategy = DelimiterStrategyFactory.Create(
+                    DelimiterStrategyFactory.DetectFromExtension(template.FullPath));
+                var newStrategy = DelimiterStrategyFactory.Create(
+                    DelimiterStrategyFactory.DetectFromExtension(newFilePath));
+                var content = File.ReadAllText(template.FullPath);
+                var rows = oldStrategy.ParseContent(content);
+                var lines = rows.Select(r => newStrategy.FormatLine(r));
+                File.WriteAllLines(template.FullPath, lines);
+            }
+
             File.Move(template.FullPath, newFilePath);
 
             // Update open tabs
@@ -678,6 +718,7 @@ public class TemplateTreeManager
             if (openTab != null)
             {
                 openTab.FilePath = newFilePath;
+                openTab.Document.DelimiterFormat = DelimiterStrategyFactory.DetectFromExtension(newFilePath);
                 openTab.Header = openTab.IsDirty ? $"{newFileName}*" : newFileName;
             }
 
@@ -802,18 +843,18 @@ public class TemplateTreeManager
     }
 
     // Create methods
-    private void CreateNewTemplateInFolder(TreeViewItem parentItem, string folderPath)
+    private void CreateNewTemplateInFolder(TreeViewItem parentItem, string folderPath, string extension = ".tsv")
     {
         try
         {
             string baseName = "NewTemplate";
-            string templateName = baseName + ".tsv";
+            string templateName = baseName + extension;
             int counter = 1;
 
             var existingTemplates = _templateService.GetTemplatesInDirectory(folderPath);
             while (existingTemplates.Any(t => t.FileName.Equals(templateName, StringComparison.OrdinalIgnoreCase)))
             {
-                templateName = $"{baseName}{counter}.tsv";
+                templateName = $"{baseName}{counter}{extension}";
                 counter++;
             }
 
@@ -896,20 +937,20 @@ public class TemplateTreeManager
     /// <summary>
     /// ツールバーから呼び出される新規テンプレート作成（ルートに作成）
     /// </summary>
-    public void CreateNewTemplate()
+    public void CreateNewTemplate(string extension = ".tsv")
     {
         try
         {
             var templateDir = _templateService.GetTemplateDirectoryPath();
 
             string baseName = "NewTemplate";
-            string templateName = baseName + ".tsv";
+            string templateName = baseName + extension;
             int counter = 1;
 
             var existingTemplates = _templateService.GetTemplatesInDirectory(templateDir);
             while (existingTemplates.Any(t => t.FileName.Equals(templateName, StringComparison.OrdinalIgnoreCase)))
             {
-                templateName = $"{baseName}{counter}.tsv";
+                templateName = $"{baseName}{counter}{extension}";
                 counter++;
             }
 
@@ -1031,7 +1072,12 @@ public class TemplateTreeManager
             var contextMenu = new ContextMenu();
 
             var newTemplateMenuItem = new MenuItem { Header = "新規テンプレート(_T)" };
-            newTemplateMenuItem.Click += (s, args) => CreateNewTemplate();
+            var newTsvTemplateMenuItem = new MenuItem { Header = "TSVテンプレート(_T)" };
+            newTsvTemplateMenuItem.Click += (s, args) => CreateNewTemplate(".tsv");
+            newTemplateMenuItem.Items.Add(newTsvTemplateMenuItem);
+            var newCsvTemplateMenuItem = new MenuItem { Header = "CSVテンプレート(_C)" };
+            newCsvTemplateMenuItem.Click += (s, args) => CreateNewTemplate(".csv");
+            newTemplateMenuItem.Items.Add(newCsvTemplateMenuItem);
             contextMenu.Items.Add(newTemplateMenuItem);
 
             var newTemplateSetMenuItem = new MenuItem { Header = "新規テンプレートセット(_S)" };

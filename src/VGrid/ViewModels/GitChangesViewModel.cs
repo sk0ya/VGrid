@@ -223,7 +223,7 @@ public class GitChangesViewModel : ViewModelBase, IDisposable
             var uncommittedFiles = await _gitService.GetUncommittedFilesAsync(repoRoot);
 
             // Filter for TSV files only (.tsv, .txt, .tab)
-            var tsvExtensions = new[] { ".tsv", ".txt", ".tab" };
+            var tsvExtensions = new[] { ".tsv", ".csv", ".txt", ".tab" };
             var filteredFiles = uncommittedFiles
                 .Where(f => tsvExtensions.Contains(Path.GetExtension(f.filePath).ToLowerInvariant()))
                 .ToList();

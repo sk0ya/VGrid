@@ -68,8 +68,10 @@ public class TemplateService : ITemplateService
     /// </summary>
     private void GetTemplatesRecursively(string rootDir, string currentDir, List<TemplateInfo> result)
     {
-        // Get templates in current directory
-        var tsvFiles = Directory.GetFiles(currentDir, "*.tsv");
+        // Get templates in current directory (TSV and CSV)
+        var tsvFiles = Directory.GetFiles(currentDir, "*.tsv")
+            .Concat(Directory.GetFiles(currentDir, "*.csv"))
+            .ToArray();
         foreach (var path in tsvFiles)
         {
             var fileName = Path.GetFileName(path);
@@ -107,17 +109,18 @@ public class TemplateService : ITemplateService
     /// ファイル名から表示名を生成
     /// </summary>
     /// <param name="fileName">ファイル名 (例: "CustomerTemplate.tsv")</param>
-    /// <returns>表示名 (例: "Customer Template")</returns>
+    /// <returns>表示名 (例: "Customer Template.tsv")</returns>
     private string GetDisplayName(string fileName)
     {
-        // 拡張子を除去
+        // 拡張子を保持
+        var ext = Path.GetExtension(fileName);
         var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
 
         // CamelCaseをスペース区切りに変換
         // 例: "CustomerTemplate" → "Customer Template"
         var withSpaces = Regex.Replace(nameWithoutExt, "([a-z])([A-Z])", "$1 $2");
 
-        return withSpaces;
+        return withSpaces + ext;
     }
 
     /// <summary>
@@ -183,7 +186,8 @@ public class TemplateService : ITemplateService
             throw new ArgumentException("Template name contains invalid characters.", nameof(templateName));
 
         // .tsv拡張子がない場合は追加
-        if (!templateName.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase))
+        if (!templateName.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase) &&
+            !templateName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
         {
             templateName = templateName + ".tsv";
         }
@@ -195,8 +199,10 @@ public class TemplateService : ITemplateService
         if (File.Exists(templatePath))
             throw new IOException($"A template with this name already exists: {templateName}");
 
-        // 空のTSVファイルを作成（ヘッダー行付き）
-        var initialContent = "Column1\tColumn2\tColumn3";
+        // 空のファイルを作成（ヘッダー行付き）
+        var format = DelimiterStrategyFactory.DetectFromExtension(templatePath);
+        var strategy = DelimiterStrategyFactory.Create(format);
+        var initialContent = strategy.FormatLine(new[] { "Column1", "Column2", "Column3" });
         File.WriteAllText(templatePath, initialContent);
 
         return templatePath;
@@ -268,8 +274,9 @@ public class TemplateService : ITemplateService
         if (newFileName.IndexOfAny(invalidChars) >= 0)
             throw new ArgumentException("Template name contains invalid characters.", nameof(newFileName));
 
-        // .tsv拡張子がない場合は追加
-        if (!newFileName.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase))
+        // 拡張子がない場合は.tsvを追加
+        if (!newFileName.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase) &&
+            !newFileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
         {
             newFileName = newFileName + ".tsv";
         }
@@ -300,7 +307,9 @@ public class TemplateService : ITemplateService
         if (!Directory.Exists(directoryPath))
             return new List<TemplateInfo>();
 
-        var tsvFiles = Directory.GetFiles(directoryPath, "*.tsv");
+        var tsvFiles = Directory.GetFiles(directoryPath, "*.tsv")
+            .Concat(Directory.GetFiles(directoryPath, "*.csv"))
+            .ToArray();
 
         return tsvFiles.Select(path => new TemplateInfo
         {
@@ -348,8 +357,9 @@ public class TemplateService : ITemplateService
         if (!IsTemplateFolder(directoryPath) && directoryPath != GetTemplateDirectory())
             throw new ArgumentException("Directory is not within Template folder.", nameof(directoryPath));
 
-        // .tsv拡張子がない場合は追加
-        if (!templateName.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase))
+        // 拡張子がない場合は.tsvを追加
+        if (!templateName.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase) &&
+            !templateName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
         {
             templateName = templateName + ".tsv";
         }
@@ -360,8 +370,10 @@ public class TemplateService : ITemplateService
         if (File.Exists(templatePath))
             throw new IOException($"A template with this name already exists: {templateName}");
 
-        // 空のTSVファイルを作成（ヘッダー行付き）
-        var initialContent = "Column1\tColumn2\tColumn3";
+        // 空のファイルを作成（ヘッダー行付き）
+        var format = DelimiterStrategyFactory.DetectFromExtension(templatePath);
+        var strategy = DelimiterStrategyFactory.Create(format);
+        var initialContent = strategy.FormatLine(new[] { "Column1", "Column2", "Column3" });
         File.WriteAllText(templatePath, initialContent);
 
         return templatePath;

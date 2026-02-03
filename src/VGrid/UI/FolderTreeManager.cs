@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using VGrid.Models;
 using VGrid.Services;
 using VGrid.ViewModels;
@@ -17,7 +18,7 @@ namespace VGrid.UI;
 /// <summary>
 /// Manages the folder tree view operations including file/folder creation, deletion, renaming, and drag-drop
 /// </summary>
-public class FolderTreeManager
+public class FolderTreeManager : IDisposable
 {
     private readonly System.Windows.Controls.TreeView _treeView;
     private readonly MainViewModel _viewModel;
@@ -25,12 +26,134 @@ public class FolderTreeManager
     private TreeViewItem? _draggedItem;
     private System.Windows.Point _dragStartPoint;
     private bool _isDoubleClickHandlerRegistered;
+    private FileSystemWatcher? _fileSystemWatcher;
+    private DispatcherTimer? _refreshDebounceTimer;
+    private bool _isDisposed;
 
     public FolderTreeManager(System.Windows.Controls.TreeView treeView, MainViewModel viewModel, ITemplateService templateService)
     {
         _treeView = treeView;
         _viewModel = viewModel;
         _templateService = templateService;
+    }
+
+    public void Dispose()
+    {
+        if (_isDisposed) return;
+        _isDisposed = true;
+        StopFileSystemWatcher();
+        _refreshDebounceTimer?.Stop();
+    }
+
+    private void StartFileSystemWatcher(string path)
+    {
+        StopFileSystemWatcher();
+
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+            return;
+
+        _fileSystemWatcher = new FileSystemWatcher(path)
+        {
+            IncludeSubdirectories = true,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite,
+            EnableRaisingEvents = true
+        };
+
+        _fileSystemWatcher.Created += OnFileSystemChanged;
+        _fileSystemWatcher.Deleted += OnFileSystemChanged;
+        _fileSystemWatcher.Renamed += OnFileSystemChanged;
+
+        _refreshDebounceTimer = new DispatcherTimer(DispatcherPriority.Background, _treeView.Dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(300)
+        };
+        _refreshDebounceTimer.Tick += (s, e) =>
+        {
+            _refreshDebounceTimer.Stop();
+            RefreshFolderTree();
+        };
+    }
+
+    private void StopFileSystemWatcher()
+    {
+        if (_fileSystemWatcher != null)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            _fileSystemWatcher.Created -= OnFileSystemChanged;
+            _fileSystemWatcher.Deleted -= OnFileSystemChanged;
+            _fileSystemWatcher.Renamed -= OnFileSystemChanged;
+            _fileSystemWatcher.Dispose();
+            _fileSystemWatcher = null;
+        }
+    }
+
+    private void OnFileSystemChanged(object sender, FileSystemEventArgs e)
+    {
+        // Skip hidden paths (e.g. .git)
+        var relativePath = e.FullPath;
+        if (relativePath.Contains($"{Path.DirectorySeparatorChar}.") ||
+            relativePath.Contains($"{Path.AltDirectorySeparatorChar}."))
+            return;
+
+        // Debounce: reset the timer on each event
+        _treeView.Dispatcher.BeginInvoke(() =>
+        {
+            _refreshDebounceTimer?.Stop();
+            _refreshDebounceTimer?.Start();
+        });
+    }
+
+    private void RefreshFolderTree()
+    {
+        if (_treeView.Items.Count == 0)
+            return;
+
+        var rootItem = _treeView.Items[0] as TreeViewItem;
+        if (rootItem == null)
+            return;
+
+        var rootPath = rootItem.Tag as string;
+        if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
+            return;
+
+        // Save expansion state
+        var expandedPaths = new HashSet<string>();
+        SaveExpansionState(rootItem, expandedPaths);
+
+        // Save selected item path
+        var selectedPath = (_treeView.SelectedItem as TreeViewItem)?.Tag as string;
+
+        // Repopulate
+        rootItem.Items.Clear();
+        PopulateTreeNode(rootItem, rootPath);
+
+        // Restore expansion state
+        RestoreExpansionState(rootItem, expandedPaths);
+
+        // Restore selection
+        if (!string.IsNullOrEmpty(selectedPath))
+        {
+            SelectItemByPath(rootItem, selectedPath);
+        }
+    }
+
+    private bool SelectItemByPath(TreeViewItem parent, string path)
+    {
+        foreach (var item in parent.Items)
+        {
+            if (item is TreeViewItem child)
+            {
+                if (child.Tag as string == path)
+                {
+                    child.IsSelected = true;
+                    child.BringIntoView();
+                    return true;
+                }
+                if (child.IsExpanded && SelectItemByPath(child, path))
+                    return true;
+            }
+        }
+        return false;
     }
 
     public void PopulateFolderTree()
@@ -86,6 +209,9 @@ public class FolderTreeManager
 
             PopulateTreeNode(rootItem, _viewModel.SelectedFolderPath);
             _treeView.Items.Add(rootItem);
+
+            // Start watching for file system changes
+            StartFileSystemWatcher(_viewModel.SelectedFolderPath);
 
             // Handle double-click on tree items (register only once)
             if (!_isDoubleClickHandlerRegistered)

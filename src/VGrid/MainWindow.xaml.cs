@@ -297,6 +297,9 @@ public partial class MainWindow : Window
             _viewModel.SaveSession();
         }
 
+        // Clean up folder tree file watcher
+        _folderTreeManager?.Dispose();
+
         // Clean up clipboard monitoring
         if (_hwndSource != null)
         {

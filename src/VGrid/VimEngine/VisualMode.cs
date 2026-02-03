@@ -131,7 +131,7 @@ public class VisualMode : IVimMode
             Key.Y => YankSelection(state, document),
             // Paste over selection
             Key.P => PasteOverSelection(state, document),
-            _ => false
+            _ => true
         };
     }
 

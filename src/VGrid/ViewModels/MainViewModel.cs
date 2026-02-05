@@ -36,6 +36,10 @@ public class MainViewModel : ViewModelBase
     private readonly List<string> _colorThemes = new() { "Light", "Dark" };
     private string _repositoryInfo = string.Empty;
     private double _maxColumnWidth = 600;
+    private bool _isGitBranchOverlayVisible;
+    private GitBranchViewModel? _gitBranchOverlayViewModel;
+    private bool _isGitHistoryOverlayVisible;
+    private GitHistoryViewModel? _gitHistoryOverlayViewModel;
 
     public MainViewModel()
     {
@@ -267,6 +271,62 @@ public class MainViewModel : ViewModelBase
     {
         get => _repositoryInfo;
         set => SetProperty(ref _repositoryInfo, value);
+    }
+
+    public bool IsGitBranchOverlayVisible
+    {
+        get => _isGitBranchOverlayVisible;
+        set => SetProperty(ref _isGitBranchOverlayVisible, value);
+    }
+
+    public GitBranchViewModel? GitBranchOverlayViewModel
+    {
+        get => _gitBranchOverlayViewModel;
+        set => SetProperty(ref _gitBranchOverlayViewModel, value);
+    }
+
+    public async System.Threading.Tasks.Task ToggleGitBranchOverlayAsync()
+    {
+        if (IsGitBranchOverlayVisible)
+        {
+            CloseGitBranchOverlay();
+            return;
+        }
+
+        await ViewGitBranchesAsync();
+    }
+
+    public void CloseGitBranchOverlay()
+    {
+        IsGitBranchOverlayVisible = false;
+    }
+
+    public bool IsGitHistoryOverlayVisible
+    {
+        get => _isGitHistoryOverlayVisible;
+        set => SetProperty(ref _isGitHistoryOverlayVisible, value);
+    }
+
+    public GitHistoryViewModel? GitHistoryOverlayViewModel
+    {
+        get => _gitHistoryOverlayViewModel;
+        set => SetProperty(ref _gitHistoryOverlayViewModel, value);
+    }
+
+    public async System.Threading.Tasks.Task ToggleGitHistoryOverlayAsync()
+    {
+        if (IsGitHistoryOverlayVisible)
+        {
+            CloseGitHistoryOverlay();
+            return;
+        }
+
+        await ViewGitHistoryAsync();
+    }
+
+    public void CloseGitHistoryOverlay()
+    {
+        IsGitHistoryOverlayVisible = false;
     }
 
     /// <summary>
@@ -1188,12 +1248,8 @@ public class MainViewModel : ViewModelBase
                 repoRoot,
                 _gitService);
 
-            var window = new Views.GitHistoryWindow(viewModel)
-            {
-                Owner = System.Windows.Application.Current.MainWindow
-            };
-
-            window.Show();
+            GitHistoryOverlayViewModel = viewModel;
+            IsGitHistoryOverlayVisible = true;
         }
         catch (Exception ex)
         {
@@ -1251,12 +1307,8 @@ public class MainViewModel : ViewModelBase
                 await UpdateGitStatusAsync();
             };
 
-            var window = new Views.GitBranchWindow(viewModel)
-            {
-                Owner = System.Windows.Application.Current.MainWindow
-            };
-
-            window.Show();
+            GitBranchOverlayViewModel = viewModel;
+            IsGitBranchOverlayVisible = true;
         }
         catch (Exception ex)
         {

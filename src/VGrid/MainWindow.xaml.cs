@@ -182,6 +182,32 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void GitBranchButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel != null)
+        {
+            await _viewModel.ToggleGitBranchOverlayAsync();
+        }
+    }
+
+    private void GitBranchOverlayBackdrop_Click(object sender, MouseButtonEventArgs e)
+    {
+        _viewModel?.CloseGitBranchOverlay();
+    }
+
+    private async void GitHistoryButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel != null)
+        {
+            await _viewModel.ToggleGitHistoryOverlayAsync();
+        }
+    }
+
+    private void GitHistoryOverlayBackdrop_Click(object sender, MouseButtonEventArgs e)
+    {
+        _viewModel?.CloseGitHistoryOverlay();
+    }
+
     // Sidebar width management
     private void UpdateSidebarWidth()
     {

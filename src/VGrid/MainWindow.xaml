@@ -428,6 +428,42 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Activity Bar ToggleButton Style (for overlay buttons not linked to sidebar) -->
+        <Style x:Key="ActivityBarToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="48"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource ActivityBarForegroundBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid>
+                            <Border x:Name="LeftIndicator"
+                                    Width="2"
+                                    HorizontalAlignment="Left"
+                                    Background="Transparent"/>
+                            <Border x:Name="BackgroundBorder"
+                                    Background="{TemplateBinding Background}"/>
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource ActivityBarActiveForegroundBrush}"/>
+                                <Setter TargetName="BackgroundBorder" Property="Background" Value="{DynamicResource ActivityBarHoverBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource ActivityBarActiveForegroundBrush}"/>
+                                <Setter TargetName="LeftIndicator" Property="Background" Value="{DynamicResource ActivityBarIndicatorBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <DockPanel Background="{DynamicResource WindowBackgroundBrush}">
@@ -454,25 +490,6 @@
                             <Separator/>
                             <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
                         </MenuItem>
-                    <MenuItem Header="_Git"
-                              Foreground="{DynamicResource TitleBarForegroundBrush}">
-                        <MenuItem Header="_Fetch"
-                                  Command="{Binding GitFetchCommand}"
-                                  InputGestureText="Ctrl+Shift+F"/>
-                        <MenuItem Header="_Pull"
-                                  Command="{Binding GitPullCommand}"
-                                  InputGestureText="Ctrl+Shift+P"/>
-                        <MenuItem Header="Pu_sh"
-                                  Command="{Binding GitPushCommand}"
-                                  InputGestureText="Ctrl+Shift+U"/>
-                        <Separator/>
-                        <MenuItem Header="_Branches..."
-                                  Command="{Binding ViewGitBranchesCommand}"
-                                  InputGestureText="Ctrl+B"/>
-                        <MenuItem Header="View _History..."
-                                  Command="{Binding ViewGitHistoryCommand}"
-                                  InputGestureText="Ctrl+G"/>
-                    </MenuItem>
                 </Menu>
 
                 <!-- Repository Info (Left side) -->
@@ -604,6 +621,28 @@
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
                                   Width="24" Height="24" Stretch="Uniform"/>
                         </RadioButton>
+
+                        <!-- Git Branches Button -->
+                        <ToggleButton Style="{StaticResource ActivityBarToggleButtonStyle}"
+                                      IsChecked="{Binding IsGitBranchOverlayVisible, Mode=OneWay}"
+                                      Click="GitBranchButton_Click"
+                                      ToolTip="Git Branches (Ctrl+B)">
+                            <Path Data="M15,4A2,2 0 0,1 17,6A2,2 0 0,1 15,8A2,2 0 0,1 13,6A2,2 0 0,1 15,4M15,18A2,2 0 0,1 17,20A2,2 0 0,1 15,22A2,2 0 0,1 13,20A2,2 0 0,1 15,18M9,4A2,2 0 0,1 11,6A2,2 0 0,1 9,8A2,2 0 0,1 7,6A2,2 0 0,1 9,4M9,8V18C9,18 9,20 11,20H13M15,8V18"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                  StrokeThickness="1.5"
+                                  Fill="Transparent"
+                                  Width="24" Height="24" Stretch="Uniform"/>
+                        </ToggleButton>
+
+                        <!-- Git History Button -->
+                        <ToggleButton Style="{StaticResource ActivityBarToggleButtonStyle}"
+                                      IsChecked="{Binding IsGitHistoryOverlayVisible, Mode=OneWay}"
+                                      Click="GitHistoryButton_Click"
+                                      ToolTip="Git History (Ctrl+G)">
+                            <Path Data="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                  Width="24" Height="24" Stretch="Uniform"/>
+                        </ToggleButton>
                     </StackPanel>
 
                     <!-- Bottom Buttons -->
@@ -934,6 +973,40 @@
             <!-- Splitter -->
             <GridSplitter Grid.Column="2" Width="5" HorizontalAlignment="Stretch" Background="{DynamicResource SplitterBackgroundBrush}"
                           Visibility="{Binding IsSidebarOpen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+            <!-- Git Branch Overlay Backdrop -->
+            <Border Grid.Column="0" Grid.ColumnSpan="4"
+                    Background="Transparent"
+                    Panel.ZIndex="199"
+                    Visibility="{Binding IsGitBranchOverlayVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+                    MouseLeftButtonDown="GitBranchOverlayBackdrop_Click"/>
+
+            <!-- Git Branch Overlay Panel -->
+            <views:GitBranchOverlayPanel Grid.Column="0" Grid.ColumnSpan="4"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Panel.ZIndex="200"
+                                         DataContext="{Binding GitBranchOverlayViewModel}"
+                                         Visibility="{Binding DataContext.IsGitBranchOverlayVisible,
+                                                      RelativeSource={RelativeSource AncestorType=Window},
+                                                      Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+            <!-- Git History Overlay Backdrop -->
+            <Border Grid.Column="0" Grid.ColumnSpan="4"
+                    Background="Transparent"
+                    Panel.ZIndex="199"
+                    Visibility="{Binding IsGitHistoryOverlayVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+                    MouseLeftButtonDown="GitHistoryOverlayBackdrop_Click"/>
+
+            <!-- Git History Overlay Panel -->
+            <views:GitHistoryOverlayPanel Grid.Column="0" Grid.ColumnSpan="4"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Panel.ZIndex="200"
+                                          DataContext="{Binding GitHistoryOverlayViewModel}"
+                                          Visibility="{Binding DataContext.IsGitHistoryOverlayVisible,
+                                                       RelativeSource={RelativeSource AncestorType=Window},
+                                                       Converter={StaticResource BoolToVisibilityConverter}}"/>
 
             <!-- Tab Control (Right Panel) -->
             <TabControl Grid.Column="3"

@@ -40,6 +40,7 @@ public class MainViewModel : ViewModelBase
     private GitBranchViewModel? _gitBranchOverlayViewModel;
     private bool _isGitHistoryOverlayVisible;
     private GitHistoryViewModel? _gitHistoryOverlayViewModel;
+    private bool _isRestoringSession;
 
     public MainViewModel()
     {
@@ -299,6 +300,12 @@ public class MainViewModel : ViewModelBase
     public void CloseGitBranchOverlay()
     {
         IsGitBranchOverlayVisible = false;
+    }
+
+    public bool IsRestoringSession
+    {
+        get => _isRestoringSession;
+        private set => SetProperty(ref _isRestoringSession, value);
     }
 
     public bool IsGitHistoryOverlayVisible
@@ -1138,6 +1145,10 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        IsRestoringSession = true;
+        try
+        {
+
         // Restore Vim mode setting
         IsVimModeEnabled = session.IsVimModeEnabled;
 
@@ -1176,6 +1187,11 @@ public class MainViewModel : ViewModelBase
         if (session.SelectedTabIndex >= 0 && session.SelectedTabIndex < Tabs.Count)
         {
             SelectedTab = Tabs[session.SelectedTabIndex];
+        }
+        }
+        finally
+        {
+            IsRestoringSession = false;
         }
     }
 

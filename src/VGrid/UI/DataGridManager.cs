@@ -163,10 +163,11 @@ public class DataGridManager
         _dataGridHandlers[grid] = (tab, handlers.vimStateHandler, handlers.documentHandler, handlers.columnWidthHandler);
         _tabToDataGrid[tab] = grid;
 
-        // Update selection
+        // Update selection (capture IsRestoringSession now; lambda runs after restore may complete)
+        bool suppressFocusOnLoad = _viewModel.IsRestoringSession;
         grid.Dispatcher.BeginInvoke(new Action(() =>
         {
-            UpdateDataGridSelection(grid, tab);
+            UpdateDataGridSelection(grid, tab, suppressFocusOnLoad);
         }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
@@ -215,7 +216,8 @@ public class DataGridManager
                 }
             };
 
-            grid.Dispatcher.BeginInvoke(new Action(() => { UpdateDataGridSelection(grid, tabItem); }),
+            bool suppressFocusOnInit = _viewModel.IsRestoringSession;
+            grid.Dispatcher.BeginInvoke(new Action(() => { UpdateDataGridSelection(grid, tabItem, suppressFocusOnInit); }),
                 System.Windows.Threading.DispatcherPriority.Loaded);
         }
         catch (Exception ex)
@@ -519,7 +521,7 @@ public class DataGridManager
         }
     }
 
-    public void UpdateDataGridSelection(DataGrid grid, TabItemViewModel tab)
+    public void UpdateDataGridSelection(DataGrid grid, TabItemViewModel tab, bool suppressFocus = false)
     {
         if (grid == null || tab == null)
             return;
@@ -553,10 +555,10 @@ public class DataGridManager
             bool isFindReplaceOpen = tab.FindReplaceViewModel?.IsVisible ?? false;
             bool isInsertMode = tab.VimState.CurrentMode == VimMode.Insert;
             bool isPendingBulkEdit = tab.VimState.PendingBulkEditRange != null;
+            bool isRestoring = suppressFocus || _viewModel.IsRestoringSession;
 
-            if (!isFindReplaceOpen && !isInsertMode && !isPendingBulkEdit)
+            if (!isFindReplaceOpen && !isInsertMode && !isPendingBulkEdit && !isRestoring)
             {
-                grid.Focus();
                 grid.UpdateLayout();
 
                 Application.Current.Dispatcher.BeginInvoke(new Action(() =>
@@ -1274,9 +1276,10 @@ public class DataGridManager
 
             // Update DataGrid selection to sync with VimState cursor position
             // This ensures the selection is correct when switching tabs or opening files
+            bool suppressFocusOnContextChange = _viewModel.IsRestoringSession;
             dataGrid.Dispatcher.BeginInvoke(new Action(() =>
             {
-                UpdateDataGridSelection(dataGrid, newTab);
+                UpdateDataGridSelection(dataGrid, newTab, suppressFocusOnContextChange);
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
     }
@@ -1513,6 +1516,33 @@ public class DataGridManager
                 AutoFitAllColumns(grid, tab);
             }
         }
+    }
+
+    /// <summary>
+    /// Focuses the current cell of the specified tab's DataGrid.
+    /// Call this after session restoration to restore keyboard focus.
+    /// </summary>
+    public void FocusCurrentTab(TabItemViewModel tab)
+    {
+        if (tab == null || !_tabToDataGrid.TryGetValue(tab, out var grid))
+            return;
+
+        var pos = tab.VimState.CursorPosition;
+        if (grid.Items.Count == 0 || pos.Row < 0 || pos.Row >= grid.Items.Count ||
+            pos.Column < 0 || pos.Column >= grid.Columns.Count)
+            return;
+
+        try
+        {
+            grid.UpdateLayout();
+            var row = grid.ItemContainerGenerator.ContainerFromIndex(pos.Row) as DataGridRow;
+            if (row != null)
+            {
+                var cell = GetCell(grid, row, pos.Column);
+                cell?.Focus();
+            }
+        }
+        catch { }
     }
 
     /// <summary>

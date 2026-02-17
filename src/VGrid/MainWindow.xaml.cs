@@ -289,8 +289,6 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        Focus();
-
         // Restore session asynchronously on background thread
         if (_viewModel != null)
         {
@@ -301,6 +299,18 @@ public partial class MainWindow : Window
                 !string.IsNullOrEmpty(app.StartupFolderPath))
             {
                 _viewModel.OpenFolderByPath(app.StartupFolderPath);
+            }
+
+            // Focus the restored tab if the window is active.
+            // ApplicationIdle priority ensures all Loaded-priority BeginInvokes
+            // (DataGrid initialization) have completed before we apply focus.
+            if (IsActive)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (_viewModel.SelectedTab != null)
+                        _dataGridManager?.FocusCurrentTab(_viewModel.SelectedTab);
+                }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             }
         }
     }

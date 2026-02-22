@@ -68,6 +68,9 @@ public class MainViewModel : ViewModelBase
         SaveFileCommand = new RelayCommand(SaveFile, CanSaveFile);
         SaveAsFileCommand = new RelayCommand(SaveFileAs);
         CloseTabCommand = new RelayCommand<TabItemViewModel>(CloseTab);
+        CloseOtherTabsCommand = new RelayCommand<TabItemViewModel>(CloseOtherTabs);
+        CloseTabsToRightCommand = new RelayCommand<TabItemViewModel>(CloseTabsToRight);
+        CloseTabsToLeftCommand = new RelayCommand<TabItemViewModel>(CloseTabsToLeft);
         ExitCommand = new RelayCommand(Exit);
         InsertRowAboveCommand = new RelayCommand<int>(InsertRowAbove);
         InsertRowBelowCommand = new RelayCommand<int>(InsertRowBelow);
@@ -245,6 +248,9 @@ public class MainViewModel : ViewModelBase
     public WpfCommand SaveFileCommand { get; }
     public WpfCommand SaveAsFileCommand { get; }
     public WpfCommand CloseTabCommand { get; }
+    public WpfCommand CloseOtherTabsCommand { get; }
+    public WpfCommand CloseTabsToRightCommand { get; }
+    public WpfCommand CloseTabsToLeftCommand { get; }
     public WpfCommand ExitCommand { get; }
     public WpfCommand InsertRowAboveCommand { get; }
     public WpfCommand InsertRowBelowCommand { get; }
@@ -820,6 +826,31 @@ public class MainViewModel : ViewModelBase
         {
             NewFile();
         }
+    }
+
+    private void CloseOtherTabs(TabItemViewModel? tab)
+    {
+        if (tab == null) return;
+        foreach (var t in Tabs.Where(t => t != tab).ToList())
+            CloseTab(t);
+    }
+
+    private void CloseTabsToRight(TabItemViewModel? tab)
+    {
+        if (tab == null) return;
+        var idx = Tabs.IndexOf(tab);
+        if (idx < 0) return;
+        foreach (var t in Tabs.Skip(idx + 1).ToList())
+            CloseTab(t);
+    }
+
+    private void CloseTabsToLeft(TabItemViewModel? tab)
+    {
+        if (tab == null) return;
+        var idx = Tabs.IndexOf(tab);
+        if (idx < 0) return;
+        foreach (var t in Tabs.Take(idx).ToList())
+            CloseTab(t);
     }
 
     /// <summary>

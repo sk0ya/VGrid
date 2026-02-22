@@ -1016,7 +1016,25 @@
                         Margin="0" BorderThickness="0">
                 <TabControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Horizontal" MouseDown="TabHeader_MouseDown">
+                        <StackPanel Orientation="Horizontal" MouseDown="TabHeader_MouseDown"
+                                    Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <StackPanel.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="タブを閉じる"
+                                              Command="{Binding PlacementTarget.Tag.CloseTabCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                    <MenuItem Header="他のタブをすべて閉じる"
+                                              Command="{Binding PlacementTarget.Tag.CloseOtherTabsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                    <Separator/>
+                                    <MenuItem Header="右のタブをすべて閉じる"
+                                              Command="{Binding PlacementTarget.Tag.CloseTabsToRightCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                    <MenuItem Header="左のタブをすべて閉じる"
+                                              Command="{Binding PlacementTarget.Tag.CloseTabsToLeftCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                </ContextMenu>
+                            </StackPanel.ContextMenu>
                             <TextBlock Text="{Binding Header}"
                                        Foreground="{DynamicResource TabForegroundBrush}"
                                        VerticalAlignment="Center" Margin="0,0,5,0"/>

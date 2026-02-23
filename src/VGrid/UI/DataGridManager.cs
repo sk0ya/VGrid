@@ -1242,11 +1242,20 @@ public class DataGridManager
         if (dataGrid == null)
             return;
 
-        // Clear selection tracking when switching tabs
+        // Clear selection tracking when switching tabs.
+        // Avoid expensive full-document scans when there is no active selection state to clear.
         var oldTab = e.OldValue as TabItemViewModel;
         if (oldTab != null)
         {
-            ClearAllCellSelections(oldTab.Document);
+            bool hasTrackedCellSelection = _previouslySelectedCells is { Count: > 0 };
+            bool hasExplicitSelectionState = oldTab.VimState.CurrentMode == VimMode.Visual ||
+                                             oldTab.VimState.SelectedRows.Count > 0 ||
+                                             oldTab.VimState.SelectedColumns.Count > 0;
+
+            if (hasTrackedCellSelection || hasExplicitSelectionState)
+            {
+                ClearAllCellSelections(oldTab.Document);
+            }
         }
         _previouslySelectedCells?.Clear();
 

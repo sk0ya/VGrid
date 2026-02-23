@@ -13,6 +13,10 @@ namespace VGrid.Services
     /// </summary>
     public class ColumnWidthService : IColumnWidthService
     {
+        private const int WidthSamplingThreshold = 2000;
+        private const int HeadTailSampleSize = 500;
+        private const int MiddleSampleSize = 500;
+
         public double MinColumnWidth { get; set; } = 60;
         public double MaxColumnWidth { get; set; } = 600;
         public double CellPadding { get; set; } = 19; // 4(left) + 4(right) + 1(border) + 10(margin)
@@ -30,10 +34,10 @@ namespace VGrid.Services
                 var formattedText = new FormattedText(
                     text,
                     CultureInfo.CurrentCulture,
-                    System.Windows.FlowDirection.LeftToRight,
+                    FlowDirection.LeftToRight,
                     typeface,
                     fontSize,
-                    System.Windows.Media.Brushes.Black,
+                    Brushes.Black,
                     new NumberSubstitution(),
                     TextFormattingMode.Display,
                     96.0); // Default DPI
@@ -63,8 +67,8 @@ namespace VGrid.Services
             if (rowCount == 0)
                 return MinColumnWidth;
 
-            // For large files (>10000 rows), sample first 1000 and last 1000 rows
-            bool shouldSample = rowCount > 10000;
+            // For larger files, sample representative row slices to keep tab opening responsive.
+            bool shouldSample = rowCount > WidthSamplingThreshold;
             IEnumerable<Row> rowsToCheck = shouldSample
                 ? SampleRows(document.Rows, rowCount)
                 : document.Rows;
@@ -110,17 +114,35 @@ namespace VGrid.Services
         }
 
         /// <summary>
-        /// Samples rows from a large document (first 1000 + last 1000)
+        /// Samples representative rows from a large document (head + middle + tail)
         /// </summary>
         private IEnumerable<Row> SampleRows(System.Collections.ObjectModel.ObservableCollection<Row> rows, int totalCount)
         {
-            // Take first 1000 rows
-            var firstBatch = rows.Take(1000);
+            if (totalCount <= WidthSamplingThreshold)
+                return rows;
 
-            // Take last 1000 rows
-            var lastBatch = rows.Skip(Math.Max(0, totalCount - 1000));
+            var indices = new HashSet<int>();
 
-            return firstBatch.Concat(lastBatch);
+            int headCount = Math.Min(HeadTailSampleSize, totalCount);
+            for (int i = 0; i < headCount; i++)
+            {
+                indices.Add(i);
+            }
+
+            int middleStart = Math.Max(headCount, (totalCount - MiddleSampleSize) / 2);
+            int middleEnd = Math.Min(totalCount, middleStart + MiddleSampleSize);
+            for (int i = middleStart; i < middleEnd; i++)
+            {
+                indices.Add(i);
+            }
+
+            int tailStart = Math.Max(headCount, totalCount - HeadTailSampleSize);
+            for (int i = tailStart; i < totalCount; i++)
+            {
+                indices.Add(i);
+            }
+
+            return indices.OrderBy(i => i).Select(i => rows[i]);
         }
     }
 }

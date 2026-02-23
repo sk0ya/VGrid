@@ -22,30 +22,34 @@ public class TsvFileService : ITsvFileService
         var format = DelimiterStrategyFactory.DetectFromExtension(filePath);
         var strategy = DelimiterStrategyFactory.Create(format);
 
-        var rows = new List<Row>();
         var content = await File.ReadAllTextAsync(filePath, Encoding.UTF8);
-        var parsedRows = strategy.ParseContent(content);
 
-        for (int i = 0; i < parsedRows.Count; i++)
+        // Parsing and object graph construction are CPU-bound; keep them off the UI thread.
+        return await Task.Run(() =>
         {
-            rows.Add(new Row(i, parsedRows[i]));
-        }
+            var parsedRows = strategy.ParseContent(content);
+            var rows = new List<Row>(parsedRows.Count);
 
-        // Create document
-        var document = new TsvDocument(rows)
-        {
-            FilePath = filePath,
-            IsDirty = false,
-            DelimiterFormat = format
-        };
+            for (int i = 0; i < parsedRows.Count; i++)
+            {
+                rows.Add(new Row(i, parsedRows[i]));
+            }
 
-        // Only ensure minimal extra space beyond actual data
-        // Grid expands on demand when user navigates beyond current bounds
-        int minRows = Math.Max(document.RowCount + 5, 20);
-        int minCols = Math.Max(document.ColumnCount + 3, 15);
-        document.EnsureSize(minRows, minCols);
+            var document = new TsvDocument(rows)
+            {
+                FilePath = filePath,
+                IsDirty = false,
+                DelimiterFormat = format
+            };
 
-        return document;
+            // Only ensure minimal extra space beyond actual data.
+            // Grid expands on demand when user navigates beyond current bounds.
+            int minRows = Math.Max(document.RowCount + 5, 20);
+            int minCols = Math.Max(document.ColumnCount + 3, 15);
+            document.EnsureSize(minRows, minCols);
+
+            return document;
+        });
     }
 
     /// <summary>

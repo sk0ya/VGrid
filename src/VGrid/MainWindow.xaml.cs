@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using VGrid.Editor;
 using VGrid.UI;
 using VGrid.ViewModels;
 using VGrid.VimEngine;
@@ -24,9 +25,6 @@ public partial class MainWindow : Window
     // Manager classes
     private FolderTreeManager? _folderTreeManager;
     private TemplateTreeManager? _templateTreeManager;
-    private DataGridManager? _dataGridManager;
-    private SelectionManager? _selectionManager;
-    private VimInputHandler? _vimInputHandler;
 
     // Win32 API for clipboard monitoring
     [DllImport("user32.dll", SetLastError = true)]
@@ -91,9 +89,6 @@ public partial class MainWindow : Window
         // Initialize manager classes
         _folderTreeManager = new FolderTreeManager(FolderTreeView, _viewModel, _viewModel.TemplateService);
         _templateTreeManager = new TemplateTreeManager(TemplateTreeView, _viewModel, _viewModel.TemplateService);
-        _dataGridManager = new DataGridManager(_viewModel);
-        _selectionManager = new SelectionManager(_viewModel);
-        _vimInputHandler = new VimInputHandler(_viewModel);
 
         // Initialize template tree
         _templateTreeManager.PopulateTemplateTree();
@@ -114,15 +109,6 @@ public partial class MainWindow : Window
                 UpdateSidebarWidth();
             }
         };
-
-        // Subscribe to ScrollToCenterRequested event from MainViewModel
-        _viewModel.OnScrollToCenterRequested += OnScrollToCenterRequested;
-
-        // Phase 2 optimization: Subscribe to TabClosed event for cleanup
-        _viewModel.TabClosed += OnTabClosed;
-
-        // Subscribe to MaxColumnWidthChanged event for realtime column width updates
-        _viewModel.MaxColumnWidthChanged += OnMaxColumnWidthChanged;
 
         // Set focus to the window and restore session asynchronously
         Loaded += MainWindow_Loaded;
@@ -231,21 +217,22 @@ public partial class MainWindow : Window
         }
     }
 
-    // DataGrid Event Handlers - Delegate to DataGridManager
-    private void TsvGrid_Loaded(object sender, RoutedEventArgs e) => _dataGridManager?.TsvGrid_Loaded(sender, e);
-    private void TsvGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e) => _dataGridManager?.TsvGrid_CellEditEnding(sender, e);
-    private void TsvGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e) => _dataGridManager?.TsvGrid_BeginningEdit(sender, e);
-    private void TsvGrid_OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e) => _dataGridManager?.TsvGrid_OnDataContextChanged(sender, e);
+    // TsvEditorControl Event Handlers
+    private void TsvEditorControl_SaveRequested(object sender, EventArgs e)
+    {
+        _viewModel?.SaveFileCommand.Execute(null);
+    }
 
-    // Selection Event Handlers - Delegate to SelectionManager
-    private void RowHeader_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _selectionManager?.RowHeader_PreviewMouseLeftButtonDown(sender, e);
-    private void RowHeader_PreviewMouseMove(object sender, MouseEventArgs e) => _selectionManager?.RowHeader_PreviewMouseMove(sender, e);
-    private void RowHeader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.RowHeader_PreviewMouseLeftButtonUp(sender, e);
-    private void ColumnHeader_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _selectionManager?.ColumnHeader_PreviewMouseLeftButtonDown(sender, e);
-    private void ColumnHeader_PreviewMouseMove(object sender, MouseEventArgs e) => _selectionManager?.ColumnHeader_PreviewMouseMove(sender, e);
-    private void ColumnHeader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.ColumnHeader_PreviewMouseLeftButtonUp(sender, e);
-    private void RowHeader_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.RowHeader_MouseRightButtonUp(sender, e);
-    private void ColumnHeader_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => _selectionManager?.ColumnHeader_MouseRightButtonUp(sender, e);
+    private void TsvEditorControl_CustomKeyAction(object sender, CustomKeyActionEventArgs e)
+    {
+        if (e.ActionName == "GitHistory" && _viewModel?.ViewGitHistoryCommand.CanExecute(null) == true)
+            _viewModel.ViewGitHistoryCommand.Execute(null);
+    }
+
+    private void TsvEditorControl_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Focus is managed by the control itself; no action needed here
+    }
 
     // Tab Header Event Handler - Close tab on middle mouse button click
     private void TabHeader_MouseDown(object sender, MouseButtonEventArgs e)
@@ -260,18 +247,15 @@ public partial class MainWindow : Window
         }
     }
 
-    // Keyboard Input Handler - Delegate to VimInputHandler
+    // Keyboard Input Handler
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        // Handle Ctrl+Shift+E for Select in Folder Tree (special case that needs FolderTreeManager)
+        // Handle Ctrl+Shift+E for Select in Folder Tree (requires FolderTreeManager access)
         if (e.Key == Key.E && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
         {
             _folderTreeManager?.SelectCurrentFileInFolderTree();
             e.Handled = true;
-            return;
         }
-
-        _vimInputHandler?.Window_PreviewKeyDown(sender, e);
     }
 
     // Window Lifecycle Methods
@@ -301,15 +285,11 @@ public partial class MainWindow : Window
                 _viewModel.OpenFolderByPath(app.StartupFolderPath);
             }
 
-            // Focus the restored tab if the window is active.
-            // ApplicationIdle priority ensures all Loaded-priority BeginInvokes
-            // (DataGrid initialization) have completed before we apply focus.
             if (IsActive)
             {
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    if (_viewModel.SelectedTab != null)
-                        _dataGridManager?.FocusCurrentTab(_viewModel.SelectedTab);
+                    GetActiveEditorControl()?.FocusCurrentTab();
                 }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             }
         }
@@ -451,31 +431,26 @@ public partial class MainWindow : Window
 
     private void OnScrollToCenterRequested(object? sender, EventArgs e)
     {
-        System.Diagnostics.Debug.WriteLine("[MainWindow] OnScrollToCenterRequested called");
-        if (_viewModel?.SelectedTab == null || _dataGridManager == null)
-        {
-            System.Diagnostics.Debug.WriteLine("[MainWindow] ViewModel or DataGridManager is null");
-            return;
-        }
-
-        // Use DataGridManager's lookup to find the DataGrid for this tab
-        _dataGridManager.ScrollToCenterForTab(_viewModel.SelectedTab);
+        if (_viewModel?.SelectedTab == null) return;
+        GetActiveEditorControl()?.ScrollToCenter();
     }
 
-    /// <summary>
-    /// Phase 2 optimization: Clean up cached handlers when a tab is closed
-    /// </summary>
     private void OnTabClosed(object? sender, TabItemViewModel tab)
     {
-        _dataGridManager?.CleanupTab(tab);
+        // Cleanup is handled per-control; no action needed at MainWindow level
     }
 
-    /// <summary>
-    /// Recalculate column widths when MaxColumnWidth setting is changed
-    /// </summary>
     private void OnMaxColumnWidthChanged(object? sender, EventArgs e)
     {
-        _dataGridManager?.RecalculateAllColumnWidths();
+        GetActiveEditorControl()?.RecalculateAllColumnWidths();
+    }
+
+    private TsvEditorControl? GetActiveEditorControl()
+    {
+        var tabControl = FindVisualChild<TabControl>(this);
+        if (tabControl == null) return null;
+        tabControl.UpdateLayout();
+        return FindVisualChild<TsvEditorControl>(tabControl);
     }
 
     /// <summary>
@@ -487,55 +462,6 @@ public partial class MainWindow : Window
         {
             _viewModel?.GitChangesViewModel.ShowDiffCommand.Execute(file);
         }
-    }
-
-    private DataGrid? FindDataGridForTab(TabItemViewModel tab)
-    {
-        System.Diagnostics.Debug.WriteLine("[MainWindow] FindDataGridForTab called");
-
-        // Find the TabControl
-        var tabControl = FindVisualChild<TabControl>(this);
-        if (tabControl == null)
-        {
-            System.Diagnostics.Debug.WriteLine("[MainWindow] TabControl not found");
-            return null;
-        }
-
-        System.Diagnostics.Debug.WriteLine($"[MainWindow] TabControl found, SelectedItem={tabControl.SelectedItem?.GetType().Name}");
-
-        // For TabControl with ItemsSource, we need to find the ContentPresenter differently
-        // First, ensure the selected item is the current tab
-        if (tabControl.SelectedItem != tab)
-        {
-            System.Diagnostics.Debug.WriteLine("[MainWindow] Selected item is not the current tab");
-            return null;
-        }
-
-        // Update the layout to ensure containers are generated
-        tabControl.UpdateLayout();
-
-        // Find the ContentPresenter for the selected content
-        var contentPresenter = FindVisualChild<ContentPresenter>(tabControl);
-        if (contentPresenter == null)
-        {
-            System.Diagnostics.Debug.WriteLine("[MainWindow] ContentPresenter not found");
-            return null;
-        }
-
-        System.Diagnostics.Debug.WriteLine("[MainWindow] ContentPresenter found");
-
-        // Find the DataGrid within the ContentPresenter
-        var dataGrid = FindVisualChild<DataGrid>(contentPresenter);
-        if (dataGrid == null)
-        {
-            System.Diagnostics.Debug.WriteLine("[MainWindow] DataGrid not found in ContentPresenter");
-        }
-        else
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainWindow] DataGrid found: Items.Count={dataGrid.Items.Count}");
-        }
-
-        return dataGrid;
     }
 
     private T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
@@ -568,149 +494,4 @@ public partial class MainWindow : Window
         return null;
     }
 
-    // Context Menu Event Handlers
-    private void ContextMenu_Cut_Click(object sender, RoutedEventArgs e)
-    {
-        // Copy first, then delete
-        ContextMenu_Copy_Click(sender, e);
-        ContextMenu_Delete_Click(sender, e);
-    }
-
-    private void ContextMenu_Copy_Click(object sender, RoutedEventArgs e)
-    {
-        var tab = _viewModel?.SelectedTab;
-        if (tab == null) return;
-
-        var state = tab.VimState;
-        var document = tab.GridViewModel.Document;
-
-        // Check if there's a visual selection
-        if (state.CurrentSelection != null)
-        {
-            var selection = state.CurrentSelection;
-            int rows = selection.RowCount;
-            int cols = selection.ColumnCount;
-            string[,] values = new string[rows, cols];
-
-            for (int r = 0; r < rows; r++)
-            {
-                for (int c = 0; c < cols; c++)
-                {
-                    int docRow = selection.StartRow + r;
-                    int docCol = selection.StartColumn + c;
-
-                    if (docRow < document.RowCount && docCol < document.Rows[docRow].Cells.Count)
-                    {
-                        values[r, c] = document.Rows[docRow].Cells[docCol].Value;
-                    }
-                    else
-                    {
-                        values[r, c] = string.Empty;
-                    }
-                }
-            }
-
-            state.LastYank = new VimEngine.YankedContent
-            {
-                Values = values,
-                SourceType = selection.Type,
-                Rows = rows,
-                Columns = cols
-            };
-        }
-        else
-        {
-            // Copy single cell at cursor
-            if (state.CursorPosition.Row >= document.RowCount) return;
-
-            var cell = document.GetCell(state.CursorPosition);
-            if (cell == null) return;
-
-            string[,] values = new string[1, 1];
-            values[0, 0] = cell.Value;
-
-            state.LastYank = new VimEngine.YankedContent
-            {
-                Values = values,
-                SourceType = VimEngine.VisualType.Character,
-                Rows = 1,
-                Columns = 1
-            };
-        }
-
-        VimEngine.ClipboardHelper.CopyToClipboard(state.LastYank);
-        state.OnYankPerformed();
-    }
-
-    private void ContextMenu_Paste_Click(object sender, RoutedEventArgs e)
-    {
-        var tab = _viewModel?.SelectedTab;
-        if (tab == null) return;
-
-        var state = tab.VimState;
-        var document = tab.GridViewModel.Document;
-
-        var yank = state.LastYank ?? VimEngine.ClipboardHelper.ReadFromClipboard();
-        if (yank == null) return;
-
-        var startPos = state.CursorPosition;
-
-        var command = new Commands.PasteCommand(document, startPos, yank, pasteBefore: false);
-        if (state.CommandHistory != null)
-        {
-            state.CommandHistory.Execute(command);
-        }
-        else
-        {
-            command.Execute();
-        }
-
-        if (command.AffectedColumns.Any())
-        {
-            state.OnColumnWidthUpdateRequested(command.AffectedColumns);
-        }
-    }
-
-    private void ContextMenu_Delete_Click(object sender, RoutedEventArgs e)
-    {
-        var tab = _viewModel?.SelectedTab;
-        if (tab == null) return;
-
-        var state = tab.VimState;
-        var document = tab.GridViewModel.Document;
-
-        // Check if there's a visual selection
-        if (state.CurrentSelection != null)
-        {
-            var selection = state.CurrentSelection;
-
-            var command = new Commands.DeleteSelectionCommand(document, selection);
-            if (state.CommandHistory != null)
-            {
-                state.CommandHistory.Execute(command);
-            }
-            else
-            {
-                command.Execute();
-            }
-
-            // Exit visual mode after delete
-            state.SwitchMode(VimEngine.VimMode.Normal);
-        }
-        else
-        {
-            // Delete single cell at cursor
-            if (state.CursorPosition.Row >= document.RowCount) return;
-
-            var command = new Commands.EditCellCommand(document, state.CursorPosition, string.Empty);
-            if (state.CommandHistory != null)
-            {
-                state.CommandHistory.Execute(command);
-            }
-            else
-            {
-                command.Execute();
-            }
-        }
-    }
 }

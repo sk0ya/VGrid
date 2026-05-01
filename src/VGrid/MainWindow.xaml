@@ -4,8 +4,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:VGrid"
-        xmlns:converters="clr-namespace:VGrid.Converters"
+        xmlns:converters="clr-namespace:VGrid.Converters;assembly=VGrid.Editor"
+        xmlns:appconv="clr-namespace:VGrid.Converters"
         xmlns:views="clr-namespace:VGrid.Views"
+        xmlns:editor="clr-namespace:VGrid.Editor;assembly=VGrid.Editor"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" Height="700" Width="1200"
         Background="{DynamicResource WindowBackgroundBrush}"
@@ -27,9 +29,9 @@
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         <converters:RowIndexToBrushConverter x:Key="RowIndexToBrushConverter"/>
         <converters:ColumnIndexToBrushConverter x:Key="ColumnIndexToBrushConverter"/>
-        <converters:SidebarViewToBoolConverter x:Key="SidebarViewToBoolConverter"/>
-        <converters:SidebarViewToVisibilityConverter x:Key="SidebarViewToVisibilityConverter"/>
-        <converters:BoolToGridLengthConverter x:Key="BoolToGridLengthConverter" OpenWidth="250"/>
+        <appconv:SidebarViewToBoolConverter x:Key="SidebarViewToBoolConverter"/>
+        <appconv:SidebarViewToVisibilityConverter x:Key="SidebarViewToVisibilityConverter"/>
+        <appconv:BoolToGridLengthConverter x:Key="BoolToGridLengthConverter" OpenWidth="250"/>
 
         <!-- DataGrid SelectAll Button Style (top-left corner) -->
         <Style x:Key="{ComponentResourceKey TypeInTargetAssembly={x:Type DataGrid}, ResourceId=DataGridSelectAllButtonStyle}" TargetType="Button">
@@ -60,49 +62,7 @@
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
 
-        <!-- Excel-like Column Header Style -->
-        <Style x:Key="ExcelColumnHeaderStyle" TargetType="DataGridColumnHeader">
-            <Setter Property="Background">
-                <Setter.Value>
-                    <MultiBinding Converter="{StaticResource ColumnIndexToBrushConverter}">
-                        <Binding Path="Column.DisplayIndex" RelativeSource="{RelativeSource Self}"/>
-                        <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.VimState.CursorPosition.Column"/>
-                    </MultiBinding>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderForegroundBrush}"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="Padding" Value="5,3"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ColumnHeader_PreviewMouseLeftButtonDown"/>
-            <EventSetter Event="PreviewMouseMove" Handler="ColumnHeader_PreviewMouseMove"/>
-            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="ColumnHeader_PreviewMouseLeftButtonUp"/>
-            <EventSetter Event="MouseRightButtonUp" Handler="ColumnHeader_MouseRightButtonUp"/>
-        </Style>
-
-        <!-- Excel-like Row Header Style -->
-        <Style x:Key="ExcelRowHeaderStyle" TargetType="DataGridRowHeader">
-            <Setter Property="Background">
-                <Setter.Value>
-                    <MultiBinding Converter="{StaticResource RowIndexToBrushConverter}">
-                        <Binding RelativeSource="{RelativeSource AncestorType=DataGridRow}" Path="Item.Index"/>
-                        <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.VimState.CursorPosition.Row"/>
-                    </MultiBinding>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderForegroundBrush}"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DataGridBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="Width" Value="40"/>
-            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="RowHeader_PreviewMouseLeftButtonDown"/>
-            <EventSetter Event="PreviewMouseMove" Handler="RowHeader_PreviewMouseMove"/>
-            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="RowHeader_PreviewMouseLeftButtonUp"/>
-            <EventSetter Event="MouseRightButtonUp" Handler="RowHeader_MouseRightButtonUp"/>
-        </Style>
+        <!-- DataGrid styles are now defined inside TsvEditorControl -->
 
         <!-- Excel-like Row Style -->
         <Style x:Key="ExcelRowStyle" TargetType="DataGridRow">
@@ -1050,113 +1010,14 @@
                 </TabControl.ItemTemplate>
                 <TabControl.ContentTemplate>
                     <DataTemplate>
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- DataGrid Layer -->
-                            <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="0" Margin="0">
-                                <DataGrid x:Name="TsvGrid"
-                                          ItemsSource="{Binding GridViewModel.Rows}"
-                                          AlternationCount="2"
-                                          AutoGenerateColumns="False"
-                                          CanUserAddRows="False"
-                                          CanUserDeleteRows="False"
-                                          CanUserReorderColumns="False"
-                                          CanUserSortColumns="False"
-                                          CanUserResizeColumns="False"
-                                          CanUserResizeRows="False"
-                                          IsReadOnly="False"
-                                          SelectionMode="Extended"
-                                          SelectionUnit="Cell"
-                                          DataContextChanged="TsvGrid_OnDataContextChanged"
-                                          BeginningEdit="TsvGrid_BeginningEdit"
-                                          CellEditEnding="TsvGrid_CellEditEnding"
-                                          HeadersVisibility="All"
-                                          Focusable="False"
-                                          EnableRowVirtualization="True"
-                                          EnableColumnVirtualization="True"
-                                          VirtualizingPanel.IsVirtualizing="True"
-                                          VirtualizingPanel.VirtualizationMode="Recycling"
-                                          Style="{StaticResource ExcelDataGridStyle}"
-                                          ColumnHeaderStyle="{StaticResource ExcelColumnHeaderStyle}"
-                                          RowHeaderStyle="{StaticResource ExcelRowHeaderStyle}"
-                                          RowStyle="{StaticResource ExcelRowStyle}"
-                                          CellStyle="{StaticResource ExcelCellStyle}"
-                                          FontFamily="Segoe UI"
-                                          FontSize="11"
-                                          Loaded="TsvGrid_Loaded"
-                                          Margin="0">
-                                    <DataGrid.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Cut" InputGestureText="Ctrl+X" Click="ContextMenu_Cut_Click" Template="{StaticResource MenuItemItemTemplate}"/>
-                                            <MenuItem Header="Copy" InputGestureText="Ctrl+C" Click="ContextMenu_Copy_Click" Template="{StaticResource MenuItemItemTemplate}"/>
-                                            <MenuItem Header="Paste" InputGestureText="Ctrl+V" Click="ContextMenu_Paste_Click" Template="{StaticResource MenuItemItemTemplate}"/>
-                                            <Separator/>
-                                            <MenuItem Header="Delete" InputGestureText="Del" Click="ContextMenu_Delete_Click" Template="{StaticResource MenuItemItemTemplate}"/>
-                                        </ContextMenu>
-                                    </DataGrid.ContextMenu>
-                                    <!-- Columns will be generated dynamically in code-behind -->
-                                </DataGrid>
-                            </Border>
-
-                            <!-- Selected Cell Content Preview -->
-                            <Border Grid.Row="1"
-                                    Background="{DynamicResource DataGridBackgroundBrush}"
-                                    BorderBrush="{DynamicResource DataGridBorderBrush}"
-                                    BorderThickness="0,1,0,0"
-                                    MaxHeight="80"
-                                    MinHeight="24">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0"
-                                               Text="{Binding PositionText}"
-                                               Foreground="{DynamicResource DataGridHeaderForegroundBrush}"
-                                               Background="{DynamicResource DataGridHeaderBackgroundBrush}"
-                                               Padding="8,4"
-                                               MinWidth="60"
-                                               TextAlignment="Center"
-                                               VerticalAlignment="Stretch"
-                                               FontFamily="Segoe UI"
-                                               FontSize="12"/>
-                                    <ScrollViewer Grid.Column="1"
-                                                  VerticalScrollBarVisibility="Auto"
-                                                  HorizontalScrollBarVisibility="Auto">
-                                        <TextBox Text="{Binding SelectedCellContent, Mode=OneWay}"
-                                                 IsReadOnly="True"
-                                                 Background="Transparent"
-                                                 Foreground="{DynamicResource DataGridForegroundBrush}"
-                                                 BorderThickness="0"
-                                                 Padding="8,4"
-                                                 TextWrapping="Wrap"
-                                                 FontFamily="Segoe UI"
-                                                 FontSize="12"
-                                                 VerticalAlignment="Top"/>
-                                    </ScrollViewer>
-                                </Grid>
-                            </Border>
-
-                            <!-- Find/Replace Panel Overlay -->
-                            <views:FindReplacePanel Grid.Row="0"
-                                                    DataContext="{Binding FindReplaceViewModel}"
-                                                   HorizontalAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="20,10,20,0"
-                                                   Panel.ZIndex="100"/>
-
-                            <!-- Command Palette Panel Overlay -->
-                            <views:CommandPalettePanel Grid.Row="0"
-                                                       DataContext="{Binding CommandPaletteViewModel}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Top"
-                                                       Margin="0,10,0,0"
-                                                       Panel.ZIndex="101"/>
-                        </Grid>
+                        <editor:TsvEditorControl
+                            Tab="{Binding}"
+                            IsVimModeEnabled="{Binding DataContext.IsVimModeEnabled, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                            IsRestoringSession="{Binding DataContext.IsRestoringSession, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                            ColumnWidthService="{Binding DataContext.ColumnWidthService, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                            SaveRequested="TsvEditorControl_SaveRequested"
+                            CustomKeyAction="TsvEditorControl_CustomKeyAction"
+                            Loaded="TsvEditorControl_Loaded"/>
                     </DataTemplate>
                 </TabControl.ContentTemplate>
             </TabControl>

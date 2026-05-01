@@ -13,4 +13,8 @@
     <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.5" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\VGrid.Editor\VGrid.Editor.csproj" />
+  </ItemGroup>
+
 </Project>

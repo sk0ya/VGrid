@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:converters="clr-namespace:VGrid.Converters"
+        xmlns:converters="clr-namespace:VGrid.Converters;assembly=VGrid.Editor"
+        xmlns:appconv="clr-namespace:VGrid.Converters"
         mc:Ignorable="d"
         Title="Git Branches"
         Height="500" Width="700"
@@ -22,7 +23,7 @@
 
     <Window.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <converters:StringEqualityConverter x:Key="StringEqualityConverter"/>
+        <appconv:StringEqualityConverter x:Key="StringEqualityConverter"/>
         <!-- ListBox Item Style -->
         <Style x:Key="BranchListBoxItemStyle" TargetType="ListBoxItem">
             <Setter Property="Padding" Value="8,6"/>
@@ -213,7 +214,7 @@
                                                     <DataTrigger.Binding>
                                                         <MultiBinding>
                                                             <MultiBinding.Converter>
-                                                                <converters:StringEqualityConverter/>
+                                                                <appconv:StringEqualityConverter/>
                                                             </MultiBinding.Converter>
                                                             <Binding/>
                                                             <Binding Path="DataContext.CurrentBranch" RelativeSource="{RelativeSource AncestorType=Window}"/>

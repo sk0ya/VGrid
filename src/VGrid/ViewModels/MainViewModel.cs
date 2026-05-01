@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using VGrid.Commands;
+using VGrid.Editor;
 using VGrid.Helpers;
 using VGrid.Models;
 using VGrid.Services;
@@ -17,7 +18,7 @@ namespace VGrid.ViewModels;
 /// <summary>
 /// Main ViewModel for the application
 /// </summary>
-public class MainViewModel : ViewModelBase
+public class MainViewModel : ViewModelBase, IEditorContext
 {
     private readonly ITsvFileService _fileService;
     private readonly ISettingsService _settingsService;

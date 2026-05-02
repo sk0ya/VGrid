@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Package version to publish (e.g. 1.0.1)"
+        description: Package version to publish (for example 1.0.0)
         required: true
         type: string
 
@@ -16,9 +16,10 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
-
+      packages: write
     env:
       DOTNET_NOLOGO: true
+      NUGET_SOURCE_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
 
     steps:
       - name: Checkout
@@ -35,7 +36,8 @@ jobs:
         run: |
           if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
             $version = '${{ inputs.version }}'
-          } else {
+          }
+          else {
             $version = '${{ github.ref_name }}'.TrimStart('v')
           }
 
@@ -44,7 +46,6 @@ jobs:
           }
 
           "package_version=$version" >> $env:GITHUB_OUTPUT
-          Write-Host "Publishing version: $version"
 
       - name: Restore
         run: dotnet restore VGrid.sln
@@ -59,23 +60,18 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifacts\packages | Out-Null
-          dotnet pack src\VGrid.Editor\VGrid.Editor.csproj `
-            -c Release `
-            --no-build `
-            -p:Version=${{ steps.version.outputs.package_version }} `
-            -o artifacts\packages
+          dotnet pack src\VGrid.Editor\VGrid.Editor.csproj -c Release --no-build -p:Version=${{ steps.version.outputs.package_version }} -o artifacts\packages
 
-      - name: Publish to nuget.org
+      - name: Authenticate to GitHub Packages
+        run: dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github ${{ env.NUGET_SOURCE_URL }}
+
+      - name: Publish packages
         shell: pwsh
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           Get-ChildItem artifacts\packages\*.nupkg |
             Where-Object { $_.Name -notlike '*.snupkg' } |
             ForEach-Object {
-              Write-Host "Pushing $($_.Name)"
-              dotnet nuget push $_.FullName `
-                --source https://api.nuget.org/v3/index.json `
-                --api-key $env:NUGET_API_KEY `
-                --skip-duplicate
+              dotnet nuget push $_.FullName --source github --api-key $env:GITHUB_TOKEN --skip-duplicate
             }

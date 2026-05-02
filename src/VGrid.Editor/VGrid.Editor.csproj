@@ -6,15 +6,24 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 
     <!-- NuGet package metadata -->
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>VGrid.Editor</PackageId>
-    <Version>1.0.0</Version>
     <Authors>shigekazukoya</Authors>
-    <Description>A WPF TSV grid editor UserControl with Vim keybindings</Description>
-    <PackageTags>WPF;TSV;Editor;Vim;Grid;DataGrid</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/sk0ya/VGrid</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/sk0ya/VGrid</PackageProjectUrl>
+    <Description>A WPF TSV grid editor UserControl with Vim keybindings. Drop TsvEditorControl into any WPF app to get a full-featured TSV editor with Normal/Insert/Visual/Command modes.</Description>
+    <PackageTags>WPF;TSV;Editor;Vim;Grid;DataGrid;MVVM</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\..\README.md" Pack="true" PackagePath="\" Visible="false"/>
+  </ItemGroup>
 
 </Project>

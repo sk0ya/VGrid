@@ -121,9 +121,13 @@
                 </DataGrid.RowStyle>
 
                 <DataGrid.ContextMenu>
-                    <ContextMenu>
+                    <ContextMenu Opened="ContextMenu_Opened">
                         <MenuItem Header="Cut" InputGestureText="Ctrl+X" Click="ContextMenu_Cut_Click"/>
                         <MenuItem Header="Copy" InputGestureText="Ctrl+C" Click="ContextMenu_Copy_Click"/>
+                        <MenuItem x:Name="CopyAsMarkdownTableMenuItem"
+                                  Header="マークダウンの表としてコピー"
+                                  Visibility="Collapsed"
+                                  Click="ContextMenu_CopyAsMarkdownTable_Click"/>
                         <MenuItem Header="Paste" InputGestureText="Ctrl+V" Click="ContextMenu_Paste_Click"/>
                         <Separator/>
                         <MenuItem Header="Delete" InputGestureText="Del" Click="ContextMenu_Delete_Click"/>

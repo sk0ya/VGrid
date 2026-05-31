@@ -170,6 +170,13 @@ public partial class TsvEditorControl : UserControl, IEditorContext
 
     // --- Context menu handlers ---
 
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        CopyAsMarkdownTableMenuItem.Visibility = HasMultipleCellSelection()
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
     private void ContextMenu_Cut_Click(object sender, RoutedEventArgs e)
     {
         ContextMenu_Copy_Click(sender, e);
@@ -181,45 +188,24 @@ public partial class TsvEditorControl : UserControl, IEditorContext
         var tab = Tab;
         if (tab == null) return;
         var state = tab.VimState;
-        var document = tab.GridViewModel.Document;
-
-        if (state.CurrentSelection != null)
-        {
-            var selection = state.CurrentSelection;
-            var values = new string[selection.RowCount, selection.ColumnCount];
-            for (int r = 0; r < selection.RowCount; r++)
-                for (int c = 0; c < selection.ColumnCount; c++)
-                {
-                    int docRow = selection.StartRow + r;
-                    int docCol = selection.StartColumn + c;
-                    values[r, c] = docRow < document.RowCount && docCol < document.Rows[docRow].Cells.Count
-                        ? document.Rows[docRow].Cells[docCol].Value
-                        : string.Empty;
-                }
-            state.LastYank = new YankedContent
-            {
-                Values = values,
-                SourceType = selection.Type,
-                Rows = selection.RowCount,
-                Columns = selection.ColumnCount
-            };
-        }
-        else
-        {
-            var cell = document.GetCell(state.CursorPosition);
-            if (cell == null) return;
-            var values = new string[1, 1];
-            values[0, 0] = cell.Value;
-            state.LastYank = new YankedContent
-            {
-                Values = values,
-                SourceType = VisualType.Character,
-                Rows = 1,
-                Columns = 1
-            };
-        }
+        state.LastYank = CreateYankedContentFromCurrentSelection(tab);
+        if (state.LastYank == null) return;
 
         ClipboardHelper.CopyToClipboard(state.LastYank);
+        state.OnYankPerformed();
+    }
+
+    private void ContextMenu_CopyAsMarkdownTable_Click(object sender, RoutedEventArgs e)
+    {
+        var tab = Tab;
+        if (tab == null || !HasMultipleCellSelection()) return;
+
+        var state = tab.VimState;
+        var yank = CreateYankedContentFromCurrentSelection(tab);
+        if (yank == null) return;
+
+        state.LastYank = yank;
+        ClipboardHelper.CopyMarkdownTableToClipboard(yank);
         state.OnYankPerformed();
     }
 
@@ -254,5 +240,62 @@ public partial class TsvEditorControl : UserControl, IEditorContext
             if (state.CursorPosition.Row >= document.RowCount) return;
             state.CommandHistory?.Execute(new EditCellCommand(document, state.CursorPosition, string.Empty));
         }
+    }
+
+    private bool HasMultipleCellSelection()
+    {
+        var selection = Tab?.VimState.CurrentSelection;
+        if (selection == null || Tab == null)
+            return false;
+
+        int columnCount = selection.Type == VisualType.Line
+            ? Tab.GridViewModel.Document.ColumnCount
+            : selection.ColumnCount;
+
+        return selection.RowCount * columnCount > 1;
+    }
+
+    internal static YankedContent? CreateYankedContentFromCurrentSelection(TabItemViewModel tab)
+    {
+        var state = tab.VimState;
+        var document = tab.GridViewModel.Document;
+
+        if (state.CurrentSelection != null)
+        {
+            var selection = state.CurrentSelection;
+            int startColumn = selection.Type == VisualType.Line ? 0 : selection.StartColumn;
+            int columnCount = selection.Type == VisualType.Line ? document.ColumnCount : selection.ColumnCount;
+            var values = new string[selection.RowCount, columnCount];
+            for (int r = 0; r < selection.RowCount; r++)
+                for (int c = 0; c < columnCount; c++)
+                {
+                    int docRow = selection.StartRow + r;
+                    int docCol = startColumn + c;
+                    values[r, c] = docRow < document.RowCount && docCol < document.Rows[docRow].Cells.Count
+                        ? document.Rows[docRow].Cells[docCol].Value
+                        : string.Empty;
+                }
+
+            return new YankedContent
+            {
+                Values = values,
+                SourceType = selection.Type,
+                Rows = selection.RowCount,
+                Columns = columnCount
+            };
+        }
+
+        var cell = document.GetCell(state.CursorPosition);
+        if (cell == null) return null;
+
+        var singleCell = new string[1, 1];
+        singleCell[0, 0] = cell.Value;
+        return new YankedContent
+        {
+            Values = singleCell,
+            SourceType = VisualType.Character,
+            Rows = 1,
+            Columns = 1
+        };
     }
 }

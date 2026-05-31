@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\VGrid.Editor\VGrid.Editor.csproj" />
     <ProjectReference Include="..\..\src\VGrid\VGrid.csproj" />
   </ItemGroup>
 

@@ -38,6 +38,27 @@ public static class ClipboardHelper
     }
 
     /// <summary>
+    /// Copies YankedContent to the system clipboard as a Markdown table.
+    /// </summary>
+    public static void CopyMarkdownTableToClipboard(YankedContent? yank)
+    {
+        if (yank == null || yank.Values == null)
+            return;
+
+        try
+        {
+            string markdownText = ConvertToMarkdownTable(yank);
+            System.Windows.Clipboard.SetText(markdownText);
+            _lastClipboardContent = markdownText;
+        }
+        catch (Exception ex)
+        {
+            // Ignore clipboard errors (e.g., clipboard in use by another process)
+            System.Diagnostics.Debug.WriteLine($"[ClipboardHelper] CopyMarkdownTableToClipboard: Error - {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Reads TSV text from the system clipboard and converts it to YankedContent
     /// </summary>
     public static YankedContent? ReadFromClipboard()
@@ -135,6 +156,64 @@ public static class ClipboardHelper
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Converts YankedContent to a Markdown table string.
+    /// </summary>
+    public static string ConvertToMarkdownTable(YankedContent yank)
+    {
+        if (yank.Rows <= 0 || yank.Columns <= 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        AppendMarkdownRow(sb, yank, 0);
+        AppendMarkdownSeparator(sb, yank.Columns);
+
+        for (int r = 1; r < yank.Rows; r++)
+        {
+            AppendMarkdownRow(sb, yank, r);
+        }
+
+        return sb.ToString();
+    }
+
+    private static void AppendMarkdownRow(StringBuilder sb, YankedContent yank, int row)
+    {
+        sb.Append("| ");
+        for (int c = 0; c < yank.Columns; c++)
+        {
+            if (c > 0)
+                sb.Append(" | ");
+
+            sb.Append(EscapeMarkdownTableCell(yank.Values[row, c] ?? string.Empty));
+        }
+
+        sb.AppendLine(" |");
+    }
+
+    private static void AppendMarkdownSeparator(StringBuilder sb, int columns)
+    {
+        sb.Append("| ");
+        for (int c = 0; c < columns; c++)
+        {
+            if (c > 0)
+                sb.Append(" | ");
+
+            sb.Append("---");
+        }
+
+        sb.AppendLine(" |");
+    }
+
+    private static string EscapeMarkdownTableCell(string value)
+    {
+        return value
+            .Replace("\\", "\\\\")
+            .Replace("|", "\\|")
+            .Replace("\r\n", "<br>")
+            .Replace("\r", "<br>")
+            .Replace("\n", "<br>");
     }
 
     /// <summary>

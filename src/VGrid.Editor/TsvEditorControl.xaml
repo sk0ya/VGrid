@@ -66,6 +66,8 @@
                                 <MultiBinding Converter="{StaticResource ColumnIndexToBrushConverter}">
                                     <Binding Path="Column.DisplayIndex" RelativeSource="{RelativeSource Self}"/>
                                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.VimState.CursorPosition.Column"/>
+                                    <!-- Header element itself: lets the converter resolve theme brushes via the element tree -->
+                                    <Binding RelativeSource="{RelativeSource Self}"/>
                                 </MultiBinding>
                             </Setter.Value>
                         </Setter>
@@ -89,6 +91,8 @@
                                 <MultiBinding Converter="{StaticResource RowIndexToBrushConverter}">
                                     <Binding RelativeSource="{RelativeSource AncestorType=DataGridRow}" Path="Item.Index"/>
                                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.VimState.CursorPosition.Row"/>
+                                    <!-- Header element itself: lets the converter resolve theme brushes via the element tree -->
+                                    <Binding RelativeSource="{RelativeSource Self}"/>
                                 </MultiBinding>
                             </Setter.Value>
                         </Setter>

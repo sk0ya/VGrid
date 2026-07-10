@@ -11,6 +11,22 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         <converters:ModeToColorConverter x:Key="ModeToColorConverter"/>
+
+        <!-- DataGrid の左上だけ OS 既定色にならないよう、埋め込み先にも届く
+             DataGrid の既定 ComponentResourceKey で全選択ボタンをテーマ化する。 -->
+        <Style x:Key="{ComponentResourceKey TypeInTargetAssembly={x:Type DataGrid}, ResourceId=DataGridSelectAllButtonStyle}"
+               TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{DynamicResource DataGridSelectAllButtonBrush}"
+                                BorderBrush="{DynamicResource DataGridBorderBrush}"
+                                BorderThickness="0,0,1,1"
+                                SnapsToDevicePixels="True"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>

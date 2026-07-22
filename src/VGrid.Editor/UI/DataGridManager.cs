@@ -290,6 +290,35 @@ public class DataGridManager
             column.Width = new DataGridLength(width, DataGridLengthUnitType.Pixel);
     }
 
+    private void UpdateColumnWidthAfterEdit(DataGrid grid, TabItemViewModel tab, int columnIndex,
+        string oldValue, string newValue)
+    {
+        if (tab.ManuallyResizedColumns.Contains(columnIndex)) return;
+
+        var typeface = new Typeface(
+            grid.FontFamily ?? new FontFamily("Segoe UI"),
+            grid.FontStyle, grid.FontWeight, grid.FontStretch);
+        double fontSize = grid.FontSize > 0 ? grid.FontSize : 11;
+        double oldWidth = _context.ColumnWidthService.MeasureTextWidth(oldValue, typeface, fontSize);
+        double newWidth = _context.ColumnWidthService.MeasureTextWidth(newValue, typeface, fontSize);
+        double currentWidth = tab.ColumnWidths.TryGetValue(columnIndex, out var storedWidth)
+            ? storedWidth
+            : columnIndex < grid.Columns.Count ? grid.Columns[columnIndex].ActualWidth : 100;
+
+        if (newWidth > currentWidth)
+        {
+            tab.ColumnWidths[columnIndex] = newWidth;
+            if (columnIndex < grid.Columns.Count)
+                grid.Columns[columnIndex].Width = new DataGridLength(newWidth, DataGridLengthUnitType.Pixel);
+        }
+        else if (oldWidth >= currentWidth - 0.5 && newWidth < oldWidth)
+        {
+            // The edited cell may have determined the column maximum; only this case
+            // needs a scan to find the next widest value.
+            AutoFitColumn(grid, tab, columnIndex);
+        }
+    }
+
     public void AutoFitColumns(DataGrid grid, TabItemViewModel tab, IEnumerable<int> columnIndices)
     {
         if (grid == null || tab == null || columnIndices == null) return;
@@ -308,11 +337,14 @@ public class DataGridManager
         var tab = _context.SelectedTab;
         int columnIndex = e.Column.DisplayIndex;
         int rowIndex = e.Row != null ? tab.GridViewModel.Document.Rows.IndexOf((Row)e.Row.Item) : -1;
+        string originalValue = tab.VimState.InsertModeOriginalValue;
+        string editedValue = e.EditingElement is TextBox editingTextBox
+            ? editingTextBox.Text
+            : originalValue;
 
         if (tab.VimState.InsertModeStartPosition != null && e.EditingElement is TextBox textBox)
         {
             string newValue = textBox.Text;
-            string originalValue = tab.VimState.InsertModeOriginalValue;
 
             if (newValue != originalValue && rowIndex >= 0 && columnIndex >= 0)
             {
@@ -340,7 +372,7 @@ public class DataGridManager
 
         grid.Dispatcher.BeginInvoke(new Action(() =>
         {
-            AutoFitColumn(grid, tab, columnIndex);
+            UpdateColumnWidthAfterEdit(grid, tab, columnIndex, originalValue, editedValue);
             tab.RefreshSelectedCellContent();
         }), System.Windows.Threading.DispatcherPriority.Background);
     }

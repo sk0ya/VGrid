@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using VGrid.Commands;
 using VGrid.Editor;
 using VGrid.Models;
@@ -32,6 +33,7 @@ public class DataGridManager
         = new();
 
     private readonly Dictionary<DataGrid, int> _dataGridColumnCount = new();
+    private readonly Dictionary<DataGrid, DispatcherOperation> _pendingFocusOperations = new();
 
     private Style? _cachedEditingStyle;
     private readonly Dictionary<int, Style> _cachedCellStyles = new();
@@ -181,12 +183,6 @@ public class DataGridManager
             grid.PreviewMouseWheel += TsvGrid_PreviewMouseWheel;
 
             grid.LoadingRow += (s, evt) => { evt.Row.Header = (evt.Row.GetIndex() + 1).ToString(); };
-
-            grid.ItemContainerGenerator.StatusChanged += (s, evt) =>
-            {
-                if (grid.ItemContainerGenerator.Status == GeneratorStatus.ContainersGenerated)
-                    UpdateAllRowHeaders(grid);
-            };
 
             bool suppressFocusOnInit = _context.IsRestoringSession;
             grid.Dispatcher.BeginInvoke(new Action(() => { UpdateDataGridSelection(grid, tabItem, suppressFocusOnInit); }),
@@ -414,17 +410,6 @@ public class DataGridManager
         return columnName;
     }
 
-    private void UpdateAllRowHeaders(DataGrid grid)
-    {
-        if (grid == null) return;
-        for (int i = 0; i < grid.Items.Count; i++)
-        {
-            var row = grid.ItemContainerGenerator.ContainerFromIndex(i) as DataGridRow;
-            if (row != null)
-                row.Header = (i + 1).ToString();
-        }
-    }
-
     public void UpdateDataGridSelection(DataGrid grid, TabItemViewModel tab, bool suppressFocus = false)
     {
         if (grid == null || tab == null) return;
@@ -451,23 +436,34 @@ public class DataGridManager
 
             if (!isFindReplaceOpen && !isInsertMode && !isPendingBulkEdit && !isRestoring)
             {
-                grid.UpdateLayout();
-                Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                // ScrollIntoView realizes the target asynchronously. Coalesce focus requests so
+                // rapid cursor movement does not queue work for positions that are already stale.
+                if (_pendingFocusOperations.Remove(grid, out var pending) &&
+                    pending.Status == DispatcherOperationStatus.Pending)
+                    pending.Abort();
+
+                var operation = grid.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     try
                     {
                         _isUpdatingSelection = true;
                         if (tab.VimState.CurrentMode == VimMode.Insert) return;
-                        var row = grid.ItemContainerGenerator.ContainerFromIndex(pos.Row) as DataGridRow;
+                        var currentPos = tab.VimState.CursorPosition;
+                        var row = grid.ItemContainerGenerator.ContainerFromIndex(currentPos.Row) as DataGridRow;
                         if (row != null)
                         {
-                            var cell = GetCell(grid, row, pos.Column);
+                            var cell = GetCell(grid, row, currentPos.Column);
                             cell?.Focus();
                         }
                     }
                     catch { }
-                    finally { _isUpdatingSelection = false; }
-                }), System.Windows.Threading.DispatcherPriority.Background);
+                    finally
+                    {
+                        _isUpdatingSelection = false;
+                        _pendingFocusOperations.Remove(grid);
+                    }
+                }), DispatcherPriority.Background);
+                _pendingFocusOperations[grid] = operation;
             }
         }
         finally { _isUpdatingSelection = false; }
@@ -1115,6 +1111,9 @@ public class DataGridManager
         var dataGridToRemove = _dataGridHandlers.FirstOrDefault(kvp => kvp.Value.tab == tab).Key;
         if (dataGridToRemove != null)
         {
+            if (_pendingFocusOperations.Remove(dataGridToRemove, out var pending) &&
+                pending.Status == DispatcherOperationStatus.Pending)
+                pending.Abort();
             _dataGridHandlers.Remove(dataGridToRemove);
             _dataGridColumnCount.Remove(dataGridToRemove);
         }

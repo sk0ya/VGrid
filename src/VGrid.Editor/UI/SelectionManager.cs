@@ -103,7 +103,6 @@ public class SelectionManager
             tab.VimState.CursorPosition = new GridPosition(rowIndex, 0);
         }
 
-        UpdateHeaderSelectionHighlighting(tab);
     }
 
     private void HandleColumnSelection(TabItemViewModel tab, int columnIndex, bool isCtrl, bool isShift)
@@ -136,29 +135,6 @@ public class SelectionManager
             tab.VimState.CursorPosition = new GridPosition(0, columnIndex);
         }
 
-        UpdateHeaderSelectionHighlighting(tab);
-    }
-
-    private void UpdateHeaderSelectionHighlighting(TabItemViewModel tab)
-    {
-        foreach (var row in tab.Document.Rows)
-            foreach (var cell in row.Cells)
-                cell.IsSelected = false;
-
-        if (tab.VimState.SelectedRows.Count > 0)
-        {
-            foreach (int rowIndex in tab.VimState.SelectedRows)
-                if (rowIndex >= 0 && rowIndex < tab.Document.RowCount)
-                    foreach (var cell in tab.Document.Rows[rowIndex].Cells)
-                        cell.IsSelected = true;
-        }
-        else if (tab.VimState.SelectedColumns.Count > 0)
-        {
-            foreach (var row in tab.Document.Rows)
-                foreach (int colIndex in tab.VimState.SelectedColumns)
-                    if (colIndex >= 0 && colIndex < row.Cells.Count)
-                        row.Cells[colIndex].IsSelected = true;
-        }
     }
 
     public void RowHeader_PreviewMouseMove(object sender, MouseEventArgs e)
@@ -191,7 +167,6 @@ public class SelectionManager
             new GridPosition(startRow, 0),
             new GridPosition(endRow, tab.Document.ColumnCount - 1));
 
-        UpdateHeaderSelectionHighlighting(tab);
     }
 
     public void RowHeader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -235,7 +210,6 @@ public class SelectionManager
             new GridPosition(0, startCol),
             new GridPosition(tab.Document.RowCount - 1, endCol));
 
-        UpdateHeaderSelectionHighlighting(tab);
     }
 
     public void ColumnHeader_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)

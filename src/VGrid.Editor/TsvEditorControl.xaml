@@ -63,7 +63,7 @@
                       Foreground="{DynamicResource DataGridForegroundBrush}"
                       RowBackground="{DynamicResource DataGridRowBackgroundBrush}"
                       AlternatingRowBackground="{DynamicResource DataGridRowBackgroundBrush}"
-                      GridLinesVisibility="All"
+                      GridLinesVisibility="None"
                       HorizontalGridLinesBrush="{DynamicResource DataGridGridLinesBrush}"
                       VerticalGridLinesBrush="{DynamicResource DataGridGridLinesBrush}"
                       RowHeaderWidth="40"
